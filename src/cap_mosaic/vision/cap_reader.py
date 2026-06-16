@@ -9,6 +9,9 @@ grabber (OpenCV) is a thin, lazily-imported shell function.
 
 from __future__ import annotations
 
+import io
+import urllib.request
+
 import numpy as np
 from PIL import Image
 
@@ -33,6 +36,19 @@ def read_dominant_color(
     not_glare = ~np.all(pixels > glare_level, axis=1)
     sample = pixels[not_glare] if not_glare.any() else pixels
     return tuple(int(v) for v in np.median(sample, axis=0))
+
+
+def grab_snapshot(url: str, timeout: float = 5.0) -> Image.Image:
+    """Fetch a single JPEG frame from a phone's snapshot endpoint over HTTP.
+
+    Works with just the standard library + Pillow (no OpenCV), which makes it the
+    lowest-friction way to confirm the phone <-> PC link on the same network. The
+    URL is the IP-webcam app's still-image endpoint, e.g.
+    ``http://192.168.1.42:8080/shot.jpg``.
+    """
+    with urllib.request.urlopen(url, timeout=timeout) as resp:  # noqa: S310
+        data = resp.read()
+    return Image.open(io.BytesIO(data)).convert("RGB")
 
 
 def phone_frame_grabber(url: str):  # pragma: no cover - needs a phone + network
