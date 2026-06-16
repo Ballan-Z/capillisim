@@ -20,16 +20,18 @@ Milestone 4) and is not required for success.
 ### M0 — Project setup *(done)*
 Repo, prior-art review, architecture/hardware/scope docs, package skeleton.
 
-### M1 — Designer core (no hardware, fully testable)
+### M1 — Designer core (no hardware, fully testable) *(done)*
 Pure-Python `core/`: hex-grid layout, palette quantization, image → `GridPlan`,
 bill-of-materials, the viewing-distance simulator, and the JSON project-file
 format. **Deliverable:** a CLI that turns an image + size/cap-count into a plan,
 a per-color BOM, and "view from X metres" preview PNGs.
 
-### M2 — Projection + calibration
-Fullscreen projector window; 4-corner / known-rectangle calibration to recover
-1:1 scale + keystone (homography between table mm and projector px); render the
-full template and a single highlighted cell at the correct table position.
+### M2 — Projection + calibration *(core done; on-rig display pending)*
+4-corner / known-rectangle calibration to recover 1:1 scale + keystone
+(homography between table mm and projector px); render the full template and a
+single glowing highlighted cell at the correct table position. The homography
+math and frame rendering are implemented and unit-tested headless; putting the
+frame fullscreen on the real projector is the remaining hardware step.
 **Deliverable:** project a plan at true size and light up any chosen cell.
 
 ### M3 — The interactive loop (this is the POC)
