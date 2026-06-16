@@ -1,4 +1,7 @@
-# Cap Mosaic Studio
+# Capillisim
+
+*cap + pointillism* — because building a picture from discrete colored caps is
+exactly what the pointillists did with dots.
 
 Interactively build a mosaic out of bottle caps (mostly beer caps), guided by a
 projector and a phone camera. You design a target image, the system computes the

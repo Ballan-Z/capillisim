@@ -15,6 +15,10 @@ env/
 .ruff_cache/
 
 # Project runtime artifacts
-*.capproj.json        # build project files (state) — keep out of git by default
-calibration/*.json    # per-rig calibration data
-previews/             # generated distance-preview images
+# build project files (live state) — keep out of git by default
+*.capproj.json
+plans/
+# per-rig calibration data
+calibration/
+# generated distance-preview images
+previews/
