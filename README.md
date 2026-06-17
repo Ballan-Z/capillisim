@@ -39,6 +39,7 @@ this project. Details in `docs/PRIOR_ART.md`.
 
 ## Docs
 
+- `docs/RIG_SETUP.md` — **start here for the build:** boxes → calibration → live loop, with diagrams.
 - `docs/PRIOR_ART.md` — what exists, what's novel.
 - `docs/ARCHITECTURE.md` — components, data flow, the portable-core split, math.
 - `docs/POC_OPERATION.md` — how projector + phone + PC connect and run the loop.

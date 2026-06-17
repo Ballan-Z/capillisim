@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="840" height="470" viewBox="0 0 840 470" font-family="Segoe UI, Arial, sans-serif">
+  <rect width="840" height="470" fill="#fbfbfa"/>
+  <text x="420" y="34" text-anchor="middle" font-size="22" font-weight="700" fill="#1d2330">Viewing distance — caps blend into a picture as you step back</text>
+  <text x="420" y="58" text-anchor="middle" font-size="13" fill="#5a6170">Detail is set by caps-across, not physical size; size only sets how far you stand.</text>
+
+  <!-- the piece: 10x6 caps forming a simple high-contrast shape -->
+  <g id="piece">
+    <rect x="40" y="92" width="248" height="168" fill="#ffffff" stroke="#a8966f" stroke-width="2"/>
+  </g>
+  <!-- caps: dark ring on light field (a smiley as a stand-in subject) -->
+  <g stroke="#566273" stroke-width="0.6">
+    <!-- generate a 10x6 grid; dark = #2b3340, light = #e7c14d -->
+    <!-- row helper: y = 104 + r*26 ; x = 54 + c*26 -->
+    <!-- light background everywhere, dark where shape -->
+    <!-- We'll just place a recognizable arc + eyes -->
+    <!-- light field -->
+    <g fill="#e7c14d">
+      <circle cx="54" cy="104" r="11"/><circle cx="80" cy="104" r="11"/><circle cx="106" cy="104" r="11"/><circle cx="132" cy="104" r="11"/><circle cx="158" cy="104" r="11"/><circle cx="184" cy="104" r="11"/><circle cx="210" cy="104" r="11"/><circle cx="236" cy="104" r="11"/><circle cx="262" cy="104" r="11"/>
+      <circle cx="54" cy="130" r="11"/><circle cx="80" cy="130" r="11"/><circle cx="132" cy="130" r="11"/><circle cx="158" cy="130" r="11"/><circle cx="210" cy="130" r="11"/><circle cx="236" cy="130" r="11"/><circle cx="262" cy="130" r="11"/>
+      <circle cx="54" cy="156" r="11"/><circle cx="80" cy="156" r="11"/><circle cx="106" cy="156" r="11"/><circle cx="132" cy="156" r="11"/><circle cx="158" cy="156" r="11"/><circle cx="184" cy="156" r="11"/><circle cx="210" cy="156" r="11"/><circle cx="236" cy="156" r="11"/><circle cx="262" cy="156" r="11"/>
+      <circle cx="54" cy="182" r="11"/><circle cx="262" cy="182" r="11"/><circle cx="80" cy="182" r="11"/><circle cx="236" cy="182" r="11"/>
+      <circle cx="54" cy="208" r="11"/><circle cx="80" cy="208" r="11"/><circle cx="106" cy="208" r="11"/><circle cx="184" cy="208" r="11"/><circle cx="210" cy="208" r="11"/><circle cx="236" cy="208" r="11"/><circle cx="262" cy="208" r="11"/>
+      <circle cx="54" cy="234" r="11"/><circle cx="80" cy="234" r="11"/><circle cx="106" cy="234" r="11"/><circle cx="132" cy="234" r="11"/><circle cx="158" cy="234" r="11"/><circle cx="184" cy="234" r="11"/><circle cx="210" cy="234" r="11"/><circle cx="236" cy="234" r="11"/><circle cx="262" cy="234" r="11"/>
+    </g>
+    <!-- dark shape: eyes + smile -->
+    <g fill="#2b3340">
+      <circle cx="106" cy="130" r="11"/><circle cx="184" cy="130" r="11"/>
+      <circle cx="106" cy="182" r="11"/><circle cx="132" cy="182" r="11"/><circle cx="158" cy="182" r="11"/><circle cx="184" cy="182" r="11"/><circle cx="210" cy="182" r="11"/><circle cx="132" cy="208" r="11"/><circle cx="158" cy="208" r="11"/>
+    </g>
+  </g>
+  <text x="164" y="284" text-anchor="middle" font-size="12" font-weight="700" fill="#1d2330">up close: you see individual caps</text>
+
+  <!-- thumbnail far view (blurred-ish small) -->
+  <g>
+    <rect x="690" y="150" width="74" height="50" fill="#e7c14d" stroke="#a8966f" stroke-width="1.5"/>
+    <circle cx="712" cy="166" r="4" fill="#2b3340"/><circle cx="742" cy="166" r="4" fill="#2b3340"/>
+    <path d="M708,184 q19,12 38,0" stroke="#2b3340" stroke-width="4" fill="none"/>
+    <text x="727" y="216" text-anchor="middle" font-size="12" font-weight="700" fill="#1d2330">from afar: a face</text>
+  </g>
+
+  <!-- distance axis -->
+  <line x1="300" y1="360" x2="700" y2="360" stroke="#3a4150" stroke-width="2"/>
+  <polygon points="700,360 688,355 688,365" fill="#3a4150"/>
+  <!-- eye -->
+  <g transform="translate(726,360)">
+    <path d="M-22,0 q22,-18 44,0 q-22,18 -44,0 Z" fill="#fff" stroke="#3a4150" stroke-width="2"/>
+    <circle cx="0" cy="0" r="7" fill="#2b6cb0"/><circle cx="0" cy="0" r="3" fill="#1d2330"/>
+  </g>
+
+  <!-- ticks -->
+  <g font-size="12" fill="#1d2330">
+    <line x1="340" y1="352" x2="340" y2="368" stroke="#3a4150" stroke-width="2"/>
+    <text x="340" y="388" text-anchor="middle" font-weight="700">0.9 m</text>
+    <text x="340" y="404" text-anchor="middle" fill="#5a6170">whole piece fills view</text>
+
+    <line x1="470" y1="352" x2="470" y2="368" stroke="#1fb13f" stroke-width="2"/>
+    <text x="470" y="388" text-anchor="middle" font-weight="700" fill="#1a7d33">~3 m</text>
+    <text x="470" y="404" text-anchor="middle" fill="#1a7d33">recommended viewing</text>
+
+    <line x1="600" y1="352" x2="600" y2="368" stroke="#3a4150" stroke-width="2"/>
+    <text x="600" y="388" text-anchor="middle" font-weight="700">~4.4 m</text>
+    <text x="600" y="404" text-anchor="middle" fill="#5a6170">caps merge → reads as picture</text>
+  </g>
+  <text x="300" y="344" font-size="12" fill="#5a6170">piece</text>
+
+  <text x="420" y="448" text-anchor="middle" font-size="12" fill="#1d2330">For 32 mm caps: bold subjects read from ~3–5 m; a ~0.7 m piece is best viewed around 3 m.</text>
+</svg>
