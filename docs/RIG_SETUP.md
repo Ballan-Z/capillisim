@@ -4,6 +4,8 @@ The one-page checklist to go from boxes to building, the first time. It chains
 the hardware, the calibration, and the live loop. Deeper detail lives in
 [`CALIBRATION.md`](CALIBRATION.md) and [`SIZING_AND_VIEWING.md`](SIZING_AND_VIEWING.md).
 
+![Cap mosaic build rig](images/rig-hero.png)
+
 ## How the rig is wired
 
 The PC is the hub. The projector is just a second monitor on HDMI; the phone is
