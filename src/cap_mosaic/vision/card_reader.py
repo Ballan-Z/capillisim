@@ -11,10 +11,12 @@ Frames are RGB numpy arrays (H, W, 3) uint8 — matching PIL decoding and the
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import cv2
 import numpy as np
 
-from ..core.palette import RGB
+from ..core.palette import RGB, Lab, rgb_to_lab
 from . import card_layout as L
 
 GLARE_LEVEL = 240  # pixels brighter than this in all channels are treated as glare
@@ -130,3 +132,30 @@ def read_cap_color(
     sample = pixels[not_glare] if not_glare.any() else pixels
     med = np.median(sample, axis=0)
     return (int(med[0]), int(med[1]), int(med[2]))
+
+
+@dataclass(frozen=True)
+class CapReading:
+    rgb: RGB
+    lab: Lab
+
+
+class CardCapReader:
+    """End-to-end: locate card -> white-balance -> read the cap colour.
+
+    ``read(rgb_frame)`` returns a :class:`CapReading` when the card is found, or
+    ``None`` when no card is visible. Cap colour is already illumination-corrected.
+    """
+
+    def __init__(self, glare_level: int = GLARE_LEVEL):
+        self.glare_level = glare_level
+
+    def read(self, rgb_frame: np.ndarray) -> "CapReading | None":
+        h = detect_card(rgb_frame)
+        if h is None:
+            return None
+        corrected = white_balance(rgb_frame, h)
+        rgb = read_cap_color(corrected, h, self.glare_level)
+        if rgb is None:
+            return None
+        return CapReading(rgb=rgb, lab=rgb_to_lab(rgb))
