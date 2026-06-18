@@ -62,7 +62,19 @@ def _draw_preview(cv2, np, frame: Image.Image, rgb, match, center: float) -> Non
 
 def run(args) -> None:
     plan = GridPlan.load(args.plan)
-    cal = Calibration.load(args.calibration)
+    if args.no_calibration:
+        cal = Calibration.fit_to_frame(
+            plan.width_mm, plan.height_mm, args.proj_width, args.proj_height
+        )
+        print(
+            "no-calibration mode: projecting the grid to fill the frame. Square "
+            "+ focus the projector with its own controls, then set mount height "
+            "so a projected ring matches a real cap, and tape the board to the grid."
+        )
+    elif args.calibration:
+        cal = Calibration.load(args.calibration)
+    else:
+        raise SystemExit("provide --calibration <file> or --no-calibration")
     session = BuildSession(plan, cal, args.reject_threshold)
     save_path = args.save or args.plan
 
@@ -124,7 +136,15 @@ def run(args) -> None:
 def main(argv: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser(prog="cap-mosaic-build", description=__doc__)
     ap.add_argument("--plan", required=True, help="plan .capproj.json")
-    ap.add_argument("--calibration", required=True, help="calibration JSON")
+    ap.add_argument("--calibration", help="calibration JSON (measured projector->table)")
+    ap.add_argument(
+        "--no-calibration",
+        action="store_true",
+        help="skip calibration: project the grid to fill the frame (square + size "
+        "the projector by its own controls instead)",
+    )
+    ap.add_argument("--proj-width", type=int, default=1920, help="projector px width (no-calibration)")
+    ap.add_argument("--proj-height", type=int, default=1080, help="projector px height (no-calibration)")
     ap.add_argument("--url", required=True, help="phone snapshot (or --stream MJPEG) URL")
     ap.add_argument("--stream", action="store_true", help="treat --url as an MJPEG stream")
     ap.add_argument("--display-x", type=int, default=0, help="projector monitor X offset")

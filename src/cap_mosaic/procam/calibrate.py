@@ -73,6 +73,34 @@ class Calibration:
         h = compute_homography(table_mm, proj_px)
         return cls(h, proj_width, proj_height)
 
+    @classmethod
+    def fit_to_frame(
+        cls,
+        width_mm: float,
+        height_mm: float,
+        proj_width: int,
+        proj_height: int,
+        margin: float = 0.05,
+    ) -> "Calibration":
+        """Calibration-free fallback: map a `width_mm` x `height_mm` plan to fill
+        the projector frame (centred, aspect-preserved), no measuring.
+
+        There is no keystone correction and no true table scale — the projector
+        must be squared and focused by its own controls, and physical size is set
+        by mount height (project, then size the board to the projection). Real
+        size = proj-frame size; ``scale`` px-per-mm is whatever fills the frame.
+        Use a measured :meth:`from_correspondences` calibration when 1:1 accuracy
+        or keystone correction matters.
+        """
+        avail_w = proj_width * (1 - 2 * margin)
+        avail_h = proj_height * (1 - 2 * margin)
+        scale = min(avail_w / width_mm, avail_h / height_mm)  # px per mm
+        ox = (proj_width - width_mm * scale) / 2
+        oy = (proj_height - height_mm * scale) / 2
+        src = [(0.0, 0.0), (width_mm, 0.0), (width_mm, height_mm), (0.0, height_mm)]
+        dst = [(ox + x * scale, oy + y * scale) for x, y in src]
+        return cls.from_correspondences(src, dst, proj_width, proj_height)
+
     def table_mm_to_proj_px(self, x_mm: float, y_mm: float) -> Point:
         return apply_homography(self.h_table_to_proj, (x_mm, y_mm))
 

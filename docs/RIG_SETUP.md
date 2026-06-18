@@ -68,6 +68,13 @@ a ruler — it must read 100 mm. Full detail in [`CALIBRATION.md`](CALIBRATION.m
 camera could solve it with no tape measure, but that needs camera-to-table
 registration (an M4 feature). The 4-point measure is the fast first-light path.
 
+**Can you skip it?** Yes — if the projector is mounted square and you use its own
+**keystone + autofocus** to square and sharpen the image, you can run the build
+with `--no-calibration` (step 6). The software then just projects the grid to
+fill the frame; you set physical size by mount height and tape the board to the
+projected grid. You lose software keystone correction and exact 1:1 scale, so
+keep the measured calibration above for fussy projectors or when accuracy matters.
+
 ## 5. Make a plan (the design)
 
 Pick a **bold, landscape** subject and size it to your piece. Detail = caps
@@ -87,6 +94,16 @@ Check `previews/` to see how it reads before committing to a cap count.
 PYTHONPATH=src python -m cap_mosaic.app.run_build \
     --plan plans/piece.capproj.json \
     --calibration calibration/table.json \
+    --url "http://user:pass@<phone-ip>:8080/shot.jpg" \
+    --display-x 1920 --center 0.5 --show-camera
+```
+
+No-calibration variant (drop `--calibration`, square the projector with its own
+controls instead):
+
+```bash
+PYTHONPATH=src python -m cap_mosaic.app.run_build \
+    --plan plans/piece.capproj.json --no-calibration \
     --url "http://user:pass@<phone-ip>:8080/shot.jpg" \
     --display-x 1920 --center 0.5 --show-camera
 ```
