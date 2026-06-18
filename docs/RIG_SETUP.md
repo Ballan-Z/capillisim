@@ -101,6 +101,9 @@ placement, so you can stop and resume across sessions.
 
 ![Viewing distance](images/viewing-distance.svg)
 
+![Finished mosaic seen from across a room](images/mosaic-from-afar.png)
+
+From a few metres back the caps blend and the piece reads like a real painting.
 With 32 mm caps a bold subject reads from **~3–5 m**; a ~0.7 m piece looks best
 around **3 m**. Build in a **dim** room (500 ANSI lumens) so the rings show;
 the finished, glued piece is viewed in normal light.
