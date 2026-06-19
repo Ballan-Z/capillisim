@@ -77,6 +77,37 @@ def _mjpeg_frames(url: str):
             b = buf.find(b"\xff\xd9", a + 2) if a != -1 else -1
 
 
+def _mjpeg_rgb_frames(url: str):
+    import io
+
+    import numpy as np
+    from PIL import Image
+
+    for jpg in _mjpeg_frames(url):
+        try:
+            yield np.asarray(Image.open(io.BytesIO(jpg)).convert("RGB"))
+        except Exception:
+            continue
+
+
+def _camera_frames(index: int, width: int = 1280, height: int = 720):
+    import cv2
+
+    cap = cv2.VideoCapture(index, cv2.CAP_DSHOW)
+    if not cap.isOpened():
+        raise SystemExit(f"could not open USB camera index {index}")
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+    try:
+        while True:
+            ok, frame = cap.read()
+            if not ok:
+                continue
+            yield cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    finally:
+        cap.release()
+
+
 def _beep():
     import winsound
     try:
@@ -99,13 +130,11 @@ def _overlay_reject(img):
 
 def main(argv: list[str] | None = None) -> None:
     import argparse
-    import io
     import threading
     import time
     from collections import deque
 
     import numpy as np
-    from PIL import Image
 
     from ..core.plan import GridPlan
     from ..procam.calibrate import Calibration
@@ -114,7 +143,10 @@ def main(argv: list[str] | None = None) -> None:
 
     ap = argparse.ArgumentParser(prog="cap-mosaic-card-build", description=__doc__)
     ap.add_argument("--plan", required=True, help="plan .capproj.json")
-    ap.add_argument("--url", required=True, help="phone MJPEG /video URL")
+    ap.add_argument("--camera", type=int, help="USB camera index (e.g. 0)")
+    ap.add_argument("--url", help="phone MJPEG /video URL (alternative to --camera)")
+    ap.add_argument("--cam-width", type=int, default=1280)
+    ap.add_argument("--cam-height", type=int, default=720)
     ap.add_argument("--calibration", help="projector calibration JSON")
     ap.add_argument("--no-calibration", action="store_true", help="fit plan to projector frame")
     ap.add_argument("--proj-width", type=int, default=1920)
@@ -137,6 +169,14 @@ def main(argv: list[str] | None = None) -> None:
     else:
         raise SystemExit("provide --calibration <file> or --no-calibration")
 
+    if args.camera is None and not args.url:
+        raise SystemExit("provide --camera <index> (USB) or --url <MJPEG>")
+
+    def _source():
+        if args.camera is not None:
+            return _camera_frames(args.camera, args.cam_width, args.cam_height)
+        return _mjpeg_rgb_frames(args.url)
+
     print(f"card build: plan '{plan.title}' {plan.filled_count}/{plan.count} filled. "
           "Place a cap on the card. SPACE=place accepted cap, Q=quit.")
 
@@ -146,11 +186,7 @@ def main(argv: list[str] | None = None) -> None:
     while time.time() < end:
         try:
             proj = Projector(monitor_x=args.display_x)
-            for jpg in _mjpeg_frames(args.url):
-                try:
-                    frame = np.asarray(Image.open(io.BytesIO(jpg)).convert("RGB"))
-                except Exception:
-                    continue
+            for frame in _source():
                 reading = reader.read(frame)
                 if reading is None:
                     state, cell = "idle", None
