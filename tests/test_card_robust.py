@@ -50,6 +50,19 @@ def test_hold_homography_across_dropouts():
     assert reader.read(dropout) is None  # third miss exceeds hold -> give up
 
 
+def test_detect_with_one_marker_occluded():
+    good = _frame_with_cap((200, 60, 55))
+    h0 = detect_card(good)
+    assert h0 is not None
+    one_gone = good.copy()
+    m = next(mk for mk in L.MARKERS if mk.id == 0)  # occlude top-left only
+    cx, cy = card_mm_to_px(h0, m.cx_mm, m.cy_mm)
+    ex, ey = card_mm_to_px(h0, m.cx_mm + L.MARKER_SIZE_MM * 0.75, m.cy_mm)
+    r = int(np.hypot(ex - cx, ey - cy))
+    cv2.rectangle(one_gone, (int(cx) - r, int(cy) - r), (int(cx) + r, int(cy) + r), (255, 255, 255), -1)
+    assert detect_card(one_gone) is not None  # 3 markers still detect
+
+
 def test_no_hold_by_default():
     good = _frame_with_cap((200, 60, 55))
     h0 = detect_card(good)

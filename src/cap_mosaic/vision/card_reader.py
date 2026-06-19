@@ -50,11 +50,12 @@ def detect_card(rgb: np.ndarray) -> np.ndarray | None:
     if ids is None:
         return None
     by_id = {int(i): c.reshape(4, 2) for c, i in zip(corners, ids.flatten())}
-    if not {m.id for m in L.MARKERS}.issubset(by_id):
+    present = [m for m in L.MARKERS if m.id in by_id]
+    if len(present) < 3:  # 3 corner markers still span the card for a homography
         return None
     half = L.MARKER_SIZE_MM / 2
     src, dst = [], []
-    for m in L.MARKERS:
+    for m in present:
         # ArUco corner order is TL, TR, BR, BL in the (upright) marker frame,
         # which matches these canonical card-mm corners.
         canon = [
