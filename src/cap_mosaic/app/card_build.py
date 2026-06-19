@@ -140,7 +140,7 @@ def main(argv: list[str] | None = None) -> None:
     from ..core.plan import GridPlan
     from ..procam.calibrate import Calibration
     from ..procam.display import Projector
-    from ..procam.render import render_projection
+    from ..procam.render import render_mosaic_projection
 
     ap = argparse.ArgumentParser(prog="cap-mosaic-card-build", description=__doc__)
     ap.add_argument("--plan", required=True, help="plan .capproj.json")
@@ -152,6 +152,9 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--no-calibration", action="store_true", help="fit plan to projector frame")
     ap.add_argument("--proj-width", type=int, default=1920)
     ap.add_argument("--proj-height", type=int, default=1080)
+    ap.add_argument("--margin", type=float, default=0.05, help="shrink the projected mosaic inside the frame (0.05=fill, higher=smaller)")
+    ap.add_argument("--rotate", type=int, default=0, choices=[0, 90, 180, 270], help="rotate the projected mosaic")
+    ap.add_argument("--widen", type=float, default=1.0, help="stretch the projection horizontally to fit a wider frame")
     ap.add_argument("--display-x", type=int, default=1920, help="projector monitor X offset")
     ap.add_argument("--reject-threshold", type=float, default=None)
     ap.add_argument("--smooth", type=int, default=8, help="frames of temporal median smoothing")
@@ -165,7 +168,7 @@ def main(argv: list[str] | None = None) -> None:
     reader = CardCapReader(hold_frames=args.hold_frames)
     save_path = args.save or args.plan
     if args.no_calibration:
-        cal = Calibration.fit_to_frame(plan.width_mm, plan.height_mm, args.proj_width, args.proj_height)
+        cal = Calibration.fit_to_frame(plan.width_mm, plan.height_mm, args.proj_width, args.proj_height, args.margin, args.rotate, args.widen)
     elif args.calibration:
         cal = Calibration.load(args.calibration)
     else:
@@ -213,7 +216,7 @@ def main(argv: list[str] | None = None) -> None:
                               f"target={tgt}", flush=True)
                     last_key = key
 
-                out = render_projection(plan, cal, highlight=(cell if state == "accept" else None))
+                out = render_mosaic_projection(plan, cal, highlight=(cell if state == "accept" else None))
                 if state == "reject":
                     out = _overlay_reject(out)
                 key = proj.show(out, max(1, args.refresh_ms))

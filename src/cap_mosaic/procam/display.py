@@ -31,6 +31,10 @@ class Projector:
         # Move onto the projector first, then flip to fullscreen on that monitor.
         cv2.moveWindow(window, monitor_x, monitor_y)
         cv2.setWindowProperty(window, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+        try:  # keep it above other windows so nothing blocks the projection
+            cv2.setWindowProperty(window, cv2.WND_PROP_TOPMOST, 1)
+        except Exception:  # pragma: no cover - older OpenCV
+            pass
 
     @property
     def cv2(self):

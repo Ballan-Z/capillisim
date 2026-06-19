@@ -17,6 +17,7 @@ Pure numpy (no OpenCV) so it runs and tests headless.
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -81,24 +82,35 @@ class Calibration:
         proj_width: int,
         proj_height: int,
         margin: float = 0.05,
+        rotate: int = 0,
+        widen: float = 1.0,
     ) -> "Calibration":
         """Calibration-free fallback: map a `width_mm` x `height_mm` plan to fill
         the projector frame (centred, aspect-preserved), no measuring.
 
+        ``rotate`` (0/90/180/270 degrees) re-orients the plan in the frame — e.g.
+        90 for a horizontal frame under a landscape projector. ``margin`` shrinks
+        the plan inside the frame (0.05 = fill, higher = smaller). ``widen`` > 1
+        stretches the projection horizontally to match a wider frame (distorts a
+        non-matching aspect; prefer a plan whose aspect matches the frame).
+
         There is no keystone correction and no true table scale — the projector
-        must be squared and focused by its own controls, and physical size is set
-        by mount height (project, then size the board to the projection). Real
-        size = proj-frame size; ``scale`` px-per-mm is whatever fills the frame.
-        Use a measured :meth:`from_correspondences` calibration when 1:1 accuracy
-        or keystone correction matters.
+        must be squared and focused by its own controls. Use a measured
+        :meth:`from_correspondences` calibration when 1:1 / keystone matters.
         """
         avail_w = proj_width * (1 - 2 * margin)
         avail_h = proj_height * (1 - 2 * margin)
-        scale = min(avail_w / width_mm, avail_h / height_mm)  # px per mm
-        ox = (proj_width - width_mm * scale) / 2
-        oy = (proj_height - height_mm * scale) / 2
+        rot = rotate % 360
+        eff_w, eff_h = (height_mm, width_mm) if rot in (90, 270) else (width_mm, height_mm)
+        scale = min(avail_w / eff_w, avail_h / eff_h)  # px per mm
+        cx, cy = proj_width / 2, proj_height / 2
+        a = math.radians(rot)
+        ca, sa = math.cos(a), math.sin(a)
         src = [(0.0, 0.0), (width_mm, 0.0), (width_mm, height_mm), (0.0, height_mm)]
-        dst = [(ox + x * scale, oy + y * scale) for x, y in src]
+        dst = []
+        for x, y in src:
+            rx, ry = (x - width_mm / 2) * scale, (y - height_mm / 2) * scale
+            dst.append((cx + (rx * ca - ry * sa) * widen, cy + rx * sa + ry * ca))
         return cls.from_correspondences(src, dst, proj_width, proj_height)
 
     def table_mm_to_proj_px(self, x_mm: float, y_mm: float) -> Point:

@@ -42,3 +42,14 @@ def test_template_draws_rings_without_highlight():
     plan, cal = _plan_and_cal()
     frame = np.asarray(render_projection(plan, cal, show_template=True))
     assert frame.max() > 0  # something was drawn
+
+
+def test_mosaic_projection_fills_with_cell_colors():
+    from cap_mosaic.procam.render import render_mosaic_projection
+
+    plan, cal = _plan_and_cal()
+    frame = render_mosaic_projection(plan, cal)
+    assert frame.size == (1024, 1024)
+    arr = np.asarray(frame)
+    assert arr.sum() > 0  # not a black frame
+    assert arr[..., 1].max() > 50  # greenish source -> filled cells, not just rings

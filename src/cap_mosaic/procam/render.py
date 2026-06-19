@@ -49,6 +49,29 @@ def render_projection(
     return img
 
 
+def render_mosaic_projection(
+    plan: GridPlan,
+    cal: Calibration,
+    highlight: PlannedCell | None = None,
+) -> Image.Image:
+    """Project the *image being built*: every cell filled with its target cap
+    colour (so the picture is visible), placed cells ringed white, and a glow on
+    the next target cell.
+    """
+    img = Image.new("RGB", (cal.proj_width, cal.proj_height), BLACK)
+    draw = ImageDraw.Draw(img)
+    r_mm = plan.cap_diameter_mm / 2.0
+    for cell in plan.cells:
+        cx, cy = cal.table_mm_to_proj_px(cell.x_mm, cell.y_mm)
+        r = cal.mm_radius_to_px(cell.x_mm, cell.y_mm, r_mm)
+        draw.ellipse([cx - r, cy - r, cx + r, cy + r], fill=tuple(cell.rgb))
+        if cell.filled:
+            draw.ellipse([cx - r, cy - r, cx + r, cy + r], outline=(255, 255, 255), width=2)
+    if highlight is not None:
+        _glow(draw, cal, highlight, r_mm)
+    return img
+
+
 def _ring(draw, cal, cell, r_mm, color, width):
     cx, cy = cal.table_mm_to_proj_px(cell.x_mm, cell.y_mm)
     r = cal.mm_radius_to_px(cell.x_mm, cell.y_mm, r_mm)
