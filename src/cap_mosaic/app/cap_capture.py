@@ -50,6 +50,9 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--size", type=int, default=128)
     ap.add_argument("--cam-width", type=int, default=1280)
     ap.add_argument("--cam-height", type=int, default=720)
+    ap.add_argument("--auto", action="store_true", help="auto-save when a new cap settles (empty white circle between caps)")
+    ap.add_argument("--auto-stable", type=int, default=6, help="frames a new colour must hold before auto-saving")
+    ap.add_argument("--white-level", type=int, default=205, help="min channel value treated as empty circle (no cap)")
     args = ap.parse_args(argv)
 
     out = Path(args.out)
@@ -70,6 +73,38 @@ def main(argv: list[str] | None = None) -> None:
 
     flash_until = 0.0
     flash_msg = ""
+    captured = False  # has the current cap already been auto-saved?
+    stable_col = None
+    stable_n = 0
+    FONT = cv2.FONT_HERSHEY_SIMPLEX
+
+    def save_cap(h_use, col_use):
+        nonlocal idx, flash_until, flash_msg
+        saved = 0
+        for fk in range(args.frames_per_cap):
+            ok2, b2 = cap.read()
+            if not ok2:
+                continue
+            r2 = cv2.cvtColor(b2, cv2.COLOR_BGR2RGB)
+            h2 = detect_card(r2)
+            if h2 is None:
+                h2 = h_use
+            crop = crop_cap(white_balance(r2, h2), h2, args.size)
+            if crop is None:
+                continue
+            cv2.imwrite(str(crops / f"cap_{idx:04d}_f{fk}.png"), cv2.cvtColor(crop, cv2.COLOR_RGB2BGR))
+            saved += 1
+            time.sleep(0.04)
+        with open(labels, "a", newline="") as f:
+            csv.writer(f).writerow([idx, *col_use, nearest(col_use).name, saved])
+        threading.Thread(target=_ding, daemon=True).start()
+        flash_msg, flash_until = f"SAVED #{idx}", time.time() + 0.8
+        print(f"  saved cap #{idx}: {saved} crops  rgb{col_use} ~{nearest(col_use).name}", flush=True)
+        idx += 1
+
+    def is_empty(col):  # white circle showing through = no cap
+        return col is None or min(col) > args.white_level
+
     try:
         while True:
             ok, bgr = cap.read()
@@ -78,46 +113,39 @@ def main(argv: list[str] | None = None) -> None:
             rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
             h = detect_card(rgb)
             preview = cv2.resize(bgr, (640, 360))
+            col = None
             if h is None:
-                cv2.putText(preview, "no card in view", (12, 28), cv2.FONT_HERSHEY_SIMPLEX,
-                            0.7, (60, 60, 235), 2)
-                col = None
+                cv2.putText(preview, "no card in view", (12, 28), FONT, 0.7, (60, 60, 235), 2)
             else:
                 col = read_cap_color(white_balance(rgb, h), h)
-                # corrected-colour swatch so you can see it is white-balanced
                 cv2.rectangle(preview, (500, 232), (632, 348), (col[2], col[1], col[0]), -1)
                 cv2.rectangle(preview, (500, 232), (632, 348), (255, 255, 255), 2)
-                cv2.putText(preview, "corrected", (502, 226), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-                cv2.putText(preview, f"cap #{idx}  ~{nearest(col).name}  SPACE=save",
-                            (12, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (60, 235, 90), 2)
+                cv2.putText(preview, "corrected", (502, 226), FONT, 0.5, (255, 255, 255), 1)
+                empty = is_empty(col)
+                label = "empty (no cap)" if empty else f"cap #{idx}  ~{nearest(col).name}"
+                mode = "AUTO" if args.auto else "SPACE=save"
+                cv2.putText(preview, f"{label}   [{mode}]", (12, 28), FONT, 0.6,
+                            (170, 170, 170) if empty else (60, 235, 90), 2)
+                if args.auto:
+                    if empty:
+                        captured, stable_n, stable_col = False, 0, None
+                    else:
+                        if stable_col is not None and max(abs(a - b) for a, b in zip(col, stable_col)) < 14:
+                            stable_n += 1
+                        else:
+                            stable_col, stable_n = col, 1
+                        if stable_n == args.auto_stable and not captured:
+                            save_cap(h, col)
+                            captured = True
             if time.time() < flash_until:  # green SAVED confirmation
                 cv2.rectangle(preview, (3, 3), (637, 357), (60, 235, 90), 6)
-                cv2.putText(preview, flash_msg, (170, 195), cv2.FONT_HERSHEY_SIMPLEX, 1.1, (60, 235, 90), 3)
+                cv2.putText(preview, flash_msg, (170, 195), FONT, 1.1, (60, 235, 90), 3)
             cv2.imshow("cap capture", preview)
             k = cv2.waitKey(30) & 0xFF
             if k in (ord("q"), 27):
                 break
             if k == 32 and h is not None and col is not None:
-                saved = 0
-                for fk in range(args.frames_per_cap):
-                    ok2, b2 = cap.read()
-                    if not ok2:
-                        continue
-                    r2 = cv2.cvtColor(b2, cv2.COLOR_BGR2RGB)
-                    h2 = detect_card(r2) if detect_card(r2) is not None else h
-                    crop = crop_cap(white_balance(r2, h2), h2, args.size)
-                    if crop is None:
-                        continue
-                    cv2.imwrite(str(crops / f"cap_{idx:04d}_f{fk}.png"),
-                                cv2.cvtColor(crop, cv2.COLOR_RGB2BGR))
-                    saved += 1
-                    time.sleep(0.05)
-                with open(labels, "a", newline="") as f:
-                    csv.writer(f).writerow([idx, *col, nearest(col).name, saved])
-                threading.Thread(target=_ding, daemon=True).start()
-                flash_msg, flash_until = f"SAVED #{idx}", time.time() + 0.8
-                print(f"  saved cap #{idx}: {saved} crops  rgb{col} ~{nearest(col).name}", flush=True)
-                idx += 1
+                save_cap(h, col)
     finally:
         cap.release()
         cv2.destroyAllWindows()
