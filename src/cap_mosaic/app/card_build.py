@@ -136,6 +136,7 @@ def main(argv: list[str] | None = None) -> None:
 
     import numpy as np
 
+    from ..core.palette import distance, nearest
     from ..core.plan import GridPlan
     from ..procam.calibrate import Calibration
     from ..procam.display import Projector
@@ -154,13 +155,14 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--display-x", type=int, default=1920, help="projector monitor X offset")
     ap.add_argument("--reject-threshold", type=float, default=None)
     ap.add_argument("--smooth", type=int, default=8, help="frames of temporal median smoothing")
+    ap.add_argument("--hold-frames", type=int, default=6, help="reuse last card location across N missed detections")
     ap.add_argument("--refresh-ms", type=int, default=40)
     ap.add_argument("--save", help="plan state output path (default: the plan file)")
     args = ap.parse_args(argv)
 
     plan = GridPlan.load(args.plan)
     matcher = Matcher(plan, args.reject_threshold) if args.reject_threshold is not None else Matcher(plan)
-    reader = CardCapReader()
+    reader = CardCapReader(hold_frames=args.hold_frames)
     save_path = args.save or args.plan
     if args.no_calibration:
         cal = Calibration.fit_to_frame(plan.width_mm, plan.height_mm, args.proj_width, args.proj_height)
@@ -182,6 +184,7 @@ def main(argv: list[str] | None = None) -> None:
 
     buf: deque = deque(maxlen=max(1, args.smooth))
     last_state, last_beep, placed = None, 0.0, 0
+    last_key = None
     end = time.time() + 3600
     while time.time() < end:
         try:
@@ -189,7 +192,7 @@ def main(argv: list[str] | None = None) -> None:
             for frame in _source():
                 reading = reader.read(frame)
                 if reading is None:
-                    state, cell = "idle", None
+                    state, cell, smoothed = "idle", None, None
                     buf.clear()
                 else:
                     buf.append(reading.rgb)
@@ -197,6 +200,18 @@ def main(argv: list[str] | None = None) -> None:
                     m = matcher.match(smoothed)
                     state = "accept" if m.accepted else "reject"
                     cell = m.cell
+
+                # live readout on state/colour change
+                key = (state, None if smoothed is None else nearest(smoothed).name)
+                if key != last_key:
+                    if smoothed is None:
+                        print(f"{time.strftime('%H:%M:%S')} idle (no card in view)", flush=True)
+                    else:
+                        tgt = cell.color_name if cell is not None else "-"
+                        print(f"{time.strftime('%H:%M:%S')} {state:<6} rgb={smoothed} "
+                              f"~{nearest(smoothed).name} (dE={distance(smoothed, nearest(smoothed)):.1f}) "
+                              f"target={tgt}", flush=True)
+                    last_key = key
 
                 out = render_projection(plan, cal, highlight=(cell if state == "accept" else None))
                 if state == "reject":

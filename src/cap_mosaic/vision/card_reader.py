@@ -28,7 +28,14 @@ def _detector() -> "cv2.aruco.ArucoDetector":
     global _DETECTOR
     if _DETECTOR is None:
         adict = cv2.aruco.getPredefinedDictionary(getattr(cv2.aruco, L.ARUCO_DICT))
-        _DETECTOR = cv2.aruco.ArucoDetector(adict, cv2.aruco.DetectorParameters())
+        p = cv2.aruco.DetectorParameters()
+        # tuned for small / slightly blurry markers from a webcam
+        p.cornerRefinementMethod = cv2.aruco.CORNER_REFINE_SUBPIX
+        p.adaptiveThreshWinSizeMin = 3
+        p.adaptiveThreshWinSizeMax = 23
+        p.adaptiveThreshWinSizeStep = 4
+        p.minMarkerPerimeterRate = 0.015
+        _DETECTOR = cv2.aruco.ArucoDetector(adict, p)
     return _DETECTOR
 
 
@@ -145,14 +152,28 @@ class CardCapReader:
 
     ``read(rgb_frame)`` returns a :class:`CapReading` when the card is found, or
     ``None`` when no card is visible. Cap colour is already illumination-corrected.
+
+    The card sits still under the camera, so a one-frame detection miss (motion
+    blur, a brief occlusion) shouldn't blank the reading. With ``hold_frames`` >
+    0, the last good card homography is reused for up to that many consecutive
+    misses before giving up — smoothing the flicker.
     """
 
-    def __init__(self, glare_level: int = GLARE_LEVEL):
+    def __init__(self, glare_level: int = GLARE_LEVEL, hold_frames: int = 0):
         self.glare_level = glare_level
+        self.hold_frames = hold_frames
+        self._last_h: np.ndarray | None = None
+        self._miss = 0
 
     def read(self, rgb_frame: np.ndarray) -> "CapReading | None":
         h = detect_card(rgb_frame)
-        if h is None:
+        if h is not None:
+            self._last_h, self._miss = h, 0
+        elif self._last_h is not None and self._miss < self.hold_frames:
+            self._miss += 1
+            h = self._last_h
+        else:
+            self._last_h = None
             return None
         corrected = white_balance(rgb_frame, h)
         rgb = read_cap_color(corrected, h, self.glare_level)
