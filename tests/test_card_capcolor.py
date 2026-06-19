@@ -6,7 +6,7 @@ from PIL import ImageDraw
 from cap_mosaic.app.make_card import render_card
 from cap_mosaic.core.palette import ciede2000, rgb_to_lab
 from cap_mosaic.vision import card_layout as L
-from cap_mosaic.vision.card_reader import detect_card, read_cap_color, white_balance
+from cap_mosaic.vision.card_reader import crop_cap, detect_card, read_cap_color, white_balance
 
 
 def test_read_cap_color_illumination_corrected():
@@ -29,3 +29,20 @@ def test_read_cap_color_illumination_corrected():
 
     de = ciede2000(rgb_to_lab(got), rgb_to_lab(true_rgb))
     assert de < 10, (got, true_rgb, de)
+
+
+def test_crop_cap_is_fixed_size_and_on_color():
+    dpi = 200
+    ppm = dpi / 25.4
+    card = render_card(dpi).copy()
+    draw = ImageDraw.Draw(card)
+    true_rgb = (90, 150, 200)
+    cx, cy = L.CIRCLE_CX_MM * ppm, L.CIRCLE_CY_MM * ppm
+    r = L.CIRCLE_R_MM * ppm * 0.85
+    draw.ellipse([cx - r, cy - r, cx + r, cy + r], fill=true_rgb)
+    frame = np.asarray(card)
+    h = detect_card(frame)
+    crop = crop_cap(white_balance(frame, h), h, size=128)
+    assert crop.shape == (128, 128, 3)
+    center = tuple(int(v) for v in crop[64, 64])
+    assert ciede2000(rgb_to_lab(center), rgb_to_lab(true_rgb)) < 12

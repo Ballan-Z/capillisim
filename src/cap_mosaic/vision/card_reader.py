@@ -142,6 +142,22 @@ def read_cap_color(
     return (int(med[0]), int(med[1]), int(med[2]))
 
 
+def crop_cap(rgb: np.ndarray, h: np.ndarray, size: int = 128) -> np.ndarray | None:
+    """Fixed-size square crop of the cap from the placement circle, or None.
+
+    Pass a white-balanced frame to get colour-consistent dataset images. Crops a
+    little past the circle and resizes to ``size`` x ``size``.
+    """
+    cx, cy, r = _region_px(h, L.CIRCLE_CX_MM, L.CIRCLE_CY_MM, L.CIRCLE_R_MM)
+    s = max(1, int(r * 1.05))
+    img_h, img_w = rgb.shape[:2]
+    y0, y1 = max(0, int(cy - s)), min(img_h, int(cy + s))
+    x0, x1 = max(0, int(cx - s)), min(img_w, int(cx + s))
+    if y1 <= y0 or x1 <= x0:
+        return None
+    return cv2.resize(rgb[y0:y1, x0:x1], (size, size), interpolation=cv2.INTER_AREA)
+
+
 @dataclass(frozen=True)
 class CapReading:
     rgb: RGB
