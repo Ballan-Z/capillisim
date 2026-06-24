@@ -16,10 +16,11 @@ from dataclasses import dataclass
 import cv2
 import numpy as np
 
-from ..core.palette import RGB, Lab, rgb_to_lab
+from ..core.palette import RGB, Lab, ciede2000, rgb_to_lab
 from . import card_layout as L
 
 GLARE_LEVEL = 240  # pixels brighter than this in all channels are treated as glare
+MARKING_MIN_DE = 8.0  # field/marking clusters closer than this -> cap is one colour
 
 _DETECTOR: "cv2.aruco.ArucoDetector | None" = None
 
@@ -115,16 +116,12 @@ def white_balance(rgb: np.ndarray, h: np.ndarray) -> np.ndarray:
     return np.clip(out, 0, 255).astype(np.uint8)
 
 
-def read_cap_color(
-    rgb: np.ndarray, h: np.ndarray, glare_level: int = GLARE_LEVEL
-) -> RGB | None:
-    """Robust dominant colour of the cap in the placement circle, or None.
-
-    Samples the inner 70% of the circle (avoiding the printed outline), masks
-    specular glare, and returns the median colour. Run on a white-balanced frame.
-    """
+def _inner_circle_pixels(
+    rgb: np.ndarray, h: np.ndarray, frac: float = 0.70
+) -> np.ndarray | None:
+    """Pixels inside the inner `frac` of the placement circle (Nx3), or None."""
     cx, cy, r = _region_px(h, L.CIRCLE_CX_MM, L.CIRCLE_CY_MM, L.CIRCLE_R_MM)
-    inner = r * 0.70
+    inner = r * frac
     img_h, img_w = rgb.shape[:2]
     y0, y1 = max(0, int(cy - inner)), min(img_h, int(cy + inner) + 1)
     x0, x1 = max(0, int(cx - inner)), min(img_w, int(cx + inner) + 1)
@@ -134,15 +131,72 @@ def read_cap_color(
     yy, xx = np.mgrid[y0:y1, x0:x1]
     circle = ((xx - cx) ** 2 + (yy - cy) ** 2 <= inner**2).reshape(-1)
     pixels = crop[circle]
-    if pixels.size == 0:
-        return None
+    return pixels if pixels.size else None
+
+
+def _deglare(pixels: np.ndarray, glare_level: int) -> np.ndarray:
+    """Drop bright (glare) pixels, but only when they're a minority.
+
+    A mostly-bright cap (e.g. white) really is bright — masking it would leave
+    only the dark leftovers (its own logo/shadows) and read the wrong colour.
+    """
     not_glare = ~np.all(pixels > glare_level, axis=1)
-    # Treat bright pixels as glare only when they're a minority. A mostly-bright
-    # cap (e.g. white) really is bright — masking it would leave only the dark
-    # leftovers (its own logo/shadows) and read the wrong colour, so keep all.
-    sample = pixels[not_glare] if not_glare.mean() > 0.5 else pixels
-    med = np.median(sample, axis=0)
+    return pixels[not_glare] if not_glare.mean() > 0.5 else pixels
+
+
+def read_cap_color(
+    rgb: np.ndarray, h: np.ndarray, glare_level: int = GLARE_LEVEL
+) -> RGB | None:
+    """Robust dominant colour of the cap in the placement circle, or None.
+
+    Samples the inner 70% of the circle (avoiding the printed outline), masks
+    specular glare, and returns the median colour. Run on a white-balanced frame.
+    """
+    pixels = _inner_circle_pixels(rgb, h)
+    if pixels is None:
+        return None
+    med = np.median(_deglare(pixels, glare_level), axis=0)
     return (int(med[0]), int(med[1]), int(med[2]))
+
+
+def read_cap_field(
+    rgb: np.ndarray, h: np.ndarray, glare_level: int = GLARE_LEVEL
+) -> tuple[RGB, float, float] | None:
+    """Dominant *field* colour of the cap, separated from any logo/marking.
+
+    Splits the inner-circle pixels into two colour clusters (k-means in Lab) and
+    returns ``(field_rgb, marking_frac, spread)`` — the larger cluster's mean
+    colour, the fraction of pixels in the smaller (marking) cluster, and the
+    CIEDE2000 separation between them. When the two clusters are nearly the same
+    colour the cap is treated as a single flat colour (marking_frac = 0). Run on
+    a white-balanced frame. See docs/COLOR_MATCHING.md (dominant-field reading).
+    """
+    pixels = _inner_circle_pixels(rgb, h)
+    if pixels is None:
+        return None
+    px = _deglare(pixels, glare_level).astype(np.uint8)
+    if len(px) < 2:
+        med = np.median(px, axis=0)
+        return (int(med[0]), int(med[1]), int(med[2])), 0.0, 0.0
+
+    lab = cv2.cvtColor(px.reshape(-1, 1, 3), cv2.COLOR_RGB2LAB).reshape(-1, 3)
+    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
+    _, labels, _ = cv2.kmeans(
+        lab.astype(np.float32), 2, None, criteria, 3, cv2.KMEANS_PP_CENTERS
+    )
+    labels = labels.flatten()
+    counts = np.bincount(labels, minlength=2)
+    big = int(np.argmax(counts))
+    field = px[labels == big].mean(0)
+    field_rgb = (int(field[0]), int(field[1]), int(field[2]))
+    other = px[labels == (1 - big)].mean(0)
+    other_rgb = (int(other[0]), int(other[1]), int(other[2]))
+    spread = ciede2000(rgb_to_lab(field_rgb), rgb_to_lab(other_rgb))
+    if spread < MARKING_MIN_DE:  # one colour: the split is just noise
+        med = np.median(px, axis=0)
+        return (int(med[0]), int(med[1]), int(med[2])), 0.0, float(spread)
+    marking_frac = float(counts[1 - big] / counts.sum())
+    return field_rgb, marking_frac, float(spread)
 
 
 def crop_cap(rgb: np.ndarray, h: np.ndarray, size: int = 128) -> np.ndarray | None:

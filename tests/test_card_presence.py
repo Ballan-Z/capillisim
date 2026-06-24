@@ -10,7 +10,12 @@ from PIL import ImageDraw
 from cap_mosaic.app.make_card import render_card
 from cap_mosaic.core.palette import ciede2000, rgb_to_lab
 from cap_mosaic.vision import card_layout as L
-from cap_mosaic.vision.card_reader import detect_card, read_cap_color, white_balance
+from cap_mosaic.vision.card_reader import (
+    detect_card,
+    read_cap_color,
+    read_cap_field,
+    white_balance,
+)
 
 
 def _card_with_cap(field_rgb, logo_rgb=None, logo_frac=0.0, dpi=200):
@@ -42,3 +47,30 @@ def test_glare_majority_keeps_field_not_logo():
     assert got is not None
     de = ciede2000(rgb_to_lab(got), rgb_to_lab(field))
     assert de < 12, (got, de)
+
+
+def test_read_field_excludes_logo_and_reports_marking():
+    # White field + a red 'SB'-like blob covering ~35% radius (~12% area).
+    field = (235, 235, 235)
+    frame, _ = _card_with_cap(field, logo_rgb=(200, 40, 40), logo_frac=0.5)
+    h = detect_card(frame)
+    out = read_cap_field(white_balance(frame, h), h)
+    assert out is not None
+    field_rgb, marking_frac, spread = out
+    # the stored colour is the white field, not a pink average
+    de = ciede2000(rgb_to_lab(field_rgb), rgb_to_lab(field))
+    assert de < 12, (field_rgb, de)
+    # a logo is present -> non-trivial marking fraction and high field/logo spread
+    assert 0.05 < marking_frac < 0.6, marking_frac
+    assert spread > 20, spread
+
+
+def test_read_field_uniform_cap_has_near_zero_marking():
+    field = (60, 110, 170)  # plain blue cap, no logo
+    frame, _ = _card_with_cap(field)
+    h = detect_card(frame)
+    out = read_cap_field(white_balance(frame, h), h)
+    assert out is not None
+    field_rgb, marking_frac, _ = out
+    assert ciede2000(rgb_to_lab(field_rgb), rgb_to_lab(field)) < 12
+    assert marking_frac < 0.1, marking_frac
