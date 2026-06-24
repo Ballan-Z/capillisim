@@ -7,22 +7,39 @@ for a palette / inventory / embedding dataset.
 
     python -m cap_mosaic.app.cap_capture --out dataset --camera 0
 
-Writes ``<out>/crops/cap_<NNNN>_f<k>.png`` and appends to ``<out>/labels.csv``
-(index, r, g, b, n_frames) with the true measured colour — no palette
-bucketing at capture time. Re-running resumes the index.
+Writes ``<out>/crops/cap_<NNNN>_f<k>.png`` (the colour-corrected crops) and a row
+per cap in ``<out>/caps.db`` (SQLite; see ``data/store.py`` and
+``docs/DATA_MODEL.md``): the true measured RGB/Lab as the **median across all
+saved frames** (robust to a single glary frame), a per-frame colour spread as a
+quality signal, and a link to each crop. No palette bucketing at capture time.
+Re-running resumes the index.
 """
 
 from __future__ import annotations
 
 import argparse
-import csv
+import hashlib
 import threading
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 import cv2
 
+from ..data.store import CapDataset, FrameRecord
 from ..vision.card_reader import crop_cap, detect_card, read_cap_color, white_balance
+
+
+def _median_rgb(colors: list[tuple[int, int, int]]) -> tuple[int, int, int]:
+    """Per-channel median of several colour readings (robust to one bad frame)."""
+    n = len(colors)
+    mid = n // 2
+
+    def chan(i: int) -> int:
+        vals = sorted(c[i] for c in colors)
+        return int(vals[mid] if n % 2 else round((vals[mid - 1] + vals[mid]) / 2))
+
+    return (chan(0), chan(1), chan(2))
 
 
 def _ding():
@@ -58,10 +75,7 @@ def main(argv: list[str] | None = None) -> None:
     out = Path(args.out)
     crops = out / "crops"
     crops.mkdir(parents=True, exist_ok=True)
-    labels = out / "labels.csv"
-    if not labels.exists():
-        with open(labels, "w", newline="") as f:
-            csv.writer(f).writerow(["index", "r", "g", "b", "n_frames"])
+    db = CapDataset(out / "caps.db")
     idx = _next_index(crops)
 
     cap = cv2.VideoCapture(args.camera, cv2.CAP_DSHOW)
@@ -80,7 +94,8 @@ def main(argv: list[str] | None = None) -> None:
 
     def save_cap(h_use, col_use):
         nonlocal idx, flash_until, flash_msg
-        saved = 0
+        frames: list[FrameRecord] = []
+        reads: list[tuple[int, int, int]] = []
         for fk in range(args.frames_per_cap):
             ok2, b2 = cap.read()
             if not ok2:
@@ -89,17 +104,29 @@ def main(argv: list[str] | None = None) -> None:
             h2 = detect_card(r2)
             if h2 is None:
                 h2 = h_use
-            crop = crop_cap(white_balance(r2, h2), h2, args.size)
+            wb = white_balance(r2, h2)
+            crop = crop_cap(wb, h2, args.size)
             if crop is None:
                 continue
-            cv2.imwrite(str(crops / f"cap_{idx:04d}_f{fk}.png"), cv2.cvtColor(crop, cv2.COLOR_RGB2BGR))
-            saved += 1
+            path = crops / f"cap_{idx:04d}_f{fk}.png"
+            png = cv2.cvtColor(crop, cv2.COLOR_RGB2BGR)
+            cv2.imwrite(str(path), png)
+            # the cap's true colour for this frame: glare-masked inner-circle read
+            col_f = read_cap_color(wb, h2)
+            if col_f is not None:
+                reads.append(col_f)
+            ok_buf, buf = cv2.imencode(".png", png)
+            sha = hashlib.sha256(buf.tobytes()).hexdigest() if ok_buf else None
+            frames.append(FrameRecord(frame_index=fk, path=str(path), rgb=col_f, sha256=sha))
             time.sleep(0.04)
-        with open(labels, "a", newline="") as f:
-            csv.writer(f).writerow([idx, *col_use, saved])
+
+        # robust per-cap colour = median across frame reads (1 glary frame can't skew it)
+        color = _median_rgb(reads) if reads else tuple(col_use)
+        now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        db.add_cap(color, frames, captured_at=now, source="card_capture")
         threading.Thread(target=_ding, daemon=True).start()
         flash_msg, flash_until = f"SAVED #{idx}", time.time() + 0.8
-        print(f"  saved cap #{idx}: {saved} crops  rgb{col_use}", flush=True)
+        print(f"  saved cap #{idx}: {len(frames)} crops  rgb{color}", flush=True)
         idx += 1
 
     def is_empty(col):  # white circle showing through = no cap
@@ -149,6 +176,7 @@ def main(argv: list[str] | None = None) -> None:
     finally:
         cap.release()
         cv2.destroyAllWindows()
+        db.close()
 
 
 if __name__ == "__main__":

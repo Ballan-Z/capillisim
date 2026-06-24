@@ -135,7 +135,7 @@ def palette_from_image(
 
 
 def inventory_from_labels(path) -> tuple[CapColor, ...]:
-    """Load a captured cap dataset (labels.csv with index,r,g,b,...) as inventory."""
+    """Load a legacy ``labels.csv`` (index,r,g,b,...) as inventory."""
     import csv
 
     caps: list[CapColor] = []
@@ -144,6 +144,25 @@ def inventory_from_labels(path) -> tuple[CapColor, ...]:
             rgb = (int(row["r"]), int(row["g"]), int(row["b"]))
             caps.append(CapColor(f"cap{row['index']}", rgb))
     return tuple(caps)
+
+
+def inventory_from_db(path) -> tuple[CapColor, ...]:
+    """Load the SQLite cap dataset (caps.db) as inventory."""
+    from ..data.store import CapDataset
+
+    with CapDataset(path) as db:
+        return tuple(CapColor(f"cap{c.id}", c.rgb) for c in db.caps())
+
+
+def load_inventory(path) -> tuple[CapColor, ...]:
+    """Load inventory from a ``.db`` (preferred) or legacy ``.csv`` file."""
+    from pathlib import Path
+
+    return (
+        inventory_from_labels(path)
+        if Path(path).suffix.lower() == ".csv"
+        else inventory_from_db(path)
+    )
 
 
 def plan_from_image(

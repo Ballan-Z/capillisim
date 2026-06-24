@@ -49,9 +49,7 @@ def cmd_design(args) -> None:
     aspect_ratio = image.width / image.height
     grid = _build_grid(args, aspect_ratio)
     title = Path(args.image).stem if args.image else "demo"
-    inventory = (
-        designer.inventory_from_labels(args.inventory) if args.inventory else None
-    )
+    inventory = designer.load_inventory(args.inventory) if args.inventory else None
     plan = designer.plan_from_image(
         image,
         grid,
@@ -107,8 +105,8 @@ def main(argv: list[str] | None = None) -> None:
     )
     d.add_argument(
         "--inventory",
-        help="cap dataset labels.csv; restrict the palette to caps you actually "
-        "have (image clusters ∩ inventory)",
+        help="cap dataset (caps.db, or legacy labels.csv); restrict the palette "
+        "to caps you actually have (image clusters ∩ inventory)",
     )
     d.add_argument(
         "--reject-threshold",
