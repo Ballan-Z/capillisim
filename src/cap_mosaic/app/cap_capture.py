@@ -27,7 +27,18 @@ from pathlib import Path
 import cv2
 
 from ..data.store import CapDataset, FrameRecord
-from ..vision.card_reader import crop_cap, detect_card, read_cap_color, white_balance
+from ..vision.card_reader import (
+    cap_present,
+    crop_cap,
+    detect_card,
+    read_cap_field,
+    white_balance,
+)
+
+
+def _median(values: list[float]) -> float:
+    s = sorted(values)
+    return s[len(s) // 2]
 
 
 def _median_rgb(colors: list[tuple[int, int, int]]) -> tuple[int, int, int]:
@@ -69,7 +80,6 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--cam-height", type=int, default=720)
     ap.add_argument("--auto", action="store_true", help="auto-save when a new cap settles (empty white circle between caps)")
     ap.add_argument("--auto-stable", type=int, default=6, help="frames a new colour must hold before auto-saving")
-    ap.add_argument("--white-level", type=int, default=205, help="min channel value treated as empty circle (no cap)")
     args = ap.parse_args(argv)
 
     out = Path(args.out)
@@ -95,7 +105,8 @@ def main(argv: list[str] | None = None) -> None:
     def save_cap(h_use, col_use):
         nonlocal idx, flash_until, flash_msg
         frames: list[FrameRecord] = []
-        reads: list[tuple[int, int, int]] = []
+        fields: list[tuple[int, int, int]] = []
+        marks: list[float] = []
         for fk in range(args.frames_per_cap):
             ok2, b2 = cap.read()
             if not ok2:
@@ -111,26 +122,28 @@ def main(argv: list[str] | None = None) -> None:
             path = crops / f"cap_{idx:04d}_f{fk}.png"
             png = cv2.cvtColor(crop, cv2.COLOR_RGB2BGR)
             cv2.imwrite(str(path), png)
-            # the cap's true colour for this frame: glare-masked inner-circle read
-            col_f = read_cap_color(wb, h2)
-            if col_f is not None:
-                reads.append(col_f)
+            # the cap's true colour for this frame: dominant field, logo excluded
+            fld = read_cap_field(wb, h2)
+            col_f = fld[0] if fld else None
+            if fld is not None:
+                fields.append(fld[0])
+                marks.append(fld[1])
             ok_buf, buf = cv2.imencode(".png", png)
             sha = hashlib.sha256(buf.tobytes()).hexdigest() if ok_buf else None
             frames.append(FrameRecord(frame_index=fk, path=str(path), rgb=col_f, sha256=sha))
             time.sleep(0.04)
 
-        # robust per-cap colour = median across frame reads (1 glary frame can't skew it)
-        color = _median_rgb(reads) if reads else tuple(col_use)
+        # robust per-cap values = median across frame reads (1 bad frame can't skew it)
+        color = _median_rgb(fields) if fields else tuple(col_use)
+        marking = _median(marks) if marks else None
         now = datetime.now(timezone.utc).isoformat(timespec="seconds")
-        db.add_cap(color, frames, captured_at=now, source="card_capture")
+        db.add_cap(color, frames, captured_at=now, source="card_capture",
+                   marking_frac=marking)
         threading.Thread(target=_ding, daemon=True).start()
         flash_msg, flash_until = f"SAVED #{idx}", time.time() + 0.8
-        print(f"  saved cap #{idx}: {len(frames)} crops  rgb{color}", flush=True)
+        busy = f"  busy {int(marking * 100)}%" if marking else ""
+        print(f"  saved cap #{idx}: {len(frames)} crops  rgb{color}{busy}", flush=True)
         idx += 1
-
-    def is_empty(col):  # white circle showing through = no cap
-        return col is None or min(col) > args.white_level
 
     try:
         while True:
@@ -144,19 +157,23 @@ def main(argv: list[str] | None = None) -> None:
             if h is None:
                 cv2.putText(preview, "no card in view", (12, 28), FONT, 0.7, (60, 60, 235), 2)
             else:
-                col = read_cap_color(white_balance(rgb, h), h)
-                cv2.rectangle(preview, (500, 232), (632, 348), (col[2], col[1], col[0]), -1)
-                cv2.rectangle(preview, (500, 232), (632, 348), (255, 255, 255), 2)
-                cv2.putText(preview, "corrected", (502, 226), FONT, 0.5, (255, 255, 255), 1)
-                empty = is_empty(col)
-                label = "empty (no cap)" if empty else f"cap #{idx}  rgb{col}"
+                wb = white_balance(rgb, h)
+                present = cap_present(wb, h)
+                fld = read_cap_field(wb, h) if present else None
+                col = fld[0] if fld else None
+                if col is not None:
+                    cv2.rectangle(preview, (500, 232), (632, 348), (col[2], col[1], col[0]), -1)
+                    cv2.rectangle(preview, (500, 232), (632, 348), (255, 255, 255), 2)
+                    cv2.putText(preview, "field", (502, 226), FONT, 0.5, (255, 255, 255), 1)
+                busy = int(fld[1] * 100) if fld else 0
+                label = "empty (no cap)" if not present else f"cap #{idx}  rgb{col}  busy {busy}%"
                 mode = "AUTO" if args.auto else "SPACE=save"
                 cv2.putText(preview, f"{label}   [{mode}]", (12, 28), FONT, 0.6,
-                            (170, 170, 170) if empty else (60, 235, 90), 2)
+                            (170, 170, 170) if not present else (60, 235, 90), 2)
                 if args.auto:
-                    if empty:
+                    if not present:
                         captured, stable_n, stable_col = False, 0, None
-                    else:
+                    elif col is not None:
                         if stable_col is not None and max(abs(a - b) for a, b in zip(col, stable_col)) < 14:
                             stable_n += 1
                         else:
