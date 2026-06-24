@@ -26,6 +26,12 @@ class PlannedCell:
     color_name: str
     rgb: RGB
     filled: bool = False
+    # A hole is a deliberately-empty cell: no available cap colour is close
+    # enough to its target, so we leave it blank and seek a better cap rather
+    # than fill it with a wrong colour. `rgb` keeps the *wanted* colour so we
+    # know what to look for. Holes never count toward the bill of materials and
+    # are never offered to the live matcher.
+    is_hole: bool = False
 
 
 @dataclass
@@ -44,14 +50,21 @@ class GridPlan:
     def filled_count(self) -> int:
         return sum(1 for c in self.cells if c.filled)
 
+    @property
+    def hole_count(self) -> int:
+        """Cells left deliberately empty (no cap colour close enough)."""
+        return sum(1 for c in self.cells if c.is_hole)
+
     def bill_of_materials(self) -> dict[str, int]:
-        """How many caps of each color the finished piece needs."""
-        counts = Counter(c.color_name for c in self.cells)
+        """How many caps of each color the finished piece needs (excludes holes)."""
+        counts = Counter(c.color_name for c in self.cells if not c.is_hole)
         return dict(counts.most_common())
 
     def remaining_bom(self) -> dict[str, int]:
-        """Caps of each color still needed (unfilled cells only)."""
-        counts = Counter(c.color_name for c in self.cells if not c.filled)
+        """Caps of each color still needed (unfilled, non-hole cells only)."""
+        counts = Counter(
+            c.color_name for c in self.cells if not c.filled and not c.is_hole
+        )
         return dict(counts.most_common())
 
     def to_dict(self) -> dict:
@@ -74,6 +87,7 @@ class GridPlan:
                 color_name=c["color_name"],
                 rgb=tuple(c["rgb"]),
                 filled=c.get("filled", False),
+                is_hole=c.get("is_hole", False),
             )
             for c in data["cells"]
         ]

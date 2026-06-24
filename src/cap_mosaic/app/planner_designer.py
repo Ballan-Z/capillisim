@@ -13,7 +13,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
 
 from ..core.geometry import Grid
-from ..core.palette import DEFAULT_PALETTE, CapColor, nearest
+from ..core.palette import DEFAULT_PALETTE, CapColor, distance, nearest
 from ..core.plan import GridPlan, PlannedCell
 
 # Perceptual "blend threshold": the angular size below which neighbouring caps
@@ -21,14 +21,155 @@ from ..core.plan import GridPlan, PlannedCell
 # 1-arcminute acuity). Tunable; calibrate against real photos later.
 DEFAULT_BLEND_ARCMIN = 8.0
 
+# Default number of colours when deriving a palette from the image by clustering.
+DEFAULT_PALETTE_COLORS = 12
+
+
+def _rgb_to_lab_np(rgb: np.ndarray) -> np.ndarray:
+    """Vectorised sRGB -> CIELAB (D65) for an Nx3 array; mirrors palette.rgb_to_lab."""
+    c = np.asarray(rgb, dtype=float) / 255.0
+    lin = np.where(c <= 0.04045, c / 12.92, ((c + 0.055) / 1.055) ** 2.4)
+    r, g, b = lin[:, 0], lin[:, 1], lin[:, 2]
+    x = (r * 0.4124 + g * 0.3576 + b * 0.1805) / 0.95047
+    y = r * 0.2126 + g * 0.7152 + b * 0.0722
+    z = (r * 0.0193 + g * 0.1192 + b * 0.9505) / 1.08883
+
+    def f(t: np.ndarray) -> np.ndarray:
+        return np.where(t > 0.008856, np.cbrt(t), 7.787 * t + 16 / 116)
+
+    fx, fy, fz = f(x), f(y), f(z)
+    return np.stack([116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)], axis=1)
+
+
+def _sample_pixels(arr: np.ndarray, max_samples: int = 4000, seed: int = 0) -> np.ndarray:
+    flat = arr.reshape(-1, 3)
+    if len(flat) > max_samples:
+        idx = np.random.default_rng(seed).choice(len(flat), max_samples, replace=False)
+        flat = flat[idx]
+    return flat
+
+
+def kmeans_palette_lab(
+    rgbs, k: int = DEFAULT_PALETTE_COLORS, iters: int = 25, seed: int = 0
+) -> list[tuple[int, int, int]]:
+    """Cluster colours in CIELAB and return up to `k` representative RGB centroids.
+
+    We cluster perceptually (Euclidean distance in CIELAB ≈ ΔE) but report each
+    centroid as the mean RGB of its members, so no inverse Lab->RGB is needed.
+    Deterministic for a given seed (k-means++ init).
+    """
+    rgbs = np.asarray(rgbs, dtype=float)
+    if len(rgbs) == 0:
+        return []
+    lab = _rgb_to_lab_np(rgbs)
+    uniq = np.unique(lab, axis=0)
+    k = max(1, min(k, len(uniq)))
+    rng = np.random.default_rng(seed)
+
+    # k-means++ initialisation for stable, well-spread centroids.
+    centers = [lab[rng.integers(len(lab))]]
+    for _ in range(1, k):
+        d2 = np.min(
+            ((lab[:, None, :] - np.array(centers)[None, :, :]) ** 2).sum(2), axis=1
+        )
+        total = d2.sum()
+        probs = d2 / total if total > 0 else np.full(len(lab), 1 / len(lab))
+        centers.append(lab[rng.choice(len(lab), p=probs)])
+    centers = np.array(centers)
+
+    assign = np.zeros(len(lab), dtype=int)
+    for _ in range(iters):
+        d2 = ((lab[:, None, :] - centers[None, :, :]) ** 2).sum(2)
+        new_assign = d2.argmin(1)
+        new_centers = np.array(
+            [lab[new_assign == j].mean(0) if (new_assign == j).any() else centers[j]
+             for j in range(k)]
+        )
+        if np.array_equal(new_assign, assign) and np.allclose(new_centers, centers):
+            assign = new_assign
+            break
+        assign, centers = new_assign, new_centers
+
+    out: list[tuple[int, int, int]] = []
+    for j in range(k):
+        members = rgbs[assign == j]
+        if len(members):
+            out.append(tuple(int(round(v)) for v in members.mean(0)))
+    return out
+
+
+def palette_from_image(
+    image: Image.Image,
+    k: int = DEFAULT_PALETTE_COLORS,
+    inventory: tuple[CapColor, ...] | None = None,
+    seed: int = 0,
+) -> tuple[CapColor, ...]:
+    """Derive a working palette from the image's dominant colours (CIELAB k-means).
+
+    If `inventory` is given (the caps you actually have), return the subset of
+    inventory nearest the image's colour clusters — i.e. ``kmeans(image) ∩
+    inventory``. Colours the inventory can't represent are handled downstream by
+    the reject gate (those cells become holes). Without inventory, the centroids
+    themselves are the palette, named by their nearest reference colour.
+    """
+    arr = np.asarray(image.convert("RGB"))
+    centroids = kmeans_palette_lab(_sample_pixels(arr, seed=seed), k=k, seed=seed)
+    if not centroids:
+        return DEFAULT_PALETTE
+
+    if inventory:
+        used: dict[str, CapColor] = {}
+        for rgb in centroids:
+            cap = nearest(rgb, tuple(inventory))
+            used[cap.name] = cap  # dedupe: one image cluster may pick the same cap
+        return tuple(used.values())
+
+    out: list[CapColor] = []
+    seen: dict[str, int] = {}
+    for rgb in centroids:
+        base = nearest(rgb, DEFAULT_PALETTE).name
+        seen[base] = seen.get(base, 0) + 1
+        name = base if seen[base] == 1 else f"{base}{seen[base]}"
+        out.append(CapColor(name, rgb))
+    return tuple(out)
+
+
+def inventory_from_labels(path) -> tuple[CapColor, ...]:
+    """Load a captured cap dataset (labels.csv with index,r,g,b,...) as inventory."""
+    import csv
+
+    caps: list[CapColor] = []
+    with open(path, newline="") as f:
+        for row in csv.DictReader(f):
+            rgb = (int(row["r"]), int(row["g"]), int(row["b"]))
+            caps.append(CapColor(f"cap{row['index']}", rgb))
+    return tuple(caps)
+
 
 def plan_from_image(
     image: Image.Image,
     grid: Grid,
     palette: tuple[CapColor, ...] = DEFAULT_PALETTE,
     title: str = "untitled",
+    reject_threshold: float | None = None,
+    colors: int | None = None,
+    inventory: tuple[CapColor, ...] | None = None,
 ) -> GridPlan:
-    """Sample `image` at each cap location and quantize to the palette."""
+    """Sample `image` at each cap location and quantize to a cap palette.
+
+    Palette selection:
+      - default: the fixed reference palette (`DEFAULT_PALETTE`);
+      - if `colors` or `inventory` is given: derive the palette from the image by
+        CIELAB k-means, intersected with `inventory` when supplied.
+
+    Reject gate: if `reject_threshold` is set, any cell whose target colour is
+    farther than that (CIEDE2000) from the best available cap is left as a
+    **hole** rather than filled with a poor colour. See docs/COLOR_MATCHING.md.
+    """
+    if colors is not None or inventory is not None:
+        palette = palette_from_image(image, k=colors or DEFAULT_PALETTE_COLORS,
+                                     inventory=inventory)
+
     img = image.convert("RGB")
     arr = np.asarray(img)
     img_h, img_w = arr.shape[:2]
@@ -44,6 +185,20 @@ def plan_from_image(
         patch = arr[y0:y1, x0:x1].reshape(-1, 3)
         mean = tuple(int(v) for v in patch.mean(axis=0)) if patch.size else (0, 0, 0)
         cap_color = nearest(mean, palette)
+        if reject_threshold is not None and distance(mean, cap_color) > reject_threshold:
+            # No cap colour is close enough — leave a hole, keep the wanted colour.
+            cells.append(
+                PlannedCell(
+                    row=cell.row,
+                    col=cell.col,
+                    x_mm=cell.x_mm,
+                    y_mm=cell.y_mm,
+                    color_name="",
+                    rgb=mean,
+                    is_hole=True,
+                )
+            )
+            continue
         cells.append(
             PlannedCell(
                 row=cell.row,
@@ -76,6 +231,8 @@ def render_mosaic(
     draw = ImageDraw.Draw(img)
     r = (plan.cap_diameter_mm / 2.0) * px_per_mm
     for c in plan.cells:
+        if c.is_hole:
+            continue  # deliberate blank — leave the background showing
         cx, cy = c.x_mm * px_per_mm, c.y_mm * px_per_mm
         draw.ellipse([cx - r, cy - r, cx + r, cy + r], fill=tuple(c.rgb))
     return img

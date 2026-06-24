@@ -49,12 +49,25 @@ def cmd_design(args) -> None:
     aspect_ratio = image.width / image.height
     grid = _build_grid(args, aspect_ratio)
     title = Path(args.image).stem if args.image else "demo"
-    plan = designer.plan_from_image(image, grid, title=title)
+    inventory = (
+        designer.inventory_from_labels(args.inventory) if args.inventory else None
+    )
+    plan = designer.plan_from_image(
+        image,
+        grid,
+        title=title,
+        colors=args.colors,
+        inventory=inventory,
+        reject_threshold=args.reject_threshold,
+    )
 
     print(f"\nPlan '{plan.title}'")
     print(f"  frame      : {plan.width_mm:.0f} x {plan.height_mm:.0f} mm")
     print(f"  cap size   : {plan.cap_diameter_mm:.0f} mm")
     print(f"  total caps : {plan.count}  ({grid.rows} rows)")
+    if plan.hole_count:
+        pct = 100.0 * plan.hole_count / plan.count
+        print(f"  holes      : {plan.hole_count}  ({pct:.1f}% — no cap colour close enough)")
     print("  bill of materials (caps per color):")
     for name, n in plan.bill_of_materials().items():
         print(f"    {name:<8} {n}")
@@ -86,6 +99,23 @@ def main(argv: list[str] | None = None) -> None:
     d.add_argument("--caps-across", type=int, help="number of caps across the width")
     d.add_argument("--count", type=int, help="approximate total cap count")
     d.add_argument("--cap-diameter", type=float, default=32.0, help="cap diameter mm")
+    d.add_argument(
+        "--colors",
+        type=int,
+        help="derive the palette from the image by CIELAB k-means into N colours "
+        "(default: use the fixed reference palette)",
+    )
+    d.add_argument(
+        "--inventory",
+        help="cap dataset labels.csv; restrict the palette to caps you actually "
+        "have (image clusters ∩ inventory)",
+    )
+    d.add_argument(
+        "--reject-threshold",
+        type=float,
+        help="CIEDE2000 above which a cell is left as a hole instead of filled "
+        "with a poor colour (default: never leave holes)",
+    )
     d.add_argument("--out", help="write the plan project file (.capproj.json)")
     d.add_argument("--preview-dir", help="directory for preview PNGs")
     d.add_argument("--px-per-mm", type=float, default=4.0, help="preview resolution")

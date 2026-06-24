@@ -2,6 +2,7 @@ from PIL import Image
 
 from cap_mosaic.app import planner_designer as designer
 from cap_mosaic.core.geometry import Cap, grid_for_caps_across
+from cap_mosaic.core.palette import CapColor, distance
 from cap_mosaic.core.plan import GridPlan
 
 
@@ -52,3 +53,75 @@ def test_demo_image_is_runnable():
     assert plan.count > 0
     # demo image uses several palette colors
     assert len(plan.bill_of_materials()) >= 2
+
+
+def _three_color_image(size: int = 240) -> Image.Image:
+    """Equal vertical bands of red, green, blue."""
+    img = Image.new("RGB", (size, size))
+    bands = [(200, 30, 30), (30, 170, 60), (40, 70, 190)]
+    for i, col in enumerate(bands):
+        for x in range(i * size // 3, (i + 1) * size // 3):
+            for y in range(size):
+                img.putpixel((x, y), col)
+    return img
+
+
+def test_kmeans_palette_finds_the_dominant_colors():
+    img = _three_color_image()
+    pal = designer.palette_from_image(img, k=3)
+    assert len(pal) == 3
+    names = {c.name for c in pal}
+    assert {"red", "green", "blue"} <= names
+
+
+def test_kmeans_palette_is_deterministic():
+    img = _three_color_image()
+    a = designer.palette_from_image(img, k=3, seed=7)
+    b = designer.palette_from_image(img, k=3, seed=7)
+    assert [c.rgb for c in a] == [c.rgb for c in b]
+
+
+def test_palette_intersects_inventory():
+    img = _three_color_image()  # wants red, green, blue
+    # inventory has red and blue only (no green) plus an irrelevant purple
+    inventory = (
+        CapColor("myred", (205, 25, 25)),
+        CapColor("myblue", (35, 65, 195)),
+        CapColor("purple", (120, 30, 160)),
+    )
+    pal = designer.palette_from_image(img, k=3, inventory=inventory)
+    # palette is drawn only from inventory; green has no good match -> maps to
+    # whichever inventory cap is nearest, but unused purple should not appear
+    assert all(c in inventory for c in pal)
+
+
+def test_reject_gate_leaves_holes_for_unrepresentable_colors():
+    img = _three_color_image()  # red, green, blue thirds
+    grid = grid_for_caps_across(12, aspect_ratio=1.0, cap=Cap())
+    # palette without green; tight threshold so green cells cannot be faked
+    palette = (CapColor("red", (200, 30, 30)), CapColor("blue", (40, 70, 190)))
+    plan = designer.plan_from_image(img, grid, palette=palette, reject_threshold=10.0)
+    assert plan.hole_count > 0
+    # holes are excluded from the bill of materials and are never green-named
+    assert "" not in plan.bill_of_materials()
+    # without a threshold, the same plan has no holes (green forced to red/blue)
+    plan2 = designer.plan_from_image(img, grid, palette=palette)
+    assert plan2.hole_count == 0
+
+
+def test_holes_roundtrip_and_are_skipped_by_matcher():
+    from cap_mosaic.core.matcher import Matcher
+
+    img = _three_color_image()
+    grid = grid_for_caps_across(12, aspect_ratio=1.0, cap=Cap())
+    palette = (CapColor("red", (200, 30, 30)), CapColor("blue", (40, 70, 190)))
+    plan = designer.plan_from_image(img, grid, palette=palette, reject_threshold=10.0)
+    # JSON roundtrip preserves holes
+    import json
+
+    restored = GridPlan.from_dict(json.loads(json.dumps(plan.to_dict())))
+    assert restored.hole_count == plan.hole_count
+    # the matcher never targets a hole, even with a green cap in hand
+    m = Matcher(plan, reject_threshold=100.0)
+    match = m.match((30, 170, 60))
+    assert match.cell is None or not match.cell.is_hole

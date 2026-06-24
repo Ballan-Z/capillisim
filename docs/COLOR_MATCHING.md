@@ -99,13 +99,22 @@ scalar cannot express. Recommended as the eventual shape of `reject_threshold`.
 ## Status / open items
 
 - [x] Metric chosen: CIEDE2000 in CIELAB.
-- [x] Gate implemented as `reject_threshold` (scalar) in `core/matcher.py`.
+- [x] Gate implemented as `reject_threshold` (scalar) in `core/matcher.py`
+      (live, cap-in-hand) **and** in `app/planner_designer.plan_from_image`
+      (plan time → cells become holes; `PlannedCell.is_hole`).
+- [x] Image+inventory palette: `palette_from_image` derives the palette by
+      CIELAB k-means and intersects it with the captured cap inventory
+      (`inventory_from_labels`). CLI: `--colors`, `--inventory`,
+      `--reject-threshold`.
 - [x] Anchor value identified: AT ≈ 2.7 ΔE₀₀ (conservative floor).
 - [ ] **Blocked on rig:** ramp-test calibration of the true threshold at real
       viewing distance + cap size.
+- [ ] **Enhancement (deferred):** error-diffusion dithering against the
+      inventory palette (optical mixing) to cut holes further — see §"Pipeline
+      upgrades", item 2.
 - [ ] **Enhancement:** component-weighted (ΔH'/ΔL'/ΔC') gate to better reject
       hue errors while tolerating lightness/chroma error.
-- [ ] Dataset feeds this: capture stores **true measured RGB only** (no palette
+- [x] Dataset feeds this: capture stores **true measured RGB only** (no palette
       bucketing); bucketing/clustering is decided per-painting at plan time from
       the real inventory. See `app/cap_capture.py`.
 

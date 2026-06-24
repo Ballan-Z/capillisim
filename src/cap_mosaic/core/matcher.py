@@ -35,7 +35,7 @@ class Matcher:
 
     def match(self, rgb: RGB) -> Match:
         """Best empty cell for a cap of color `rgb`, or a rejection."""
-        empties = [c for c in self.plan.cells if not c.filled]
+        empties = [c for c in self.plan.cells if not c.filled and not c.is_hole]
         if not empties:
             return Match(cell=None, delta_e=float("inf"), accepted=False)
         # closest target color; tie-break top-left so the build fills predictably
