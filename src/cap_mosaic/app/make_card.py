@@ -31,8 +31,15 @@ def _ctext(d, x, y, s, font, fill="black"):
     d.text((x - (box[2] - box[0]) / 2, y), s, font=font, fill=fill)
 
 
-def render_card(dpi: int = 300) -> Image.Image:
-    """Render the card to a PIL image at the given print resolution."""
+def render_card(dpi: int = 300, circle_value: int | None = None) -> Image.Image:
+    """Render the card to a PIL image at the given print resolution.
+
+    ``circle_value`` (0-255) fills the cap placement circle with that neutral
+    gray; ``None`` (the default) leaves it unfilled/white. Defaults to
+    ``card_layout.CIRCLE_FILL_VALUE``.
+    """
+    if circle_value is None:
+        circle_value = L.CIRCLE_FILL_VALUE
     ppm = dpi / 25.4
     W, H = round(L.CARD_W_MM * ppm), round(L.CARD_H_MM * ppm)
     img = Image.new("RGB", (W, H), "white")
@@ -57,6 +64,8 @@ def render_card(dpi: int = 300) -> Image.Image:
         _ctext(d, g.cx_mm * ppm, y + gsz + 0.5 * ppm, "#{0:02X}{0:02X}{0:02X}".format(g.value) + tag, hexfont)
 
     cx, cy, r = L.CIRCLE_CX_MM * ppm, L.CIRCLE_CY_MM * ppm, L.CIRCLE_R_MM * ppm
+    if circle_value is not None:
+        d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(circle_value,) * 3)
     d.ellipse([cx - r, cy - r, cx + r, cy + r], outline=(140, 140, 140), width=lw)
     ch = round(3 * ppm)
     d.line([cx - ch, cy, cx + ch, cy], fill=(140, 140, 140), width=lw)

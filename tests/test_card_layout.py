@@ -19,6 +19,20 @@ def test_layout_self_consistent():
     assert L.CIRCLE_CY_MM + L.CIRCLE_R_MM < L.CARD_H_MM
 
 
+def test_circle_value_fills_placement_circle_gray():
+    dpi = 200
+    ppm = dpi / 25.4
+    gray_card = np.asarray(render_card(dpi, circle_value=128))
+    white_card = np.asarray(render_card(dpi))  # default: unfilled (white) circle
+    cy, cx = int(L.CIRCLE_CY_MM * ppm), int(L.CIRCLE_CX_MM * ppm)
+    # sample just off-centre to avoid the printed crosshair at the exact centre
+    off = int(6 * ppm)
+    g = gray_card[cy - off, cx + off]
+    w = white_card[cy - off, cx + off]
+    assert abs(int(g.mean()) - 128) < 25, g  # circle now mid-gray
+    assert int(w.mean()) > 240, w           # default still white
+
+
 def test_render_roundtrip_detect_all_markers():
     img = render_card(dpi=200)
     gray = cv2.cvtColor(np.asarray(img), cv2.COLOR_RGB2GRAY)

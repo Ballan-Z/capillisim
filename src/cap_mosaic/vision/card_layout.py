@@ -61,6 +61,11 @@ GRAY_PATCHES: tuple[GrayPatch, ...] = (
 CIRCLE_CX_MM = 60.0
 CIRCLE_CY_MM = 48.0
 CIRCLE_R_MM = 18.0
+# Fill value for the placement circle: None = unfilled (white card showing).
+# Set to a mid-gray (e.g. 128) and reprint to make a plain white cap distinct
+# from the empty circle by brightness — enabling a reference-difference presence
+# check for caps with no colour/marking. See docs/DATA_MODEL.md / COLOR_MATCHING.md.
+CIRCLE_FILL_VALUE: int | None = None
 
 
 def marker_centers_mm() -> dict[int, tuple[float, float]]:
