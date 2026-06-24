@@ -137,7 +137,10 @@ def read_cap_color(
     if pixels.size == 0:
         return None
     not_glare = ~np.all(pixels > glare_level, axis=1)
-    sample = pixels[not_glare] if not_glare.any() else pixels
+    # Treat bright pixels as glare only when they're a minority. A mostly-bright
+    # cap (e.g. white) really is bright — masking it would leave only the dark
+    # leftovers (its own logo/shadows) and read the wrong colour, so keep all.
+    sample = pixels[not_glare] if not_glare.mean() > 0.5 else pixels
     med = np.median(sample, axis=0)
     return (int(med[0]), int(med[1]), int(med[2]))
 
