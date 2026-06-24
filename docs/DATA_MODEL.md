@@ -1,6 +1,6 @@
 # Data Model — the cap dataset / inventory store
 
-Date: 2026-06-24. Status: schema **v1**. Code: `src/cap_mosaic/data/store.py`.
+Date: 2026-06-24. Status: schema **v2**. Code: `src/cap_mosaic/data/store.py`.
 
 The capture loop produces a growing set of caps, each with several
 colour-corrected crops, a measured colour, a quality signal, and — later —
@@ -29,6 +29,7 @@ cap            one physical cap and its measured colour
  ├─ r,g,b         INTEGER          true measured colour (no palette bucketing)
  ├─ lab_l,a,b     REAL             derived CIELAB (perceptual matching/clustering)
  ├─ color_std     REAL  nullable   spread across frames = glare/outlier signal
+ ├─ marking_frac  REAL  nullable   busy-ness: fraction of logo/text vs field (v2)
  ├─ n_frames      INTEGER
  ├─ source        TEXT             e.g. 'card_capture', 'labels.csv'
  ├─ brand         TEXT  nullable   future logo/brand label
@@ -61,9 +62,15 @@ meta           dataset-level key/value (name, calibration ref, …)
   caps to painting colours is a per-painting decision at plan time
   (`docs/COLOR_MATCHING.md`).
 - **Robust per-cap colour.** The cap's `r,g,b` is the **median across all saved
-  frames'** glare-masked reads, so one glary frame can't skew it (this is what
-  the old single-frame CSV value got wrong). `color_std` records the spread as a
+  frames'** reads, so one glary frame can't skew it (this is what the old
+  single-frame CSV value got wrong). `color_std` records the spread as a
   built-in quality flag.
+- **Field colour, logo excluded.** Each frame's colour comes from
+  `read_cap_field` — the dominant *field* cluster (k-means in Lab), so a cap's
+  own logo/text can't tint its stored colour (a white cap with a red logo stores
+  white, not pink). `marking_frac` records how busy the cap is (logo fraction),
+  the cap-art "internal marking" feature used to favour busy caps for detailed
+  regions and flat caps for smooth fields. See `docs/COLOR_MATCHING.md`.
 - **A cap is one physical cap.** Inventory counts and "how many blue caps do I
   have" are *queries*, not stored buckets — consistent with the open-ended,
   random cap supply.
@@ -87,7 +94,9 @@ an old dataset into the DB.
 
 ## Migration path
 
-- **v1 (now):** colour dataset + crops + quality + embedding table (unused yet).
+- **v1:** colour dataset + crops + quality + embedding table (unused yet).
+- **v2 (now):** `cap.marking_frac` busy-ness metric. Existing v1 files upgrade in
+  place on open (`_migrate_to_v2` ALTERs the table; legacy rows get NULL).
 - **Later:** populate `embedding` for brand/logo ID; add per-cap `placed`/build
   state if the store ever also tracks a live build (today that lives in the
   `.capproj.json` plan). Add columns via a new entry in `_MIGRATIONS`.

@@ -46,6 +46,6 @@ this project. Details in `docs/PRIOR_ART.md`.
 - `docs/CALIBRATION.md` — the projector→table calibration procedure (step by step).
 - `docs/SIZING_AND_VIEWING.md` — piece size, cap count, and viewing distance.
 - `docs/COLOR_MATCHING.md` — perceptual ΔE matching and the place-or-leave-empty threshold: research, anchors, calibration plan.
-- `docs/DATA_MODEL.md` — the SQLite cap dataset/inventory schema (caps + crops + quality + future embeddings).
+- `docs/DATA_MODEL.md` — the SQLite cap dataset/inventory schema (caps + crops + quality + busy-ness + future embeddings).
 - `docs/HARDWARE.md` — the physical rig and the specs we still need.
 - `docs/ROADMAP.md` — phased scope, milestones, and the POC success criteria.

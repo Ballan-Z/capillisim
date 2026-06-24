@@ -168,10 +168,43 @@ to implement now. (2) dithering is a larger aesthetic change (it trades flat
 colour fields for visible blended texture) — implement behind a flag and compare
 with `simulate_distance` before adopting. (3) is the eventual shape of the gate.
 
+## Reading a cap: field colour, marking, and presence
+
+How a cap is *read* matters as much as how colours are matched — especially for
+caps with logos/text (a white cap with a red "SB" logo). Implemented in
+`vision/card_reader.py`:
+
+- **Dominant field colour (logo excluded).** `read_cap_field` splits the inner
+  circle into two colour clusters (k-means in Lab) and takes the **larger
+  cluster** as the cap's colour. This is the standard dominant-colour method (vs.
+  a naive mean, which yields a muddy in-between colour) and matches how cap-art
+  tools score caps. A white+red-logo cap stores **white**, not pink.
+- **Marking fraction = busy-ness.** The minority (marking) cluster's fraction is
+  stored as `marking_frac` (the cap-art "internal marking" feature). Use it later
+  to favour busy caps for detailed/edge regions and flat caps for smooth fields.
+  At viewing distance a busy cap reads as its area-weighted blend, recoverable
+  from the field colour + `marking_frac` if the planner ever needs the perceived
+  colour.
+- **Glare-majority guard.** Specular pixels are masked only when they're a
+  minority; a mostly-bright (white) cap keeps all pixels, so the read can't
+  collapse onto the dark logo/shadows it would otherwise leave behind.
+- **Presence ≠ brightness.** A white cap is as bright as the empty white circle,
+  so `cap_present` decides presence from **coloured-pixel fraction and luma
+  variance**, not brightness. Known limitation: a perfectly plain matte-white cap
+  with no marking is still ambiguous — printing the placement circle **mid-gray**
+  (`make_card(circle_value=128)`, `card_layout.CIRCLE_FILL_VALUE`) removes the
+  ambiguity for every cap and is the recommended fix at the next card reprint.
+
+Sources: Roy Feinson cap mosaics (colour + contrast + internal marking),
+dominant-colour-via-k-means in CIELAB (MDPI 2072-4292/12/3/520).
+
 ## Sources
 
 - Hong & Liu, *Create Pointillism Art from Digital Images* (Stanford EE368) —
   https://web.stanford.edu/class/ee368/Project_Autumn_1516/Reports/Hong_Liu.pdf
+- Roy Feinson — Bottle Cap Mosaics — https://royfeinson.com/bottle-cap-mosaics/
+- Dominant Color Extraction with K-Means in CIELAB —
+  https://www.mdpi.com/2072-4292/12/3/520
 - Paravina et al., *Perceptibility and acceptability thresholds for colour
   differences in dentistry* — https://www.sciencedirect.com/science/article/abs/pii/S0300571213003175
 - *Color difference* (ΔE, CIEDE2000, JND) — https://en.wikipedia.org/wiki/Color_difference
