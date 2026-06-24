@@ -91,6 +91,20 @@ def test_v1_db_upgrades_in_place_to_v2(tmp_path):
         assert cap.marking_frac is None  # legacy row has no value, not a crash
 
 
+def test_ambiguous_flag(tmp_path):
+    with CapDataset(tmp_path / "caps.db") as db:
+        # clean cap: low marking, stable across frames -> trustworthy
+        db.add_cap((220, 220, 220), captured_at="t", marking_frac=0.30, color_std=1.0)
+        # near-50/50 field/logo split -> ambiguous (which cluster is the field?)
+        db.add_cap((174, 82, 68), captured_at="t", marking_frac=0.49, color_std=2.0)
+        # unstable read: frames disagree (field cluster flipped) -> ambiguous
+        db.add_cap((174, 180, 178), captured_at="t", marking_frac=0.31, color_std=34.0)
+        clean, by_marking, by_std = db.caps()
+        assert clean.is_ambiguous is False
+        assert by_marking.is_ambiguous is True
+        assert by_std.is_ambiguous is True
+
+
 def test_reopen_is_idempotent(tmp_path):
     path = tmp_path / "caps.db"
     with CapDataset(path) as db:

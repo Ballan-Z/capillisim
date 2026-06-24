@@ -42,6 +42,14 @@ class FrameRecord:
     sha256: str | None = None
 
 
+# A cap is "ambiguous" when its field colour can't be trusted as a single tile
+# colour: either the field/marking split is near 50/50 (no clear field), or the
+# per-frame reads disagree (the field cluster flipped between frames). Such caps
+# should be re-read, excluded, or stored as two colours — not matched on one RGB.
+AMBIGUOUS_MARKING = 0.40  # marking fraction at/above which field vs logo is unclear
+AMBIGUOUS_COLOR_STD = 10.0  # per-frame CIEDE2000 spread signalling an unstable read
+
+
 @dataclass
 class CapRecord:
     """One physical cap and its measured colour."""
@@ -57,6 +65,13 @@ class CapRecord:
     brand: str | None = None
     notes: str | None = None
     frames: list[FrameRecord] = field(default_factory=list)
+
+    @property
+    def is_ambiguous(self) -> bool:
+        """True if the stored field colour is not a trustworthy single tile colour."""
+        return (self.marking_frac or 0.0) >= AMBIGUOUS_MARKING or (
+            self.color_std or 0.0
+        ) > AMBIGUOUS_COLOR_STD
 
 
 # ── schema / migrations ──────────────────────────────────────────────────────
