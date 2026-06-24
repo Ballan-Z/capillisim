@@ -58,6 +58,39 @@ def test_embedding_store_and_schema_version(tmp_path):
         assert row["dim"] == 3
 
 
+def test_marking_frac_roundtrips(tmp_path):
+    with CapDataset(tmp_path / "caps.db") as db:
+        db.add_cap((235, 235, 235), captured_at="t", marking_frac=0.34)
+        cap = db.caps()[0]
+        assert cap.marking_frac is not None
+        assert abs(cap.marking_frac - 0.34) < 1e-6
+
+
+def test_v1_db_upgrades_in_place_to_v2(tmp_path):
+    import sqlite3
+
+    # Build a v1 database by hand (schema v1 + user_version=1), with one cap row.
+    from cap_mosaic.data.store import _SCHEMA_V1
+
+    path = tmp_path / "caps.db"
+    conn = sqlite3.connect(str(path))
+    conn.executescript(_SCHEMA_V1)
+    conn.execute("PRAGMA user_version = 1")
+    conn.execute(
+        "INSERT INTO cap (captured_at, r, g, b, lab_l, lab_a, lab_b, n_frames, source) "
+        "VALUES ('t', 10, 20, 30, 5, 0, 0, 0, 'legacy')"
+    )
+    conn.commit()
+    conn.close()
+
+    # Opening with current code must add marking_frac and preserve the row.
+    with CapDataset(path) as db:
+        assert db.conn.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION
+        cap = db.caps()[0]
+        assert cap.rgb == (10, 20, 30)
+        assert cap.marking_frac is None  # legacy row has no value, not a crash
+
+
 def test_reopen_is_idempotent(tmp_path):
     path = tmp_path / "caps.db"
     with CapDataset(path) as db:

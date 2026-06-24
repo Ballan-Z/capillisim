@@ -51,6 +51,7 @@ class CapRecord:
     rgb: RGB
     lab: Lab
     color_std: float | None = None
+    marking_frac: float | None = None
     n_frames: int = 0
     source: str = "unknown"
     brand: str | None = None
@@ -105,8 +106,14 @@ def _migrate_to_v1(conn: sqlite3.Connection) -> None:
     conn.executescript(_SCHEMA_V1)
 
 
+def _migrate_to_v2(conn: sqlite3.Connection) -> None:
+    # Busy-ness of the cap: fraction of pixels in the marking (logo/text) cluster
+    # vs the field. NULL on legacy rows captured before field/marking splitting.
+    conn.execute("ALTER TABLE cap ADD COLUMN marking_frac REAL")
+
+
 # index i (0-based) upgrades a DB from user_version i to i+1.
-_MIGRATIONS = [_migrate_to_v1]
+_MIGRATIONS = [_migrate_to_v1, _migrate_to_v2]
 SCHEMA_VERSION = len(_MIGRATIONS)
 
 
@@ -149,6 +156,7 @@ class CapDataset:
         captured_at: str,
         source: str = "card_capture",
         color_std: float | None = None,
+        marking_frac: float | None = None,
         brand: str | None = None,
         notes: str | None = None,
     ) -> int:
@@ -170,10 +178,10 @@ class CapDataset:
 
         cur = self.conn.execute(
             "INSERT INTO cap (captured_at, r, g, b, lab_l, lab_a, lab_b, "
-            "color_std, n_frames, source, brand, notes) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+            "color_std, marking_frac, n_frames, source, brand, notes) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (captured_at, rgb[0], rgb[1], rgb[2], lab[0], lab[1], lab[2],
-             color_std, len(frames), source, brand, notes),
+             color_std, marking_frac, len(frames), source, brand, notes),
         )
         cap_id = int(cur.lastrowid)
         for fr in frames:
@@ -249,6 +257,7 @@ class CapDataset:
             rgb=(r["r"], r["g"], r["b"]),
             lab=(r["lab_l"], r["lab_a"], r["lab_b"]),
             color_std=r["color_std"],
+            marking_frac=r["marking_frac"],
             n_frames=r["n_frames"],
             source=r["source"],
             brand=r["brand"],
