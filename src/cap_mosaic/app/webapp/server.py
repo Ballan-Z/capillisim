@@ -133,9 +133,20 @@ def estimate(
     palette = list(counts.keys())
     view_d = res.get("distance_m") or res.get("recommended_distance_m") or 5.0
 
+    # Report caps you actually buy: the area estimate counts the whole panel, but
+    # a removed/bare-white background leaves holes with no cap. total_caps is the
+    # real (background-excluded) count; panel_caps keeps the full-panel figure.
+    res["panel_caps"] = res["total_caps"]
+    res["total_caps"] = sum(counts.values())
+    res["holes"] = plan.hole_count
+
     res["bom"] = {"#%02x%02x%02x" % rgb: n for rgb, n in counts.most_common()}
     res["colors_used"] = len(palette)
     res["effective_colors"] = len(estimator.effective_colors(palette, view_d, pitch_mm))
+    # Smallest piece that still reads + the closest distance it reads from.
+    min_w_m, closest_m = estimator.minimal_size(res["min_caps_across"], pitch_mm)
+    res["min_size_m"] = round(min_w_m, 2)
+    res["closest_distance_m"] = round(closest_m, 2)
     # Share of the viewer's field of view the piece fills at the current distance
     # (drives the framed-view readout; matches view_at_distance's shrink).
     res["apparent_pct"] = round(100.0 * apparent_fraction(res["width_mm"] / 1000.0, view_d))

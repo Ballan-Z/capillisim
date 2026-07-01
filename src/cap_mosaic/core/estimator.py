@@ -36,6 +36,22 @@ def blend_distance_m(pitch_mm: float = 32.0) -> float:
     return sizing.distance_for_arcmin(pitch_mm / 1000.0, sizing.READS_ARCMIN)
 
 
+def minimal_size(
+    min_caps_across: int, pitch_mm: float = 32.0, fov_deg: float = DEFAULT_FOV_DEG
+) -> tuple[float, float]:
+    """Smallest piece that can represent the subject, and how close you can stand.
+
+    Returns ``(min_width_m, closest_distance_m)``:
+    - ``min_width_m`` = ``min_caps_across × pitch`` — the legibility floor in real
+      units. A narrower piece has too few caps and never reads, at any distance.
+    - ``closest_distance_m`` = ``blend_distance_m`` — nearer than this the caps are
+      individually visible, so the picture breaks up. Set by cap pitch, so it is
+      the same for any size. Beyond it the mosaic reads as a picture.
+    """
+    min_width_m = min_caps_across * pitch_mm / 1000.0
+    return min_width_m, blend_distance_m(pitch_mm)
+
+
 def read_quality(pitch_mm: float, distance_m: float) -> str:
     """'caps' (individually visible) | 'reads' (as a picture) | 'smooth' (indistinct)."""
     arcmin = sizing.angular_arcmin(pitch_mm / 1000.0, distance_m)

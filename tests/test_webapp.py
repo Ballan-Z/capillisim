@@ -46,6 +46,36 @@ def test_estimate_from_size_has_caps_legibility_and_bom():
     assert isinstance(b["bom"], dict) and len(b["bom"]) > 0
     assert b["effective_colors"] <= b["colors_used"]
     assert 0 < b["apparent_pct"] <= 100
+    # total_caps is the real (background-excluded) count == sum of the BOM,
+    # never more than the full-panel area estimate.
+    assert b["total_caps"] == sum(b["bom"].values())
+    assert b["total_caps"] <= b["panel_caps"]
+
+
+def test_bare_white_reduces_total_caps():
+    # a white-bordered subject: holing the border must drop the buyable count
+    buf = io.BytesIO()
+    im = Image.new("RGB", (200, 200), (255, 255, 255))
+    for x in range(70, 130):
+        for y in range(70, 130):
+            im.putpixel((x, y), (200, 30, 30))
+    im.save(buf, format="PNG")
+    buf.seek(0)
+    iid = client.post("/upload", files={"file": ("b.png", buf, "image/png")}).json()["id"]
+    on = client.get("/estimate", params={"image_id": iid, "size_mm": 2000, "bare_white": True}).json()
+    off = client.get("/estimate", params={"image_id": iid, "size_mm": 2000, "bare_white": False}).json()
+    assert on["holes"] > 0
+    assert on["total_caps"] < off["total_caps"]
+
+
+def test_estimate_reports_minimal_size_and_closest_distance():
+    iid = _upload()
+    b = client.get("/estimate", params={"image_id": iid, "size_mm": 3000}).json()
+    assert b["min_size_m"] > 0
+    # minimal size == legibility floor in metres (floor caps * 32 mm)
+    assert abs(b["min_size_m"] - b["min_caps_across"] * 32 / 1000) < 0.01
+    # closest reading distance == the blend (min) distance
+    assert abs(b["closest_distance_m"] - b["min_distance_m"]) < 0.01
 
 
 def test_estimate_from_distance_has_size_and_read_quality():

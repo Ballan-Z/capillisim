@@ -60,6 +60,17 @@ $("fitDist").addEventListener("click", async () => {
   const b = await estimate({ size_mm: sizeMm() });
   if (b) { const d = Math.min(20, b.recommended_distance_m); $("dist").value = d; $("distVal").textContent = d.toFixed(1) + " m"; refresh(); }
 });
+$("fitMin").addEventListener("click", async () => {
+  // Smallest size that still reads, viewed from the closest distance it reads from.
+  const b = await estimate({ size_mm: sizeMm() });
+  if (b) {
+    const w = Math.round(b.min_size_m * 1000);
+    $("size").value = w; $("sizeVal").textContent = (w / 1000).toFixed(2) + " m";
+    const y = b.closest_distance_m;
+    $("dist").value = y; $("distVal").textContent = y.toFixed(1) + " m";
+    refresh();
+  }
+});
 
 let timer = null;
 function debounced() { clearTimeout(timer); timer = setTimeout(refresh, 250); }

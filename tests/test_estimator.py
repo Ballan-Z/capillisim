@@ -13,6 +13,30 @@ def _fine_checker(size=200, cell=4):
     return np.stack([c, c, c], axis=-1)
 
 
+def test_minimal_size_matches_legibility_floor():
+    floor = 30
+    w_m, closest_m = estimator.minimal_size(floor, pitch_mm=32.0)
+    # smallest width that still has enough caps = floor * pitch
+    assert abs(w_m - floor * 32.0 / 1000.0) < 1e-9
+    # closest reading distance = blend distance (pitch-only)
+    assert abs(closest_m - estimator.blend_distance_m(32.0)) < 1e-9
+
+
+def test_minimal_size_grows_with_a_more_detailed_subject():
+    simple_w, _ = estimator.minimal_size(20)
+    detailed_w, _ = estimator.minimal_size(80)
+    assert detailed_w > simple_w  # needs more caps -> must be bigger
+
+
+def test_minimal_size_solve_from_size_reads_at_closest_distance():
+    # a piece rendered at exactly the minimal size is legible (>= floor caps)
+    img = _fine_checker()
+    floor = estimator.min_caps_across(img)
+    w_m, _ = estimator.minimal_size(floor)
+    r = estimator.solve_from_size(img, width_mm=w_m * 1000.0, min_caps=floor)
+    assert r["legible"] is True
+
+
 def test_valid_size_is_legible_no_warning():
     r = estimator.solve_from_size(_solid(), width_mm=2000)
     assert r["legible"] is True
