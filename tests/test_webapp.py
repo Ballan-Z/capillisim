@@ -45,6 +45,7 @@ def test_estimate_from_size_has_caps_legibility_and_bom():
     assert b["total_caps"] > 0
     assert isinstance(b["bom"], dict) and len(b["bom"]) > 0
     assert b["effective_colors"] <= b["colors_used"]
+    assert 0 < b["apparent_pct"] <= 100
 
 
 def test_estimate_from_distance_has_size_and_read_quality():

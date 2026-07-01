@@ -20,6 +20,7 @@ from PIL import Image
 
 from ...core import estimator
 from ...core.geometry import Cap, grid_for_caps_across
+from ...core.sizing import apparent_fraction
 from ..cap_render import build_library, render_mosaic_caps
 from ..planner_designer import plan_from_image, view_at_distance
 
@@ -133,6 +134,9 @@ def estimate(
     res["bom"] = {"#%02x%02x%02x" % rgb: n for rgb, n in counts.most_common()}
     res["colors_used"] = len(palette)
     res["effective_colors"] = len(estimator.effective_colors(palette, view_d, pitch_mm))
+    # Share of the viewer's field of view the piece fills at the current distance
+    # (drives the framed-view readout; matches view_at_distance's shrink).
+    res["apparent_pct"] = round(100.0 * apparent_fraction(res["width_mm"] / 1000.0, view_d))
     return res
 
 

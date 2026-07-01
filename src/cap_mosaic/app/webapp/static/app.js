@@ -101,5 +101,7 @@ async function refresh() {
   // simulation
   const q = new URLSearchParams({ image_id: imageId, mode: mode(), pitch_mm: PITCH, size_mm: sizeMm(), distance_m: distM() });
   $("sim").src = "/simulate?" + q.toString() + "&_=" + Date.now();
-  $("simhint").textContent = `at ${(sizeMm() / 1000).toFixed(2)} m wide, seen from ${distM().toFixed(1)} m — ${readQuality(distM())}`;
+  const pct = b.apparent_pct != null ? `fills ~${b.apparent_pct}% of your view` : "";
+  $("simhint").textContent =
+    `${(sizeMm() / 1000).toFixed(2)} m wide, seen from ${distM().toFixed(1)} m — ${pct} · ${readQuality(distM())}`;
 }
