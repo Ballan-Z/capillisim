@@ -1,12 +1,122 @@
-"""FastAPI backend for the Mosaic Estimator."""
+"""FastAPI backend for the Mosaic Estimator.
+
+Endpoints:
+- ``POST /upload``            -> store an image, return its id + dimensions.
+- ``GET  /estimate``          -> solve size<->distance, legibility, BOM, effective colours.
+- ``GET  /simulate``          -> a cap-rendered mosaic (PNG), optionally blurred for distance.
+"""
 
 from __future__ import annotations
 
-from fastapi import FastAPI
+import io
+from collections import Counter
+from pathlib import Path
+
+import numpy as np
+from fastapi import FastAPI, File, HTTPException, Query, Response, UploadFile
+from PIL import Image
+
+from ...core import estimator
+from ...core.geometry import Cap, grid_for_caps_across
+from ..cap_render import build_library, render_mosaic_caps
+from ..planner_designer import plan_from_image, simulate_distance
 
 app = FastAPI(title="Capillisim Mosaic Estimator")
+
+_IMAGES: dict[str, Image.Image] = {}
+_COUNTER = {"n": 0}
+# Use the captured cap dataset for realistic caps + BOM when it exists.
+_DB = Path("dataset/caps.db")
+_MAX_CAPS_ACROSS = 48  # cap plan/render resolution so the UI stays responsive
 
 
 @app.get("/health")
 def health() -> dict:
     return {"status": "ok"}
+
+
+@app.post("/upload")
+async def upload(file: UploadFile = File(...)) -> dict:
+    try:
+        img = Image.open(io.BytesIO(await file.read())).convert("RGB")
+    except Exception as exc:  # noqa: BLE001 - any decode failure is a bad upload
+        raise HTTPException(400, f"could not read image: {exc}") from exc
+    _COUNTER["n"] += 1
+    iid = str(_COUNTER["n"])
+    _IMAGES[iid] = img
+    return {"id": iid, "width": img.width, "height": img.height,
+            "aspect": img.width / img.height}
+
+
+def _get(image_id: str) -> Image.Image:
+    img = _IMAGES.get(image_id)
+    if img is None:
+        raise HTTPException(404, "unknown image id (upload first)")
+    return img
+
+
+def _solve(img: Image.Image, mode: str, pitch: float,
+           size_mm: float | None, distance_m: float | None) -> dict:
+    arr = np.asarray(img)
+    if size_mm is not None:
+        return estimator.solve_from_size(arr, size_mm, mode=mode, pitch_mm=pitch)
+    if distance_m is not None:
+        return estimator.solve_from_distance(arr, distance_m, mode=mode, pitch_mm=pitch)
+    raise HTTPException(400, "provide either size_mm or distance_m")
+
+
+def _plan_for(img: Image.Image, caps_across: int, colors: int):
+    caps_across = max(1, min(caps_across, _MAX_CAPS_ACROSS))
+    grid = grid_for_caps_across(caps_across, img.width / img.height, Cap())
+    return plan_from_image(img, grid, colors=colors)
+
+
+@app.get("/estimate")
+def estimate(
+    image_id: str,
+    mode: str = "picture",
+    pitch_mm: float = 32.0,
+    size_mm: float | None = Query(None),
+    distance_m: float | None = Query(None),
+    colors: int = 12,
+) -> dict:
+    img = _get(image_id)
+    res = _solve(img, mode, pitch_mm, size_mm, distance_m)
+
+    plan = _plan_for(img, res["caps_across"], colors)
+    counts = Counter(
+        tuple(c.rgb) for c in plan.cells if not c.is_hole
+    )
+    bom = {"#%02x%02x%02x" % rgb: n for rgb, n in counts.most_common()}
+    palette = list(counts.keys())
+    view_d = res.get("distance_m") or res.get("recommended_distance_m") or 5.0
+    effective = estimator.effective_colors(palette, view_d, pitch_mm)
+
+    res["bom"] = bom
+    res["colors_used"] = len(palette)
+    res["effective_colors"] = len(effective)
+    return res
+
+
+@app.get("/simulate")
+def simulate(
+    image_id: str,
+    mode: str = "picture",
+    pitch_mm: float = 32.0,
+    size_mm: float | None = Query(None),
+    distance_m: float | None = Query(None),
+    colors: int = 12,
+    px_per_cap: int = 22,
+) -> Response:
+    img = _get(image_id)
+    res = _solve(img, mode, pitch_mm, size_mm, distance_m)
+    plan = _plan_for(img, res["caps_across"], colors)
+    palette = list({tuple(c.rgb) for c in plan.cells if not c.is_hole})
+    lib = build_library(palette, db_path=str(_DB) if _DB.exists() else None, size=64)
+    mosaic = render_mosaic_caps(plan, lib, px_per_cap=px_per_cap)
+    if distance_m is not None:
+        mosaic = simulate_distance(mosaic, px_per_mm=px_per_cap / pitch_mm,
+                                   distance_m=distance_m)
+    buf = io.BytesIO()
+    mosaic.save(buf, format="PNG")
+    return Response(content=buf.getvalue(), media_type="image/png")
