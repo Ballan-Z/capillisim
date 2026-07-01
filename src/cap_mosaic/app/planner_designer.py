@@ -15,6 +15,7 @@ from PIL import Image, ImageDraw, ImageFilter
 from ..core.geometry import Grid
 from ..core.palette import DEFAULT_PALETTE, CapColor, distance, nearest
 from ..core.plan import GridPlan, PlannedCell
+from ..core.sizing import apparent_fraction
 
 # Perceptual "blend threshold": the angular size below which neighbouring caps
 # read as a merged tone (a squint/halftone-blending heuristic, larger than raw
@@ -273,6 +274,59 @@ def simulate_distance(
     sigma_mm = distance_m * 1000.0 * math.tan(blend_rad)
     sigma_px = max(0.0, sigma_mm * px_per_mm)
     return mosaic.filter(ImageFilter.GaussianBlur(radius=sigma_px))
+
+
+def _srgb_to_linear(a: np.ndarray) -> np.ndarray:
+    return np.where(a <= 0.04045, a / 12.92, ((a + 0.055) / 1.055) ** 2.4)
+
+
+def _linear_to_srgb(a: np.ndarray) -> np.ndarray:
+    return np.where(a <= 0.0031308, a * 12.92, 1.055 * np.power(a, 1 / 2.4) - 0.055)
+
+
+def _resample_linear(img: Image.Image, w: int, h: int) -> Image.Image:
+    """Area-average `img` down to (w, h) in LINEAR light (physically-correct
+    optical colour mixing), then back to sRGB. cv2 INTER_AREA needs float32."""
+    import cv2
+
+    arr = np.asarray(img.convert("RGB"), dtype=np.float32) / 255.0
+    lin = _srgb_to_linear(arr).astype(np.float32)
+    resized = cv2.resize(lin, (max(1, w), max(1, h)), interpolation=cv2.INTER_AREA)
+    srgb = _linear_to_srgb(resized)
+    out = np.clip(srgb * 255.0 + 0.5, 0, 255).astype(np.uint8)
+    return Image.fromarray(out, "RGB")
+
+
+def view_at_distance(
+    mosaic: Image.Image,
+    mosaic_width_mm: float,
+    distance_m: float,
+    frame_px: tuple[int, int],
+    fov_deg: float = 50.0,
+    board: tuple[int, int, int] = (230, 230, 230),
+) -> Image.Image:
+    """How the sharp mosaic reads from `distance_m`, in a fixed field-of-view frame.
+
+    As you step back the mosaic subtends a smaller angle, so it SHRINKS inside a
+    fixed `frame_px` frame while STAYING SHARP. Neighbouring caps merge because
+    the whole picture is area-resampled to the pixel size it subtends — in linear
+    light, so the colour mixing is physically correct (not a growing blur). The
+    surround is left as bare board colour.
+    """
+    frame_w, frame_h = frame_px
+    frac = apparent_fraction(mosaic_width_mm / 1000.0, distance_m, fov_deg)
+    mw, mh = mosaic.size
+
+    target_w = max(1, int(round(frac * frame_w)))
+    target_h = max(1, int(round(target_w * mh / mw)))
+    if target_h > frame_h:  # keep the whole mosaic inside the frame
+        target_h = frame_h
+        target_w = max(1, int(round(target_h * mw / mh)))
+
+    resized = _resample_linear(mosaic, target_w, target_h)
+    frame = Image.new("RGB", (frame_w, frame_h), board)
+    frame.paste(resized, ((frame_w - target_w) // 2, (frame_h - target_h) // 2))
+    return frame
 
 
 def demo_image(size: int = 512) -> Image.Image:
