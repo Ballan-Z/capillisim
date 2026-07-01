@@ -8,6 +8,7 @@ blurred by ``planner_designer.simulate_distance`` it reads as the picture — th
 
 from __future__ import annotations
 
+from functools import lru_cache
 from pathlib import Path
 
 from PIL import Image, ImageDraw
@@ -30,6 +31,22 @@ def _load_circular(path: str, size: int) -> Image.Image | None:
     return out
 
 
+@lru_cache(maxsize=8)
+def _real_caps(db_path: str, size: int, mtime: float) -> tuple[CapImage, ...]:
+    """Real caps from the dataset as circular tiles, cached (mtime busts it)."""
+    from ..data.store import CapDataset
+
+    caps: list[CapImage] = []
+    with CapDataset(db_path) as db:
+        for c in db.caps(with_frames=True):
+            if not c.frames:
+                continue
+            im = _load_circular(c.frames[0].path, size)
+            if im is not None:
+                caps.append(CapImage(tuple(c.rgb), im))
+    return tuple(caps)
+
+
 def build_library(
     palette: list[RGB],
     db_path: str | None = None,
@@ -38,18 +55,11 @@ def build_library(
     markings: bool = True,
 ) -> list[CapImage]:
     """A cap image library covering `palette` (fake caps) plus any real caps from
-    ``db_path`` (which the nearest-colour match will prefer when closer)."""
+    ``db_path`` (which the nearest-colour match will prefer when closer). The real
+    caps are loaded once and cached, so repeated renders (slider drags) are fast."""
     lib = fake_cap_library(list(palette), size=size, seed=seed, markings=markings)
     if db_path and Path(db_path).exists():
-        from ..data.store import CapDataset
-
-        with CapDataset(db_path) as db:
-            for c in db.caps(with_frames=True):
-                if not c.frames:
-                    continue
-                im = _load_circular(c.frames[0].path, size)
-                if im is not None:
-                    lib.append(CapImage(tuple(c.rgb), im))
+        lib.extend(_real_caps(db_path, size, Path(db_path).stat().st_mtime))
     return lib
 
 
