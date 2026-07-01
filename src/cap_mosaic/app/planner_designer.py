@@ -174,6 +174,8 @@ def plan_from_image(
     reject_threshold: float | None = None,
     colors: int | None = None,
     inventory: tuple[CapColor, ...] | None = None,
+    bare_white: bool = False,
+    white_level: int = 238,
 ) -> GridPlan:
     """Sample `image` at each cap location and quantize to a cap palette.
 
@@ -185,6 +187,10 @@ def plan_from_image(
     Reject gate: if `reject_threshold` is set, any cell whose target colour is
     farther than that (CIEDE2000) from the best available cap is left as a
     **hole** rather than filled with a poor colour. See docs/COLOR_MATCHING.md.
+
+    Bare-white background: with `bare_white=True`, cells whose sampled colour is
+    near-white (every channel >= `white_level`) become holes — the board is left
+    bare rather than paved with white caps.
     """
     if colors is not None or inventory is not None:
         palette = palette_from_image(image, k=colors or DEFAULT_PALETTE_COLORS,
@@ -204,6 +210,15 @@ def plan_from_image(
         y0, y1 = max(0, cy - radius_px_y), min(img_h, cy + radius_px_y + 1)
         patch = arr[y0:y1, x0:x1].reshape(-1, 3)
         mean = tuple(int(v) for v in patch.mean(axis=0)) if patch.size else (0, 0, 0)
+        if bare_white and min(mean) >= white_level:
+            # near-white background: leave the board bare rather than a white cap
+            cells.append(
+                PlannedCell(
+                    row=cell.row, col=cell.col, x_mm=cell.x_mm, y_mm=cell.y_mm,
+                    color_name="", rgb=mean, is_hole=True,
+                )
+            )
+            continue
         cap_color = nearest(mean, palette)
         if reject_threshold is not None and distance(mean, cap_color) > reject_threshold:
             # No cap colour is close enough — leave a hole, keep the wanted colour.

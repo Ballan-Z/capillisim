@@ -109,6 +109,29 @@ def test_reject_gate_leaves_holes_for_unrepresentable_colors():
     assert plan2.hole_count == 0
 
 
+def test_bare_white_leaves_white_border_as_holes():
+    # white border, coloured (red) centre
+    size = 240
+    img = Image.new("RGB", (size, size), (250, 250, 250))
+    m = size // 4
+    for x in range(m, size - m):
+        for y in range(m, size - m):
+            img.putpixel((x, y), (200, 30, 30))
+    grid = grid_for_caps_across(12, aspect_ratio=1.0, cap=Cap())
+
+    plan = designer.plan_from_image(img, grid, bare_white=True)
+    assert plan.hole_count > 0  # white border dropped
+    # every non-hole cell is a real (non-white) cap; holes carry no colour name
+    assert all(min(c.rgb) < 238 for c in plan.cells if not c.is_hole)
+    assert "" not in plan.bill_of_materials()
+    # the coloured centre still produces caps
+    assert any(not c.is_hole for c in plan.cells)
+
+    # default (bare_white=False) fills the white region instead of holing it
+    plan2 = designer.plan_from_image(img, grid)
+    assert plan2.hole_count == 0
+
+
 def test_holes_roundtrip_and_are_skipped_by_matcher():
     from cap_mosaic.core.matcher import Matcher
 
