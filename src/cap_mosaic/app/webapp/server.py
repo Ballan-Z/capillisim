@@ -21,7 +21,7 @@ from PIL import Image
 from ...core import estimator
 from ...core.geometry import Cap, grid_for_caps_across
 from ..cap_render import build_library, render_mosaic_caps
-from ..planner_designer import plan_from_image, simulate_distance
+from ..planner_designer import plan_from_image, view_at_distance
 
 app = FastAPI(title="Capillisim Mosaic Estimator")
 
@@ -31,6 +31,7 @@ _COUNTER = {"n": 0}
 _DB = Path("dataset/caps.db")
 _MAX_CAPS_ACROSS = 140  # render resolution ceiling; bigger size -> more detail
 _SIM_WIDTH_PX = 1200  # target simulation width; tile px adapts to keep it bounded
+_FRAME_PX = (900, 650)  # fixed field-of-view frame the mosaic shrinks inside
 
 
 _STATIC = Path(__file__).parent / "static"
@@ -155,8 +156,9 @@ def simulate(
     lib = build_library(palette, db_path=str(_DB) if _DB.exists() else None, size=64)
     mosaic = render_mosaic_caps(plan, lib, px_per_cap=px_per_cap)
     if distance_m is not None:
-        mosaic = simulate_distance(mosaic, px_per_mm=px_per_cap / pitch_mm,
-                                   distance_m=distance_m)
+        # Shrink the sharp mosaic into a fixed FOV frame; caps merge via the
+        # linear-light resample rather than a growing blur.
+        mosaic = view_at_distance(mosaic, res["width_mm"], distance_m, _FRAME_PX)
     buf = io.BytesIO()
     mosaic.save(buf, format="PNG")
     return Response(content=buf.getvalue(), media_type="image/png")

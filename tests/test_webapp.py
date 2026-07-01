@@ -64,6 +64,28 @@ def test_simulate_returns_png():
     assert len(r.content) > 100
 
 
+def test_simulate_output_is_the_fixed_frame_size():
+    from cap_mosaic.app.webapp.server import _FRAME_PX
+
+    iid = _upload()
+    r = client.get("/simulate", params={"image_id": iid, "distance_m": 6.0})
+    img = Image.open(io.BytesIO(r.content))
+    assert img.size == _FRAME_PX
+
+
+def test_simulate_is_fast_when_warm():
+    import time
+
+    iid = _upload()
+    p = {"image_id": iid, "distance_m": 6.0}
+    client.get("/simulate", params=p)  # warm the plan + library caches
+    t0 = time.perf_counter()
+    client.get("/simulate", params=p)
+    dt_ms = (time.perf_counter() - t0) * 1000
+    print(f"warm /simulate: {dt_ms:.0f} ms")
+    assert dt_ms < 300
+
+
 def test_unknown_image_id_404():
     r = client.get("/estimate", params={"image_id": "nope", "size_mm": 1000})
     assert r.status_code == 404
