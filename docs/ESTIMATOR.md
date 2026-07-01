@@ -37,18 +37,32 @@ the target and only reads once you stand far enough that caps blend.
     it falls below the legibility floor.
 - **Shades merge with distance** — far away, near colours blend, so the effective
   palette shrinks (`effective_colors`); the app shows *colours used / seen*.
-- **Realistic simulation** (`app/cap_render.py`, `app/fake_caps.py`) — the mosaic
-  is tiled from actual cap images (real `dataset/caps.db` crops + procedurally
-  generated fake caps with rims/logos), then blurred for the viewing distance:
-  **close up you see caps, far away you see the picture**.
+- **Realistic simulation** (`app/cap_render.py`, `app/fake_caps.py`,
+  `planner_designer.view_at_distance`, `core/sizing.py`) — the mosaic is tiled
+  from actual cap images (real `dataset/caps.db` crops + procedurally generated
+  fake caps with rims/logos). To show a viewing distance it is **not** blurred:
+  it **shrinks inside a fixed field of view frame and stays sharp**. As it
+  subtends fewer pixels, an area-resample done in **linear light** (sRGB→linear→
+  area-average→sRGB) merges neighbouring caps — that is physically-correct
+  optical colour mixing, so a 50/50 black+white tile averages to the linear
+  midpoint (~188), not the sRGB midpoint (~128). `apparent_fraction(width,
+  distance, fov)` sets how much of the ~50° frame the piece fills (shown as
+  *fills ~X% of your view*). **Close up it fills your view as caps; far away it
+  is a small sharp picture in bare board.**
+- **Bare-white background** — cells sampled as near-white (all channels ≥
+  `white_level`, default 238) are left as **bare board** (holes), not paved with
+  white caps. Controlled by `plan_from_image(bare_white=...)`; on by default in
+  the app, overridable with `&bare_white=false`.
 
 ## Endpoints
 
 - `POST /upload` — image -> `{id, width, height, aspect}`
-- `GET /estimate?image_id=&size_mm=|distance_m=&mode=&colors=` -> caps, legibility,
-  distances, `bom` (hex -> count), colours used/effective
-- `GET /simulate?image_id=&size_mm=&distance_m=&mode=` -> cap-rendered PNG, blurred
-  for the distance
+- `GET /estimate?image_id=&size_mm=|distance_m=&mode=&colors=&bare_white=` -> caps,
+  legibility, distances, `bom` (hex -> count), colours used/effective,
+  `apparent_pct` (share of field of view filled)
+- `GET /simulate?image_id=&size_mm=&distance_m=&mode=&bare_white=` -> cap-rendered
+  PNG of the fixed FOV frame: the sharp mosaic shrunk to the size it subtends at
+  the distance, surrounded by bare board
 
 ## Limitations / next
 
@@ -57,3 +71,20 @@ the target and only reads once you stand far enough that caps blend.
 - Online cap datasets (Kaggle, images.cv) are deferred — they need auth +
   licensing review; the POC uses procedural + captured caps.
 - Plan/BOM resolution is capped (`_MAX_CAPS_ACROSS`) to keep the UI responsive.
+
+## Known gaps
+
+The distance model captures shrink + optical (acuity-bounded) blending in linear
+light. Left for later:
+
+- **Contrast sensitivity (CSF).** Real acuity depends on contrast, not just
+  angular size; a full model would fold in the contrast-sensitivity function.
+  We use a fixed acuity (`ACUITY_ARCMIN ≈ 1.5`) as the optical limit.
+- **`read_quality` vs optical acuity.** `read_quality` is a coarse
+  *perceptual-integration* heuristic (when the brain fuses tiles into a subject),
+  a different thing from the optical area-resample; the two are not yet unified.
+- **White subject vs white background.** Bare-white holing can't tell a white
+  *subject* from a white *background* — it drops both. A subject/background
+  segmentation would disambiguate.
+- **Gloss & lighting.** Cap gloss, specular highlights, and ambient lighting are
+  out of scope; the simulation assumes flat, evenly-lit matte tiles.
