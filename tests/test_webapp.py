@@ -67,3 +67,11 @@ def test_simulate_returns_png():
 def test_unknown_image_id_404():
     r = client.get("/estimate", params={"image_id": "nope", "size_mm": 1000})
     assert r.status_code == 404
+
+
+def test_index_and_static_served():
+    r = client.get("/")
+    assert r.status_code == 200
+    assert 'id="dropzone"' in r.text and 'id="size"' in r.text
+    assert client.get("/static/app.js").status_code == 200
+    assert client.get("/static/style.css").status_code == 200

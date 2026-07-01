@@ -14,6 +14,8 @@ from pathlib import Path
 
 import numpy as np
 from fastapi import FastAPI, File, HTTPException, Query, Response, UploadFile
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from PIL import Image
 
 from ...core import estimator
@@ -28,6 +30,14 @@ _COUNTER = {"n": 0}
 # Use the captured cap dataset for realistic caps + BOM when it exists.
 _DB = Path("dataset/caps.db")
 _MAX_CAPS_ACROSS = 48  # cap plan/render resolution so the UI stays responsive
+
+
+_STATIC = Path(__file__).parent / "static"
+
+
+@app.get("/")
+def index() -> FileResponse:
+    return FileResponse(_STATIC / "index.html")
 
 
 @app.get("/health")
@@ -120,3 +130,7 @@ def simulate(
     buf = io.BytesIO()
     mosaic.save(buf, format="PNG")
     return Response(content=buf.getvalue(), media_type="image/png")
+
+
+# Mounted last so the API routes above take precedence.
+app.mount("/static", StaticFiles(directory=_STATIC), name="static")

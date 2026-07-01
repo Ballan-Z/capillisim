@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Capillisim — Mosaic Estimator</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header>
+    <h1>Capillisim <span>· mosaic estimator</span></h1>
+    <p class="sub">Drop an image, then trade off <b>size</b> and <b>viewing distance</b>. See how it reads as caps, and how many caps of each colour you need.</p>
+  </header>
+
+  <main>
+    <section class="left">
+      <div id="dropzone" class="dropzone">
+        <input id="fileInput" type="file" accept="image/*" hidden />
+        <p>Drag &amp; drop an image here<br /><small>or click to choose</small></p>
+      </div>
+
+      <div class="controls" id="controls" hidden>
+        <div class="mode">
+          <label><input type="radio" name="mode" value="picture" checked /> Picture</label>
+          <label><input type="radio" name="mode" value="pattern" /> Pattern</label>
+        </div>
+
+        <label class="slider">Size (width): <b id="sizeVal">1.6 m</b>
+          <input id="size" type="range" min="200" max="4000" step="50" value="1600" />
+        </label>
+        <label class="slider">Viewing distance: <b id="distVal">5.0 m</b>
+          <input id="dist" type="range" min="0.5" max="20" step="0.5" value="5" />
+        </label>
+
+        <div class="solvers">
+          <button id="fitSize">↳ size for this distance</button>
+          <button id="fitDist">↳ distance for this size</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="right">
+      <div id="warning" class="warning" hidden></div>
+      <div class="simwrap">
+        <img id="sim" alt="mosaic simulation" />
+        <div id="simhint" class="simhint"></div>
+      </div>
+
+      <div class="stats" id="stats" hidden>
+        <div><span>caps across</span><b id="across">–</b></div>
+        <div><span>total caps</span><b id="total">–</b></div>
+        <div><span>min caps to read</span><b id="floor">–</b></div>
+        <div><span>reads from</span><b id="mindist">–</b></div>
+        <div><span>at this distance</span><b id="quality">–</b></div>
+        <div><span>colours (used / seen)</span><b id="colours">–</b></div>
+      </div>
+
+      <div class="bom" id="bomwrap" hidden>
+        <h3>Caps needed by colour</h3>
+        <ul id="bom"></ul>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
