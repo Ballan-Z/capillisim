@@ -28,9 +28,11 @@ import cv2
 
 from ..data.store import CapDataset, FrameRecord
 from ..vision.card_reader import (
+    SPREAD_REJECT_DE,
     cap_present,
     crop_cap,
     detect_card,
+    frames_spread_de,
     read_cap_field,
     white_balance,
 )
@@ -79,7 +81,7 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--cam-width", type=int, default=1280)
     ap.add_argument("--cam-height", type=int, default=720)
     ap.add_argument("--auto", action="store_true", help="auto-save when a new cap settles (empty white circle between caps)")
-    ap.add_argument("--auto-stable", type=int, default=6, help="frames a new colour must hold before auto-saving")
+    ap.add_argument("--auto-stable", type=int, default=10, help="frames a new colour must hold before auto-saving")
     args = ap.parse_args(argv)
 
     out = Path(args.out)
@@ -97,13 +99,14 @@ def main(argv: list[str] | None = None) -> None:
 
     flash_until = 0.0
     flash_msg = ""
+    flash_color = (60, 235, 90)  # BGR-ish green; red on a rejected capture
     captured = False  # has the current cap already been auto-saved?
     stable_col = None
     stable_n = 0
     FONT = cv2.FONT_HERSHEY_SIMPLEX
 
     def save_cap(h_use, col_use):
-        nonlocal idx, flash_until, flash_msg
+        nonlocal idx, flash_until, flash_msg, flash_color
         frames: list[FrameRecord] = []
         fields: list[tuple[int, int, int]] = []
         marks: list[float] = []
@@ -133,6 +136,22 @@ def main(argv: list[str] | None = None) -> None:
             frames.append(FrameRecord(frame_index=fk, path=str(path), rgb=col_f, sha256=sha))
             time.sleep(0.04)
 
+        # quality gate: frames that disagree mean a contaminated capture (hand
+        # still in frame, wandering reflection, glare) — reject, don't save.
+        spread = frames_spread_de(fields)
+        if len(fields) >= 2 and spread > SPREAD_REJECT_DE:
+            for fr in frames:
+                try:
+                    Path(fr.path).unlink()
+                except OSError:
+                    pass
+            flash_msg = f"REJECTED (dE {spread:.0f})"
+            flash_color = (60, 60, 235)
+            flash_until = time.time() + 1.2
+            print(f"  rejected capture: frame colours spread {spread:.1f} dE "
+                  f"(> {SPREAD_REJECT_DE:.0f}) — hand/glare? crops discarded", flush=True)
+            return False
+
         # robust per-cap values = median across frame reads (1 bad frame can't skew it)
         color = _median_rgb(fields) if fields else tuple(col_use)
         marking = _median(marks) if marks else None
@@ -140,10 +159,12 @@ def main(argv: list[str] | None = None) -> None:
         db.add_cap(color, frames, captured_at=now, source="card_capture",
                    marking_frac=marking)
         threading.Thread(target=_ding, daemon=True).start()
-        flash_msg, flash_until = f"SAVED #{idx}", time.time() + 0.8
+        flash_msg, flash_color = f"SAVED #{idx}", (60, 235, 90)
+        flash_until = time.time() + 0.8
         busy = f"  busy {int(marking * 100)}%" if marking else ""
         print(f"  saved cap #{idx}: {len(frames)} crops  rgb{color}{busy}", flush=True)
         idx += 1
+        return True
 
     try:
         while True:
@@ -179,11 +200,13 @@ def main(argv: list[str] | None = None) -> None:
                         else:
                             stable_col, stable_n = col, 1
                         if stable_n == args.auto_stable and not captured:
-                            save_cap(h, col)
-                            captured = True
-            if time.time() < flash_until:  # green SAVED confirmation
-                cv2.rectangle(preview, (3, 3), (637, 357), (60, 235, 90), 6)
-                cv2.putText(preview, flash_msg, (170, 195), FONT, 1.1, (60, 235, 90), 3)
+                            if save_cap(h, col):
+                                captured = True
+                            else:  # rejected (hand/glare) — re-arm and retry
+                                stable_n, stable_col = 0, None
+            if time.time() < flash_until:  # SAVED (green) / REJECTED (red) flash
+                cv2.rectangle(preview, (3, 3), (637, 357), flash_color, 6)
+                cv2.putText(preview, flash_msg, (150, 195), FONT, 1.1, flash_color, 3)
             cv2.imshow("cap capture", preview)
             k = cv2.waitKey(30) & 0xFF
             if k in (ord("q"), 27):

@@ -1,7 +1,11 @@
 import math
 
 from cap_mosaic.core.palette import lab_to_rgb, rgb_to_lab
-from cap_mosaic.vision.card_reader import neutralize_cast
+from cap_mosaic.vision.card_reader import (
+    SPREAD_REJECT_DE,
+    frames_spread_de,
+    neutralize_cast,
+)
 
 
 def _chroma(rgb):
@@ -51,3 +55,19 @@ def test_genuine_tan_under_neutral_light_is_kept():
     tan = (198, 176, 140)
     fixed = neutralize_cast(tan, (0.0, 0.0))
     assert _chroma(fixed) > 10  # still clearly tan, not neutralised
+
+
+def test_stable_frames_pass_the_spread_gate():
+    stable = [(70, 72, 70), (71, 70, 69), (69, 71, 71), (70, 70, 70), (72, 71, 70)]
+    assert frames_spread_de(stable) < SPREAD_REJECT_DE
+
+
+def test_hand_flicker_fails_the_spread_gate():
+    # four consistent reads + one frame contaminated by a hand/reflection
+    flicker = [(70, 72, 70), (71, 70, 69), (69, 71, 71), (180, 140, 120), (70, 70, 70)]
+    assert frames_spread_de(flicker) > SPREAD_REJECT_DE
+
+
+def test_spread_gate_handles_degenerate_inputs():
+    assert frames_spread_de([]) == 0.0
+    assert frames_spread_de([(50, 50, 50)]) == 0.0

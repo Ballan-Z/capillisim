@@ -25,6 +25,10 @@ MARKING_MIN_DE = 8.0  # field/marking clusters closer than this -> cap is one co
 # snapped to true gray (kills the last of a silver/black metallic bias). Kept low
 # so genuine low-saturation caps (tan, cream, gold) are not desaturated.
 NEUTRAL_CHROMA = 6.0
+# Frames of one capture whose colours spread wider than this (CIEDE2000 from the
+# per-channel median) are contaminated — a hand still in frame, wandering
+# reflection, or glare streak. The capture loop rejects instead of saving.
+SPREAD_REJECT_DE = 12.0
 
 # Presence detection (a cap can't be told from the white card circle by
 # brightness alone). A real cap adds colour (saturated pixels) and/or texture
@@ -146,6 +150,20 @@ def _inner_circle_pixels(
     circle = ((xx - cx) ** 2 + (yy - cy) ** 2 <= inner**2).reshape(-1)
     pixels = crop[circle]
     return pixels if pixels.size else None
+
+
+def frames_spread_de(colors: list[RGB]) -> float:
+    """Largest CIEDE2000 between any frame colour and the per-channel median.
+
+    High spread means the frames disagree — hand in frame, wandering reflection,
+    glare — and the capture should be rejected rather than saved.
+    """
+    if len(colors) < 2:
+        return 0.0
+    arr = np.asarray(colors, dtype=float)
+    med = tuple(int(round(v)) for v in np.median(arr, axis=0))
+    med_lab = rgb_to_lab(med)
+    return max(ciede2000(med_lab, rgb_to_lab(tuple(c))) for c in colors)
 
 
 def gray_cast_lab(rgb: np.ndarray, h: np.ndarray) -> tuple[float, float]:
