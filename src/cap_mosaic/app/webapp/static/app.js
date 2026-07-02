@@ -8,6 +8,7 @@ let originalId = null;
 let originalAspect = 1;
 let aspect = 1;
 let selFrac = null;  // {x0,y0,x1,y1} in image fractions
+let highlight = null;  // BOM colour being isolated (hex), or null
 
 function mode() {
   return document.querySelector('input[name=mode]:checked').value;
@@ -190,16 +191,21 @@ async function refresh() {
     warn.textContent = [msg, hint].filter(Boolean).join("  ");
   } else { warn.hidden = true; }
 
-  // BOM
+  // BOM — click a colour to isolate where those caps go (others ghosted)
   const ul = $("bom"); ul.innerHTML = "";
+  if (highlight && !(highlight in b.bom)) highlight = null;  // colour no longer present
   for (const [hex, n] of Object.entries(b.bom)) {
     const li = document.createElement("li");
+    li.className = "bomrow" + (hex === highlight ? " active" : "");
     li.innerHTML = `<span class="sw" style="background:${hex}"></span>${hex} <b>${n}</b>`;
+    li.addEventListener("click", () => { highlight = (highlight === hex) ? null : hex; refresh(); });
     ul.appendChild(li);
   }
+  $("bomwrap").classList.toggle("isolating", !!highlight);
 
   // simulation
   const q = new URLSearchParams({ image_id: imageId, mode: mode(), pitch_mm: PITCH, size_mm: sizeMm(), distance_m: distM(), ...extraParams() });
+  if (highlight) q.set("highlight", highlight);
   $("sim").src = "/simulate?" + q.toString() + "&_=" + Date.now();
   const pct = b.apparent_pct != null ? `fills ~${b.apparent_pct}% of your view` : "";
   $("simhint").textContent =

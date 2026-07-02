@@ -168,6 +168,17 @@ def test_simulate_accepts_board_colour_and_real_only():
     assert r.status_code == 200 and r.headers["content-type"] == "image/png"
 
 
+def test_simulate_highlight_isolates_a_colour():
+    iid = _upload()
+    b = client.get("/estimate", params={"image_id": iid, "size_mm": 2000}).json()
+    hexcol = next(iter(b["bom"]))  # a colour that's actually in the plan
+    # sharp view (no distance) so ghosting is visible; highlighting changes output
+    plain = client.get("/simulate", params={"image_id": iid, "size_mm": 2000}).content
+    hi = client.get("/simulate", params={"image_id": iid, "size_mm": 2000,
+                                         "highlight": hexcol}).content
+    assert hi != plain and len(hi) > 100
+
+
 def test_unknown_image_id_404():
     r = client.get("/estimate", params={"image_id": "nope", "size_mm": 1000})
     assert r.status_code == 404

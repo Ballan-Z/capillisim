@@ -88,6 +88,7 @@ def render_mosaic_caps(
     background: RGB = (60, 45, 35),
     variety: bool = True,
     real_only: bool = False,
+    highlight: RGB | None = None,
 ) -> Image.Image:
     """Draw the plan by tiling round caps into each cell. With `variety`, each cell
     picks among the caps closest in colour (varying logos/shades), keyed by its
@@ -97,7 +98,9 @@ def render_mosaic_caps(
     **backing board** — one solid `background` colour (wood / paper / paint), not
     the cap colour. Holes show the same board (a deliberate empty cell, uncounted).
     With `real_only`, cells are filled only from photographed caps when the library
-    has any.
+    has any. With `highlight` set to a cap colour, only cells of that colour render
+    fully; every other cap is ghosted (near-transparent) so you can see where that
+    one colour goes.
     """
     if not cap_lib:
         raise ValueError("cap_lib is empty")
@@ -123,18 +126,25 @@ def render_mosaic_caps(
             groups[key] = near or [ranked[0][1]]
         return groups[key]
 
+    def dim(tile: Image.Image) -> Image.Image:
+        r, g, b, a = tile.split()
+        return Image.merge("RGBA", (r, g, b, a.point(lambda v: v * 12 // 100)))
+
     half = px_per_cap / 2
-    tiles: dict[int, Image.Image] = {}
+    tiles: dict[tuple[int, bool], Image.Image] = {}
     for cell in plan.cells:
         if cell.is_hole:
             continue  # deliberate empty cell -> board shows, not a cap, uncounted
         group = candidates(tuple(cell.rgb))
         idx = (cell.row * 31 + cell.col) % len(group) if variety else 0
         cap = group[idx]
-        tile = tiles.get(id(cap))
+        ghost = highlight is not None and tuple(cell.rgb) != highlight
+        tile = tiles.get((id(cap), ghost))
         if tile is None:
             tile = cap.image.resize((px_per_cap, px_per_cap), Image.LANCZOS)
-            tiles[id(cap)] = tile
+            if ghost:
+                tile = dim(tile)
+            tiles[(id(cap), ghost)] = tile
         cx, cy = cell.x_mm * ppm, cell.y_mm * ppm
         canvas.paste(tile, (round(cx - half), round(cy - half)), tile)
     return canvas

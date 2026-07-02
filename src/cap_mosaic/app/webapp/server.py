@@ -223,6 +223,7 @@ def simulate(
     preset: str | None = None,
     thicken: bool = False,
     bg_color: str = "#3c2d23",
+    highlight: str | None = None,
 ) -> Response:
     img = _get(image_id)
     res = _solve(img, image_id, mode, pitch_mm, size_mm, distance_m)
@@ -241,8 +242,9 @@ def simulate(
     # The gaps between round glued caps and the holes show the physical backing
     # board — one solid colour the user controls (wood/paper/paint), not the cap.
     board = _hex_rgb(bg_color, (60, 45, 35))
+    hi = _hex_rgb(highlight, None) if highlight else None
     mosaic = render_mosaic_caps(plan, lib, px_per_cap=px_per_cap, background=board,
-                                real_only=real_only)
+                                real_only=real_only, highlight=hi)
     if distance_m is not None:
         # Shrink the sharp mosaic into a fixed FOV frame; caps merge via the
         # linear-light resample rather than a growing blur.

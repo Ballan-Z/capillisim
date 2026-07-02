@@ -46,4 +46,8 @@ main { display:grid; grid-template-columns:340px 1fr; gap:20px; padding:18px 26p
 .bom li { display:flex; align-items:center; gap:8px; font-variant-numeric:tabular-nums; }
 .bom .sw { width:16px; height:16px; border-radius:4px; border:1px solid #0006; }
 .bom b { margin-left:auto; }
+.bom .bomrow { cursor:pointer; padding:3px 6px; border-radius:6px; border:1px solid transparent; }
+.bom .bomrow:hover { background:#2a3140; }
+.bom .bomrow.active { background:#2f4d6b; border-color:#6cf; }
+.bom.isolating .bomrow:not(.active) { opacity:.5; }
 @media (max-width:760px){ main{ grid-template-columns:1fr; } }
