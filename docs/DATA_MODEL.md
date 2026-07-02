@@ -1,6 +1,6 @@
 # Data Model — the cap dataset / inventory store
 
-Date: 2026-06-24. Status: schema **v2**. Code: `src/cap_mosaic/data/store.py`.
+Date: 2026-07-02. Status: schema **v3**. Code: `src/cap_mosaic/data/store.py`.
 
 The capture loop produces a growing set of caps, each with several
 colour-corrected crops, a measured colour, a quality signal, and — later —
@@ -20,16 +20,20 @@ real store is **SQLite** (`<dataset>/caps.db`).
 - **Crops stay as files.** We store each crop's path + SHA-256, never the image
   bytes — the DB stays small and backup/inspection-friendly.
 
-## Schema (v1)
+## Schema (v3)
 
 ```
-cap            one physical cap and its measured colour
+cap            one physical cap and its measured colours
  ├─ id            INTEGER PK
  ├─ captured_at   TEXT  (ISO-8601 UTC)
- ├─ r,g,b         INTEGER          true measured colour (no palette bucketing)
+ ├─ r,g,b         INTEGER          FIELD colour: dominant body cluster, logo
+ │                                 excluded — recognises a cap in hand
  ├─ lab_l,a,b     REAL             derived CIELAB (perceptual matching/clustering)
  ├─ color_std     REAL  nullable   spread across frames = glare/outlier signal
  ├─ marking_frac  REAL  nullable   busy-ness: fraction of logo/text vs field (v2)
+ ├─ mosaic_r,g,b  INTEGER nullable MOSAIC colour (v3): at-distance contribution —
+ │                                 linear-light mean of the whole face, logo mixed
+ │                                 in (app.cap_color); drives planning/matching
  ├─ n_frames      INTEGER
  ├─ source        TEXT             e.g. 'card_capture', 'labels.csv'
  ├─ brand         TEXT  nullable   future logo/brand label
@@ -71,6 +75,15 @@ meta           dataset-level key/value (name, calibration ref, …)
   white, not pink). `marking_frac` records how busy the cap is (logo fraction),
   the cap-art "internal marking" feature used to favour busy caps for detailed
   regions and flat caps for smooth fields. See `docs/COLOR_MATCHING.md`.
+- **Two colours per cap (v3).** The *field* colour recognises a cap in hand; the
+  *mosaic* colour (`mosaic_r,g,b`) is what the cap contributes to the picture at
+  viewing distance — the linear-light area mean of the whole face, logo mixed in
+  (same optics as the distance simulator). Planner and renderer match on the
+  mosaic colour (`mosaic_rgb or rgb` fallback for legacy rows); backfill with
+  `python -m cap_mosaic.app.backfill_mosaic --db dataset/caps.db`.
+- **Capture quality gate.** A capture whose frames disagree (CIEDE2000 spread
+  above `SPREAD_REJECT_DE`) is rejected at scan time — a hand still in frame,
+  a wandering reflection, or glare — instead of storing a corrupted colour.
 - **A cap is one physical cap.** Inventory counts and "how many blue caps do I
   have" are *queries*, not stored buckets — consistent with the open-ended,
   random cap supply.

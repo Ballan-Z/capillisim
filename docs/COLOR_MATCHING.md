@@ -182,9 +182,23 @@ caps with logos/text (a white cap with a red "SB" logo). Implemented in
 - **Marking fraction = busy-ness.** The minority (marking) cluster's fraction is
   stored as `marking_frac` (the cap-art "internal marking" feature). Use it later
   to favour busy caps for detailed/edge regions and flat caps for smooth fields.
-  At viewing distance a busy cap reads as its area-weighted blend, recoverable
-  from the field colour + `marking_frac` if the planner ever needs the perceived
-  colour.
+- **Mosaic colour: what the cap contributes at distance.** At viewing distance a
+  busy cap reads as its **linear-light area mean** — field + logo mixed by the
+  same optics as the distance simulator (a black cap with a big gold logo reads
+  dark *bronze*, not black). Stored per cap as `mosaic_rgb` (schema v3, computed
+  by `app.cap_color.mosaic_rgb_from_crop`, which locates the cap disc inside the
+  card crop and shrink-wraps past the card-white ring). **Planning/matching uses
+  the mosaic colour; the field colour recognises a cap in hand.** Backfill:
+  `python -m cap_mosaic.app.backfill_mosaic --db dataset/caps.db`.
+- **Capture spread gate.** Frames of one capture that disagree by more than
+  `SPREAD_REJECT_DE` (CIEDE2000 from the frame median) mean a contaminated
+  capture — a hand still in frame, a wandering reflection on a metallic cap, or
+  glare. The scanner rejects it (red flash) and, in auto mode, re-arms instead
+  of saving a corrupted colour.
+- **Illuminant-cast neutralisation.** Metallic caps mirror the room light, so a
+  warm lamp turns silver tan even after white balance. `gray_cast_lab` reads the
+  residual cast off the printed gray patches and `neutralize_cast` subtracts it
+  from the field colour, snapping near-neutral leftovers to true gray.
 - **Glare-majority guard.** Specular pixels are masked only when they're a
   minority; a mostly-bright (white) cap keeps all pixels, so the read can't
   collapse onto the dark logo/shadows it would otherwise leave behind.
