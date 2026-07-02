@@ -87,10 +87,16 @@ def render_mosaic_caps(
     px_per_cap: int = 24,
     background: RGB = (235, 235, 235),
     variety: bool = True,
+    glued: bool = True,
 ) -> Image.Image:
     """Draw the plan by tiling caps into each cell. With `variety`, each cell picks
     among the caps closest in colour (varying logos/shades), keyed by its position,
-    so equal-colour regions aren't a wall of identical tiles."""
+    so equal-colour regions aren't a wall of identical tiles.
+
+    Caps are assumed glued edge-to-edge, so `glued=True` fills each cell with its
+    cap colour before pasting the round cap — no board shows between caps. Holes
+    are the only place the background shows (a deliberate empty cell, uncounted).
+    """
     if not cap_lib:
         raise ValueError("cap_lib is empty")
     pitch = plan.cap_diameter_mm
@@ -98,6 +104,7 @@ def render_mosaic_caps(
     w = max(1, round(plan.width_mm * ppm))
     h = max(1, round(plan.height_mm * ppm))
     canvas = Image.new("RGB", (w, h), background)
+    filler = ImageDraw.Draw(canvas)
 
     labs = [(cap, rgb_to_lab(cap.rgb)) for cap in cap_lib]
     groups: dict[RGB, list[CapImage]] = {}
@@ -112,10 +119,11 @@ def render_mosaic_caps(
             groups[key] = near or [ranked[0][1]]
         return groups[key]
 
+    half = px_per_cap / 2
     tiles: dict[int, Image.Image] = {}
     for cell in plan.cells:
         if cell.is_hole:
-            continue
+            continue  # deliberate empty cell -> board shows, not a cap, uncounted
         group = candidates(tuple(cell.rgb))
         idx = (cell.row * 31 + cell.col) % len(group) if variety else 0
         cap = group[idx]
@@ -124,5 +132,10 @@ def render_mosaic_caps(
             tile = cap.image.resize((px_per_cap, px_per_cap), Image.LANCZOS)
             tiles[id(cap)] = tile
         cx, cy = cell.x_mm * ppm, cell.y_mm * ppm
-        canvas.paste(tile, (round(cx - px_per_cap / 2), round(cy - px_per_cap / 2)), tile)
+        x, y = round(cx - half), round(cy - half)
+        if glued:
+            # fill the whole cell with the cap colour so the round cap leaves no
+            # board gap at the corners — caps read as glued edge-to-edge.
+            filler.rectangle([x, y, x + px_per_cap, y + px_per_cap], fill=tuple(cell.rgb))
+        canvas.paste(tile, (x, y), tile)
     return canvas

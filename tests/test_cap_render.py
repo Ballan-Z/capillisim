@@ -35,6 +35,25 @@ def test_render_produces_sized_canvas():
     assert mosaic.mode == "RGB"
 
 
+def test_glued_render_leaves_no_background_gaps_between_caps():
+    import numpy as np
+
+    plan = _plan()  # solid demo region, no holes in the interior
+    colors = list({tuple(c.rgb) for c in plan.cells if not c.is_hole})
+    lib = cap_render.build_library(colors, size=48)
+    bg = (235, 235, 235)
+    glued = cap_render.render_mosaic_caps(plan, lib, px_per_cap=24, background=bg, glued=True)
+    loose = cap_render.render_mosaic_caps(plan, lib, px_per_cap=24, background=bg, glued=False)
+
+    def bg_frac(img):
+        a = np.asarray(img)[24:-24, 24:-24]  # interior only (skip half-cap border)
+        return (np.abs(a.astype(int) - np.array(bg)) <= 4).all(2).mean()
+
+    # loose leaves board showing in the round-cap corners; glued fills them
+    assert bg_frac(glued) < bg_frac(loose)
+    assert bg_frac(glued) < 0.02  # essentially no board between caps in the interior
+
+
 def test_close_up_has_cap_texture_that_distance_blurs_away():
     plan = _plan()
     colors = list({tuple(c.rgb) for c in plan.cells if not c.is_hole})
