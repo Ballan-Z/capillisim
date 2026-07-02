@@ -129,7 +129,16 @@ def white_balance(rgb: np.ndarray, h: np.ndarray) -> np.ndarray:
     exp = np.asarray(exp, float)
     out = rgb.astype(np.float32)
     for c in range(3):
-        a, b = np.polyfit(obs[:, c], exp[:, c], 1)
+        x = obs[:, c]
+        # A bogus card detection (mid-motion frame) can sample the patches
+        # off-frame (NaN) or on identical pixels (rank-deficient) — skip the
+        # channel instead of letting polyfit's SVD crash the capture loop.
+        if not np.all(np.isfinite(x)) or float(np.ptp(x)) < 1e-3:
+            continue
+        try:
+            a, b = np.polyfit(x, exp[:, c], 1)
+        except np.linalg.LinAlgError:
+            continue
         out[..., c] = a * out[..., c] + b
     return np.clip(out, 0, 255).astype(np.uint8)
 
