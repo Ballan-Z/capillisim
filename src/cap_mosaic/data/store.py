@@ -60,6 +60,7 @@ class CapRecord:
     lab: Lab
     color_std: float | None = None
     marking_frac: float | None = None
+    mosaic_rgb: RGB | None = None  # at-distance colour (linear mean); None until backfilled
     n_frames: int = 0
     source: str = "unknown"
     brand: str | None = None
@@ -127,8 +128,16 @@ def _migrate_to_v2(conn: sqlite3.Connection) -> None:
     conn.execute("ALTER TABLE cap ADD COLUMN marking_frac REAL")
 
 
+def _migrate_to_v3(conn: sqlite3.Connection) -> None:
+    # Mosaic colour: the cap's at-distance contribution (linear-light area mean
+    # of the whole face, logo included — see app.cap_color). Distinct from the
+    # field colour (r,g,b), which recognises a cap in hand. NULL until backfilled.
+    for col in ("mosaic_r", "mosaic_g", "mosaic_b"):
+        conn.execute(f"ALTER TABLE cap ADD COLUMN {col} INTEGER")
+
+
 # index i (0-based) upgrades a DB from user_version i to i+1.
-_MIGRATIONS = [_migrate_to_v1, _migrate_to_v2]
+_MIGRATIONS = [_migrate_to_v1, _migrate_to_v2, _migrate_to_v3]
 SCHEMA_VERSION = len(_MIGRATIONS)
 
 
@@ -172,6 +181,7 @@ class CapDataset:
         source: str = "card_capture",
         color_std: float | None = None,
         marking_frac: float | None = None,
+        mosaic_rgb: RGB | None = None,
         brand: str | None = None,
         notes: str | None = None,
     ) -> int:
@@ -191,12 +201,15 @@ class CapDataset:
             ]
             color_std = max(spreads) if spreads else None
 
+        m = mosaic_rgb or (None, None, None)
         cur = self.conn.execute(
             "INSERT INTO cap (captured_at, r, g, b, lab_l, lab_a, lab_b, "
-            "color_std, marking_frac, n_frames, source, brand, notes) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "color_std, marking_frac, mosaic_r, mosaic_g, mosaic_b, "
+            "n_frames, source, brand, notes) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (captured_at, rgb[0], rgb[1], rgb[2], lab[0], lab[1], lab[2],
-             color_std, marking_frac, len(frames), source, brand, notes),
+             color_std, marking_frac, m[0], m[1], m[2],
+             len(frames), source, brand, notes),
         )
         cap_id = int(cur.lastrowid)
         for fr in frames:
@@ -259,6 +272,14 @@ class CapDataset:
                     pass
         return True
 
+    def set_mosaic(self, cap_id: int, rgb: RGB) -> None:
+        """Set/replace a cap's mosaic (at-distance) colour — used by the backfill."""
+        self.conn.execute(
+            "UPDATE cap SET mosaic_r = ?, mosaic_g = ?, mosaic_b = ? WHERE id = ?",
+            (rgb[0], rgb[1], rgb[2], cap_id),
+        )
+        self.conn.commit()
+
     def last_cap_id(self) -> int | None:
         """Id of the most recently added cap, or None if the dataset is empty."""
         row = self.conn.execute("SELECT id FROM cap ORDER BY id DESC LIMIT 1").fetchone()
@@ -295,6 +316,11 @@ class CapDataset:
 
     @staticmethod
     def _row_to_cap(r: sqlite3.Row) -> CapRecord:
+        mosaic = (
+            (r["mosaic_r"], r["mosaic_g"], r["mosaic_b"])
+            if r["mosaic_r"] is not None
+            else None
+        )
         return CapRecord(
             id=r["id"],
             captured_at=r["captured_at"],
@@ -302,6 +328,7 @@ class CapDataset:
             lab=(r["lab_l"], r["lab_a"], r["lab_b"]),
             color_std=r["color_std"],
             marking_frac=r["marking_frac"],
+            mosaic_rgb=mosaic,
             n_frames=r["n_frames"],
             source=r["source"],
             brand=r["brand"],

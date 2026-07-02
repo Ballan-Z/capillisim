@@ -91,6 +91,47 @@ def test_v1_db_upgrades_in_place_to_v2(tmp_path):
         assert cap.marking_frac is None  # legacy row has no value, not a crash
 
 
+def test_mosaic_rgb_roundtrips_and_defaults_to_none(tmp_path):
+    with CapDataset(tmp_path / "caps.db") as db:
+        a = db.add_cap((10, 20, 30), captured_at="t")  # no mosaic given
+        b = db.add_cap((10, 20, 30), captured_at="t", mosaic_rgb=(52, 40, 33))
+        caps = {c.id: c for c in db.caps()}
+        assert caps[a].mosaic_rgb is None
+        assert caps[b].mosaic_rgb == (52, 40, 33)
+
+
+def test_set_mosaic_backfills_an_existing_cap(tmp_path):
+    with CapDataset(tmp_path / "caps.db") as db:
+        cid = db.add_cap((10, 20, 30), captured_at="t")
+        assert db.caps()[0].mosaic_rgb is None
+        db.set_mosaic(cid, (99, 88, 77))
+        assert db.caps()[0].mosaic_rgb == (99, 88, 77)
+
+
+def test_v2_db_upgrades_in_place_to_v3(tmp_path):
+    import sqlite3
+
+    from cap_mosaic.data.store import _SCHEMA_V1
+
+    path = tmp_path / "caps.db"
+    conn = sqlite3.connect(str(path))
+    conn.executescript(_SCHEMA_V1)
+    conn.execute("ALTER TABLE cap ADD COLUMN marking_frac REAL")  # v2 shape
+    conn.execute("PRAGMA user_version = 2")
+    conn.execute(
+        "INSERT INTO cap (captured_at, r, g, b, lab_l, lab_a, lab_b, n_frames, source) "
+        "VALUES ('t', 10, 20, 30, 5, 0, 0, 0, 'legacy')"
+    )
+    conn.commit()
+    conn.close()
+
+    with CapDataset(path) as db:  # opening migrates v2 -> v3 in place
+        assert db.conn.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION
+        cap = db.caps()[0]
+        assert cap.rgb == (10, 20, 30)
+        assert cap.mosaic_rgb is None  # legacy row: no value, no crash
+
+
 def test_ambiguous_flag(tmp_path):
     with CapDataset(tmp_path / "caps.db") as db:
         # clean cap: low marking, stable across frames -> trustworthy
