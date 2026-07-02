@@ -149,11 +149,18 @@ def inventory_from_labels(path) -> tuple[CapColor, ...]:
 
 
 def inventory_from_db(path) -> tuple[CapColor, ...]:
-    """Load the SQLite cap dataset (caps.db) as inventory."""
+    """Load the SQLite cap dataset (caps.db) as inventory.
+
+    Matching uses the cap's **mosaic** colour (its at-distance contribution,
+    logo mixed in — see ``app.cap_color``) when available; legacy rows fall
+    back to the field colour.
+    """
     from ..data.store import CapDataset
 
     with CapDataset(path) as db:
-        return tuple(CapColor(f"cap{c.id}", c.rgb) for c in db.caps())
+        return tuple(
+            CapColor(f"cap{c.id}", c.mosaic_rgb or c.rgb) for c in db.caps()
+        )
 
 
 def load_inventory(path) -> tuple[CapColor, ...]:

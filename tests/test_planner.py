@@ -132,6 +132,21 @@ def test_bare_white_leaves_white_border_as_holes():
     assert plan2.hole_count == 0
 
 
+def test_inventory_from_db_prefers_mosaic_colour(tmp_path):
+    from cap_mosaic.data.store import CapDataset
+
+    path = tmp_path / "caps.db"
+    with CapDataset(path) as db:
+        db.add_cap((8, 6, 2), captured_at="t", mosaic_rgb=(83, 80, 59))  # black+gold
+        db.add_cap((200, 30, 30), captured_at="t")  # legacy row, no mosaic yet
+    inv = designer.inventory_from_db(path)
+    rgbs = {c.rgb for c in inv}
+    # the at-distance (mosaic) colour drives matching; legacy falls back to field
+    assert (83, 80, 59) in rgbs
+    assert (200, 30, 30) in rgbs
+    assert (8, 6, 2) not in rgbs
+
+
 def test_thicken_outlines_widens_thin_dark_strokes():
     # white field with a 1-cap-wide vertical black stripe
     size, across = 200, 20

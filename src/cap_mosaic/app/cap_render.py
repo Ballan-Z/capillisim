@@ -45,7 +45,9 @@ def _real_caps(db_path: str, size: int, mtime: float) -> tuple[CapImage, ...]:
                 continue
             im = _load_circular(c.frames[0].path, size)
             if im is not None:
-                caps.append(CapImage(tuple(c.rgb), im, real=True))
+                # match by the at-distance (mosaic) colour so a busy cap lands
+                # where its MIX belongs, not where its field colour belongs
+                caps.append(CapImage(tuple(c.mosaic_rgb or c.rgb), im, real=True))
     return tuple(caps)
 
 
