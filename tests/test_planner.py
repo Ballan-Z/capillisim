@@ -168,6 +168,20 @@ def test_thicken_outlines_widens_thin_dark_strokes():
     assert dark(thick) > dark(plain)
 
 
+def test_dither_mixes_colours_where_nearest_picks_one():
+    # a flat mid-grey field with a black+white palette: nearest -> all one colour,
+    # dither -> a black/white mix that averages to the grey
+    img = Image.new("RGB", (200, 200), (150, 150, 150))
+    grid = grid_for_caps_across(16, aspect_ratio=1.0, cap=Cap())
+    palette = (CapColor("black", (0, 0, 0)), CapColor("white", (255, 255, 255)))
+    plain = designer.plan_from_image(img, grid, palette=palette)
+    dith = designer.plan_from_image(img, grid, palette=palette, dither=True)
+    plain_colours = {c.color_name for c in plain.cells if not c.is_hole}
+    dith_colours = {c.color_name for c in dith.cells if not c.is_hole}
+    assert len(plain_colours) == 1                 # nearest is a solid block
+    assert dith_colours == {"black", "white"}      # dither interleaves both
+
+
 def test_holes_roundtrip_and_are_skipped_by_matcher():
     from cap_mosaic.core.matcher import Matcher
 

@@ -17,10 +17,11 @@ function sizeMm() { return Number($("size").value); }
 function distM() { return Number($("dist").value); }
 function preset() { return $("preset").value; }
 function thicken() { return $("thicken").checked; }
+function dither() { return $("dither").checked; }
 function bgColor() { return $("bgColor").value; }
 function realOnly() { return $("realOnly").checked; }
 function extraParams() {
-  const p = { bg_color: bgColor() };
+  const p = { bg_color: bgColor(), dither: dither() };
   if (preset()) p.preset = preset();
   if (thicken()) p.thicken = true;
   if (realOnly()) p.real_only = true;
@@ -84,6 +85,7 @@ document.querySelectorAll('input[name=mode]').forEach((r) => r.addEventListener(
 $("preset").addEventListener("change", refresh);
 $("thicken").addEventListener("change", refresh);
 $("realOnly").addEventListener("change", refresh);
+$("dither").addEventListener("change", refresh);
 $("bgColor").addEventListener("input", debounced);
 
 // --- region crop: drag a rectangle on the original image ---

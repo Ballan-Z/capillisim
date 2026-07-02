@@ -168,6 +168,13 @@ def test_simulate_accepts_board_colour_and_real_only():
     assert r.status_code == 200 and r.headers["content-type"] == "image/png"
 
 
+def test_simulate_dither_changes_output():
+    iid = _upload()
+    off = client.get("/simulate", params={"image_id": iid, "size_mm": 2000, "dither": False}).content
+    on = client.get("/simulate", params={"image_id": iid, "size_mm": 2000, "dither": True}).content
+    assert off != on and len(on) > 100
+
+
 def test_simulate_highlight_isolates_a_colour():
     iid = _upload()
     b = client.get("/estimate", params={"image_id": iid, "size_mm": 2000}).json()

@@ -13,8 +13,9 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
 
 from ..core import features
+from ..core.dither import dither_grid
 from ..core.geometry import Grid
-from ..core.palette import DEFAULT_PALETTE, CapColor, distance, nearest
+from ..core.palette import DEFAULT_PALETTE, CapColor, distance, nearest, rgb_to_lab
 from ..core.plan import GridPlan, PlannedCell
 from ..core.sizing import apparent_fraction
 
@@ -185,6 +186,7 @@ def plan_from_image(
     bare_white: bool = False,
     white_level: int = 238,
     thicken_outlines: bool = False,
+    dither: bool = False,
 ) -> GridPlan:
     """Sample `image` at each cap location and quantize to a cap palette.
 
@@ -200,6 +202,11 @@ def plan_from_image(
     Bare-white background: with `bare_white=True`, cells whose sampled colour is
     near-white (every channel >= `white_level`) become holes — the board is left
     bare rather than paved with white caps.
+
+    Dithering: with `dither=True`, non-hole cell colours are chosen by CIELAB
+    error diffusion (`core.dither`) instead of independent nearest-colour, so a
+    small palette reproduces gradients/tones via a blend the eye merges at
+    distance. Holes are excluded from diffusion. See docs/RESEARCH.md.
     """
     if colors is not None or inventory is not None:
         palette = palette_from_image(image, k=colors or DEFAULT_PALETTE_COLORS,
@@ -211,6 +218,13 @@ def plan_from_image(
     radius_px_x = max(1, int((grid.cap.radius_mm / grid.width_mm) * img_w))
     radius_px_y = max(1, int((grid.cap.radius_mm / grid.height_mm) * img_h))
 
+    # For dithering: the sampled target colour + hole flag per (row, col). Absent
+    # grid positions default to holes so no error diffuses through them.
+    n_rows = max(c.row for c in grid.cells) + 1
+    n_cols = max(c.col for c in grid.cells) + 1
+    means_grid = np.zeros((n_rows, n_cols, 3), dtype=float)
+    hole_grid = np.ones((n_rows, n_cols), dtype=bool)
+
     cells: list[PlannedCell] = []
     for cell in grid.cells:
         cx = int((cell.x_mm / grid.width_mm) * img_w)
@@ -219,6 +233,7 @@ def plan_from_image(
         y0, y1 = max(0, cy - radius_px_y), min(img_h, cy + radius_px_y + 1)
         patch = arr[y0:y1, x0:x1].reshape(-1, 3)
         mean = tuple(int(v) for v in patch.mean(axis=0)) if patch.size else (0, 0, 0)
+        means_grid[cell.row, cell.col] = mean
         if bare_white and min(mean) >= white_level:
             # near-white background: leave the board bare rather than a white cap
             cells.append(
@@ -243,6 +258,7 @@ def plan_from_image(
                 )
             )
             continue
+        hole_grid[cell.row, cell.col] = False  # a cap is placed here
         cells.append(
             PlannedCell(
                 row=cell.row,
@@ -254,6 +270,9 @@ def plan_from_image(
             )
         )
 
+    if dither and palette:
+        _dither_cell_colors(cells, palette, means_grid, hole_grid)
+
     if thicken_outlines and cells:
         _thicken_outline_cells(cells, palette)
 
@@ -264,6 +283,25 @@ def plan_from_image(
         cells=cells,
         title=title,
     )
+
+
+def _dither_cell_colors(
+    cells: list[PlannedCell],
+    palette: tuple[CapColor, ...],
+    means_grid: np.ndarray,
+    hole_grid: np.ndarray,
+) -> None:
+    """Reassign non-hole cell colours via CIELAB error diffusion, in-place."""
+    flat_lab = _rgb_to_lab_np(means_grid.reshape(-1, 3))
+    target_lab = flat_lab.reshape(*means_grid.shape[:2], 3)
+    palette_lab = np.array([rgb_to_lab(c.rgb) for c in palette])
+    idx = dither_grid(target_lab, palette_lab, hole_mask=hole_grid)
+    for cell in cells:
+        if cell.is_hole:
+            continue
+        chosen = palette[int(idx[cell.row, cell.col])]
+        cell.rgb = chosen.rgb
+        cell.color_name = chosen.name
 
 
 def _cell_grid(cells: list[PlannedCell]) -> tuple[np.ndarray, dict]:
