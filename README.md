@@ -13,6 +13,15 @@ stages over time; state persists between sessions.
 This is a fresh project, independent of the personal-wiki repo it was sketched
 in. See `docs/` for the full design.
 
+## Cap recognition, live
+
+Place a cap on the printed reading card — the scanner locates the card, colour-
+corrects, reads both colours (field + mosaic-at-distance swatches on the right),
+and auto-saves when the reading is stable. A hand in frame or glare gets
+rejected and retried:
+
+![live cap scanning: two caps recognised and saved](docs/images/cap-scan-demo.gif)
+
 ## Why this might be original
 
 The mosaic-*generation* problem is well-solved (academic "structure-aware bottle
