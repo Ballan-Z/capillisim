@@ -109,8 +109,10 @@ meta           dataset-level key/value (name, calibration ref, …)
 - **Cap size, measured not assumed (v4).** The card homography is mm-true, so
   the scanner measures each cap's diameter as it saves (`measure_cap_diameter_mm`,
   validated live at ±1 mm) and picks a wider crop window for large caps so they
-  aren't clipped. `size_class` gives `standard-26` (< 33 mm — a *used* nominal-26
-  crown flares to ~29–31 mm across the pried-open skirt) or `large-38` (≥ 35 mm);
+  aren't clipped. `size_class` gives `standard-26` (< 35 mm — a *used* nominal-26
+  crown flares to ~29–31 mm across the pried-open skirt, and a dark cap measures
+  up to ~34 mm because its shadow joins the blob) or `large-38` (≥ 35 mm — real
+  larges measure 37–42 mm, so the 35 mm cut splits the population cleanly);
   nominal 26 vs 29 mm crowns are indistinguishable once flared, so they share one
   class. Inventory can be filtered per artwork:
   `inventory_from_db(path, size_class="standard-26")`. Backfill:

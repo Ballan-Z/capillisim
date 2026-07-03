@@ -51,19 +51,19 @@ AMBIGUOUS_COLOR_STD = 10.0  # per-frame CIEDE2000 spread signalling an unstable 
 
 
 def size_class_of(diameter_mm: float | None) -> str | None:
-    """'standard-26' | 'large-38' | 'other', or None if unmeasured.
+    """'standard-26' | 'large-38', or None if unmeasured.
 
     Sizes are of USED caps: crimping flares a nominal 26 mm crown's skirt to
     ~29–31 mm across the teeth, so the standard class is generous. Nominal 26 vs
-    29 mm crowns are indistinguishable once flared — one class.
+    29 mm crowns are indistinguishable once flared — one class. A single cut at
+    35 mm splits the measured population cleanly (standards read 23–34 mm — dark
+    caps measure ~2 mm fat because their shadow joins the blob; larges read
+    37–42 mm); a former 33–35 'other' dead zone only produced noise-driven '?'
+    labels on real standard caps.
     """
     if diameter_mm is None:
         return None
-    if diameter_mm < 33.0:
-        return "standard-26"
-    if diameter_mm >= 35.0:
-        return "large-38"
-    return "other"
+    return "standard-26" if diameter_mm < 35.0 else "large-38"
 
 
 @dataclass

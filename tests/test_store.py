@@ -239,11 +239,13 @@ def test_diameter_and_span_roundtrip_v4(tmp_path):
 def test_size_class_mapping(tmp_path):
     with CapDataset(tmp_path / "caps.db") as db:
         # used-cap reality: a nominal 26mm crown flares to ~29-31mm when pried
-        # off, so 'standard-26' is generous; nominal 26 vs 29 are one class
-        for mm in (26.4, 30.5, 37.4, 34.0, None):
+        # off (dark caps measure up to ~34 — shadow joins the blob), so the
+        # standard class runs to the 35mm cut; nominal 26 vs 29 are one class
+        for mm in (26.4, 30.5, 37.4, 34.0, 33.6, None):
             db.add_cap((1, 2, 3), captured_at="t", diameter_mm=mm)
         classes = [c.size_class for c in db.caps()]
-        assert classes == ["standard-26", "standard-26", "large-38", "other", None]
+        assert classes == ["standard-26", "standard-26", "large-38",
+                           "standard-26", "standard-26", None]
 
 
 def test_v3_db_upgrades_in_place_to_v4(tmp_path):

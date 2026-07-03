@@ -92,7 +92,7 @@ def _thumb(img_bgr) -> "np.ndarray":
 
 
 def _size_letter(size_class: str | None) -> str:
-    return {"standard-26": "S", "large-38": "L", "other": "?"}.get(size_class or "", "")
+    return {"standard-26": "S", "large-38": "L"}.get(size_class or "", "")
 
 
 def render_recent_strip(entries: list[dict], width: int = 640) -> "np.ndarray":
