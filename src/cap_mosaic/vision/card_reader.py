@@ -354,14 +354,21 @@ def cap_present(
     return bool(frac > sat_frac or std > std_level)
 
 
-def crop_cap(rgb: np.ndarray, h: np.ndarray, size: int = 128) -> np.ndarray | None:
+def crop_cap(
+    rgb: np.ndarray, h: np.ndarray, size: int = 128, span_mm: float | None = None
+) -> np.ndarray | None:
     """Fixed-size square crop of the cap from the placement circle, or None.
 
-    Pass a white-balanced frame to get colour-consistent dataset images. Crops a
-    little past the circle and resizes to ``size`` x ``size``.
+    Pass a white-balanced frame to get colour-consistent dataset images. By
+    default crops a little past the circle (~37.8 mm); a large cap (38 mm class)
+    overflows that window, so pass ``span_mm`` (the full window width in mm,
+    e.g. 48) to widen it — record the span used so mm-per-pixel stays known.
     """
     cx, cy, r = _region_px(h, L.CIRCLE_CX_MM, L.CIRCLE_CY_MM, L.CIRCLE_R_MM)
-    s = max(1, int(r * 1.05))
+    if span_mm is not None:
+        s = max(1, int(r * (span_mm / 2.0) / L.CIRCLE_R_MM))
+    else:
+        s = max(1, int(r * 1.05))
     img_h, img_w = rgb.shape[:2]
     y0, y1 = max(0, int(cy - s)), min(img_h, int(cy + s))
     x0, x1 = max(0, int(cx - s)), min(img_w, int(cx + s))

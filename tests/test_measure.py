@@ -43,3 +43,26 @@ def test_works_at_a_different_camera_scale():
     img, h = _frame(scale=6.5, cap_mm=29.0)
     d = measure_cap_diameter_mm(img, h)
     assert d is not None and abs(d - 29.0) < 1.5, d
+
+
+def test_crop_cap_default_span_unchanged():
+    from cap_mosaic.vision.card_reader import crop_cap
+
+    img, h = _frame(cap_mm=26.0)
+    a = crop_cap(img, h, 128)
+    b = crop_cap(img, h, 128, span_mm=None)
+    assert a is not None and np.array_equal(a, b)  # regression: None == old behaviour
+
+
+def test_wide_span_contains_a_large_cap_fully():
+    from cap_mosaic.vision.card_reader import crop_cap
+
+    img, h = _frame(cap_mm=38.0)
+    tight = crop_cap(img, h, 128)                # 37.8mm window: cap touches edges
+    wide = crop_cap(img, h, 128, span_mm=48.0)   # adaptive window
+    def edge_touch(crop):
+        dark = ~np.all(crop >= 215, axis=2)
+        border = np.concatenate([dark[0], dark[-1], dark[:, 0], dark[:, -1]])
+        return border.mean() > 0.05
+    assert edge_touch(tight)          # the clipping bug being fixed
+    assert not edge_touch(wide)       # whole cap inside the wide window
