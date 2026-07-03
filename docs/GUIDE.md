@@ -31,7 +31,13 @@ immediately clickable:
 
 **Getting your image in:** drag & drop, click to browse, or just **Ctrl/Cmd+V**
 paste from the clipboard. Drag a rectangle on the preview and hit **✂ Crop to
-selection** to build from only part of it (**↺ Full image** goes back).
+selection** to build from only part of it.
+
+**Versions.** Every derived image — crops, AI edits — appears as a thumbnail in
+the **version strip** under the preview (`Original · Crop · AI simplified`).
+Click a thumbnail to switch the whole app to that version; the active one is
+outlined; **⬇** on any tile saves that version as a file. Nothing is ever lost —
+the original is always one click away.
 
 ---
 
@@ -53,8 +59,8 @@ Then the two buttons that act on the verdict:
   snapshot next to the new simulation so you can compare.
 - **🎨 AI simplify** — the AI edits *the image itself* (qwen-image-edit):
   flattens it to ≤6 poster colours, thickens hairlines, cleans the background —
-  same subject, cap-friendly. The result is a **new** image; `↺ Full image`
-  always restores the original.
+  same subject, cap-friendly. The result lands as a new entry in the version
+  strip — switch back to the original (or save either) any time.
 
 ![before and after AI simplify](images/ai-simplify.jpg)
 
@@ -124,11 +130,14 @@ in `dataset/caps.db`.
 
 In the estimator:
 
-- **Use my caps** — the BOM gains *have / short* per colour plus a total
-  ("you own 96 of 4,367 needed") — your shopping list. Report only; the plan
-  is never silently constrained.
-- **Real caps only** — render the simulation using only photographed caps
-  (auto-cropped to uniform discs), for a preview in *your* caps.
+In the **My scanned caps (N)** group:
+
+- **Shopping list (have / short per colour)** — the BOM gains *have / short*
+  per colour plus a total ("you own 218 of 4,367 needed") — your shopping list.
+  Report only; the plan is never silently constrained.
+- **Render using my caps' photos** — draw the simulation from your photographed
+  caps (auto-cropped to uniform discs) instead of generated ones, for a preview
+  in *your* caps.
 - Click any BOM colour to **isolate** it — every other cap ghosts out so you
   see exactly where that colour goes.
 

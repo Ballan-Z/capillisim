@@ -63,7 +63,8 @@ the target and only reads once you stand far enough that caps blend.
 - **Printable cap map** — `⬇ Cap map (PDF)` downloads a paint-by-numbers sheet
   (`app/cap_map.py`): a letter per colour on each cell, row/col rulers, and a
   legend (letter · hex · count). The artifact you actually build from.
-- **Inventory gap** — `Use my caps` matches your scanned `caps.db` against the
+- **Inventory gap** — `Shopping list (have / short per colour)` (in the "My
+  scanned caps" group) matches your scanned `caps.db` against the
   BOM (greedy nearest, CIEDE2000 ≤ 12) and shows *have · short* per colour plus
   *you own X of Y needed*. Report only — the plan is not constrained by stock.
 - **Cap-art check + AI judge** — every upload gets a heuristic score (contrast,
@@ -76,7 +77,8 @@ the target and only reads once you stand far enough that caps blend.
 - **AI simplify** — `🎨 AI simplify` (qwen-image-edit-plus) edits the image
   itself into a cap-friendly version — ≤6 flat colours, thickened lines, clutter
   removed, same subject — using the judge's own tips as the edit instruction.
-  Stored as a NEW image; `↺ Full image` restores the original. Opt-in per click.
+  Stored as a NEW image in the **version strip** (Original · crops · AI edits —
+  click to switch, ⬇ to save any version). Opt-in per click.
 
 ## Endpoints
 
