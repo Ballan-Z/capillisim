@@ -98,6 +98,21 @@ meta           dataset-level key/value (name, calibration ref, …)
 - **Capture quality gate.** A capture whose frames disagree (CIEDE2000 spread
   above `SPREAD_REJECT_DE`) is rejected at scan time — a hand still in frame,
   a wandering reflection, or glare — instead of storing a corrupted colour.
+- **Capture repair (no re-scan needed).** For a capture where only some frames
+  were contaminated, `app.repair_capture` drops the outlier frames and
+  recomputes field + mosaic from the agreeing ones; truly corrupt captures get
+  `notes='corrupt-capture'` and keep their colours as best-effort.
+- **Re-identification (`embedding` table, model `ringsig-v1`).** Every cap gets
+  a rotation-invariant ring signature (`app.cap_signature`: 8 annuli × mean Lab
+  + luminance histogram). The scanner prints "likely SAME design as cap #N"
+  when a new scan matches an existing cap (warn-only), and
+  `python -m cap_mosaic.app.similar --db dataset/caps.db --cap N --montage out.png`
+  navigates the inventory by visual similarity. Self-check protocol: scan the
+  same physical cap twice under different lighting — its earlier record should
+  be the top hit with score < 0.8. Backfill:
+  `python -m cap_mosaic.app.backfill_signatures --db dataset/caps.db`.
+
+  ![caps ranked by similarity to a query cap](images/similar-caps.png)
 - **A cap is one physical cap.** Inventory counts and "how many blue caps do I
   have" are *queries*, not stored buckets — consistent with the open-ended,
   random cap supply.

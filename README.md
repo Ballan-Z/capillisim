@@ -22,6 +22,12 @@ rejected and retried:
 
 ![live cap scanning: two caps recognised and saved](docs/images/cap-scan-demo.gif)
 
+Every scanned cap also gets a rotation-invariant **ring signature**, so the
+scanner recognises a cap it has seen before ("likely SAME design as cap #28")
+and the inventory can be browsed by visual similarity:
+
+![caps ranked by similarity to a query cap](docs/images/similar-caps.png)
+
 ## Why this might be original
 
 The mosaic-*generation* problem is well-solved (academic "structure-aware bottle
