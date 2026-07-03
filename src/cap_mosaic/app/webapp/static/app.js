@@ -89,6 +89,7 @@ async function loadCritique() {
   if (!r.ok) return;
   const c = await r.json();
   lastRec = c.recommend;
+  $("cllm").hidden = true;  // stale AI verdict belongs to the previous image
   const box = $("critique"); box.hidden = false;
   const s = $("cscore"); s.textContent = c.score;
   s.className = "cscore " + c.verdict;
@@ -97,6 +98,21 @@ async function loadCritique() {
   const ul = $("ctips"); ul.innerHTML = "";
   for (const t of c.tips) { const li = document.createElement("li"); li.textContent = t; ul.appendChild(li); }
 }
+
+$("askLLM").addEventListener("click", async () => {
+  if (!imageId) return;
+  const box = $("cllm");
+  box.hidden = false; box.textContent = "asking the AI judge…";
+  const r = await fetch("/critique?" + new URLSearchParams({ image_id: imageId, mode: mode(), llm: true }));
+  if (!r.ok) { box.textContent = "AI judge failed"; return; }
+  const c = await r.json();
+  const l = c.llm || {};
+  if (l.error) { box.textContent = "AI judge: " + l.error; return; }
+  const tips = (l.tips || []).map((t) => `• ${t}`).join("\n");
+  const alt = l.better_subject ? `\nTry instead: ${l.better_subject}` : "";
+  box.textContent = `🧠 ${l.verdict} (${l.score}/100) — ${l.model}\n${tips}${alt}`;
+  // reset the LLM box when a new image loads
+});
 
 $("applyRec").addEventListener("click", () => {
   if (!lastRec) return;

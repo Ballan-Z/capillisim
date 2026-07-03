@@ -42,6 +42,8 @@ main { display:grid; grid-template-columns:340px 1fr; gap:20px; padding:18px 26p
 .critique #applyRec { padding:6px 12px; cursor:pointer; }
 .ctips { margin:10px 0 0; padding-left:18px; color:#cdd6e4; font-size:13px; }
 .ctips li { margin:3px 0; }
+.cllm { margin-top:10px; padding:10px 12px; background:#141a26; border:1px solid #2b3550;
+  border-radius:10px; color:#cdd6e4; font-size:13px; white-space:pre-wrap; }
 .simwrap { position:relative; background:var(--panel); border-radius:14px; padding:12px; }
 #sim { width:100%; border-radius:9px; display:block; background:#0d0f14; image-rendering:auto; min-height:120px; }
 .compare { position:absolute; top:20px; right:20px; padding:5px 10px; font-size:12px; cursor:pointer;

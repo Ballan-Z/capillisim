@@ -192,6 +192,21 @@ def test_inventory_report_have_need_short(tmp_path, monkeypatch):
     assert b["inventory_totals"] == {"owned": 4, "have": 3, "need": row["need"]}
 
 
+def test_critique_llm_merges_qwen_verdict(monkeypatch):
+    from cap_mosaic.app import llm_judge
+
+    monkeypatch.setattr(llm_judge, "qwen_judge",
+                        lambda img: {"score": 88, "verdict": "great",
+                                     "tips": ["bold"], "better_subject": "",
+                                     "model": "qwen3-vl-plus"})
+    iid = _upload()
+    plain = client.get("/critique", params={"image_id": iid}).json()
+    assert "llm" not in plain                       # opt-in only
+    b = client.get("/critique", params={"image_id": iid, "llm": True}).json()
+    assert b["llm"]["score"] == 88 and b["llm"]["verdict"] == "great"
+    assert b["score"] == plain["score"]             # heuristic part unchanged
+
+
 def test_palettes_returns_a_comparison_sheet():
     iid = _upload()
     r = client.get("/palettes", params={"image_id": iid, "size_mm": 1500})

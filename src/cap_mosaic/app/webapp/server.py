@@ -156,17 +156,30 @@ def _solve(img: Image.Image, image_id: str, mode: str, pitch: float,
 
 
 _CRITIQUE: dict[tuple, dict] = {}
+_LLM_CRITIQUE: dict[str, dict] = {}
 
 
 @app.get("/critique")
-def critique(image_id: str, mode: str = "picture", pitch_mm: float = 32.0) -> dict:
-    """Heuristic 'is this a good cap-art image?' score + tips + recommended settings."""
+def critique(image_id: str, mode: str = "picture", pitch_mm: float = 32.0,
+             llm: bool = False) -> dict:
+    """Heuristic 'is this a good cap-art image?' score + tips + recommended
+    settings. With ``llm=true``, also ask the Qwen vision judge (needs QWEEN_KEY;
+    cached per image so repeat clicks are free)."""
     img = _get(image_id)
     key = (image_id, mode)
     if key not in _CRITIQUE:
         _CRITIQUE[key] = critique_mod.critique(
             np.asarray(img.convert("RGB")), mode=mode, pitch_mm=pitch_mm)
-    return _CRITIQUE[key]
+    res = dict(_CRITIQUE[key])
+    if llm:
+        if image_id not in _LLM_CRITIQUE:
+            from ..llm_judge import qwen_judge
+            try:
+                _LLM_CRITIQUE[image_id] = qwen_judge(img)
+            except Exception as exc:  # noqa: BLE001 - no key / network / quota
+                _LLM_CRITIQUE[image_id] = {"error": str(exc)}
+        res["llm"] = _LLM_CRITIQUE[image_id]
+    return res
 
 
 @app.get("/estimate")
