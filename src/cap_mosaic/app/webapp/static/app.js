@@ -31,6 +31,28 @@ function extraParams() {
   return p;
 }
 
+// transient inline notification — replaces blocking alert() popups
+let toastTimer = null;
+function toast(msg) {
+  const t = $("toast");
+  t.textContent = msg; t.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.hidden = true; }, 3500);
+}
+
+// disable the AI buttons while one of them is talking to the API (they cost money)
+const AI_BTNS = ["askLLM", "aiFix", "aiSimplify", "applyRec"];
+function aiBusy(on, activeId, workingText) {
+  for (const id of AI_BTNS) {
+    const b = $(id);
+    b.disabled = on;
+    if (id === activeId) {
+      if (on) { b.dataset.label = b.textContent; b.textContent = workingText; }
+      else if (b.dataset.label) { b.textContent = b.dataset.label; }
+    }
+  }
+}
+
 function readQuality(d) {
   const arc = (PITCH / 1000) / d * ARCMIN;
   if (arc > 25) return "you see caps";
@@ -64,7 +86,7 @@ async function upload(file) {
   const fd = new FormData();
   fd.append("file", file);
   const r = await fetch("/upload", { method: "POST", body: fd });
-  if (!r.ok) { alert("upload failed"); return; }
+  if (!r.ok) { toast("Upload failed — is that a valid image file?"); return; }
   const b = await r.json();
   dz.querySelector("p").innerHTML = `loaded ${b.width}×${b.height} <small>· drop / paste another to replace</small>`;
   dz.classList.add("slim");
@@ -138,15 +160,17 @@ $("askLLM").addEventListener("click", async () => {
   if (!imageId) return;
   const box = $("cllm");
   box.hidden = false; box.textContent = "asking the AI judge…";
-  const r = await fetch("/critique?" + new URLSearchParams({ image_id: imageId, mode: mode(), llm: true }));
-  if (!r.ok) { box.textContent = "AI judge failed"; return; }
-  const c = await r.json();
-  const l = c.llm || {};
-  if (l.error) { box.textContent = "AI judge: " + l.error; return; }
-  const tips = (l.tips || []).map((t) => `• ${t}`).join("\n");
-  const alt = l.better_subject ? `\nTry instead: ${l.better_subject}` : "";
-  box.textContent = `🧠 ${l.verdict} (${l.score}/100) — ${l.model}\n${tips}${alt}`;
-  // reset the LLM box when a new image loads
+  aiBusy(true, "askLLM", "🧠 judging…");
+  try {
+    const r = await fetch("/critique?" + new URLSearchParams({ image_id: imageId, mode: mode(), llm: true }));
+    if (!r.ok) { box.textContent = "AI judge failed"; return; }
+    const c = await r.json();
+    const l = c.llm || {};
+    if (l.error) { box.textContent = "AI judge: " + l.error; return; }
+    const tips = (l.tips || []).map((t) => `• ${t}`).join("\n");
+    const alt = l.better_subject ? `\nTry instead: ${l.better_subject}` : "";
+    box.textContent = `🧠 ${l.verdict} (${l.score}/100) — ${l.model}\n${tips}${alt}`;
+  } finally { aiBusy(false, "askLLM"); }
 });
 
 // apply a whitelisted judge action to its control (getElementById — the helper
@@ -167,18 +191,21 @@ $("aiFix").addEventListener("click", async () => {
   if (!imageId) return;
   const box = $("cllm");
   box.hidden = false; box.textContent = "asking the AI judge…";
-  const r = await fetch("/critique?" + new URLSearchParams({ image_id: imageId, mode: mode(), llm: true }));
-  if (!r.ok) { box.textContent = "AI judge failed"; return; }
-  const l = (await r.json()).llm || {};
-  if (l.error) { box.textContent = "AI judge: " + l.error; return; }
-  // snapshot the current sim as "before", then apply the judge's actions
-  if (curSimSrc) { $("beforeimg").src = curSimSrc; $("beforewrap").hidden = false; }
-  const acts = l.actions || [];
-  acts.forEach(applyAction);
-  const applied = acts.map((a) => `${a.set} → ${a.value}`).join(" · ") || "(no setting changes)";
-  const tips = (l.tips || []).map((t) => `• ${t}`).join("\n");
-  box.textContent = `🪄 ${l.verdict} (${l.score}/100) — applied: ${applied}\n${tips}`;
-  refresh();
+  aiBusy(true, "aiFix", "🪄 fixing…");
+  try {
+    const r = await fetch("/critique?" + new URLSearchParams({ image_id: imageId, mode: mode(), llm: true }));
+    if (!r.ok) { box.textContent = "AI judge failed"; return; }
+    const l = (await r.json()).llm || {};
+    if (l.error) { box.textContent = "AI judge: " + l.error; return; }
+    // snapshot the current sim as "before", then apply the judge's actions
+    if (curSimSrc) { $("beforeimg").src = curSimSrc; $("beforewrap").hidden = false; }
+    const acts = l.actions || [];
+    acts.forEach(applyAction);
+    const applied = acts.map((a) => `${a.set} → ${a.value}`).join(" · ") || "(no setting changes)";
+    const tips = (l.tips || []).map((t) => `• ${t}`).join("\n");
+    box.textContent = `🪄 ${l.verdict} (${l.score}/100) — applied: ${applied}\n${tips}`;
+    refresh();
+  } finally { aiBusy(false, "aiFix"); }
 });
 
 $("beforeClose").addEventListener("click", () => { $("beforewrap").hidden = true; });
@@ -187,10 +214,13 @@ $("aiSimplify").addEventListener("click", async () => {
   if (!imageId) return;
   const box = $("cllm");
   box.hidden = false; box.textContent = "AI is simplifying the image… (can take ~20s)";
-  const r = await fetch("/simplify?" + new URLSearchParams({ image_id: imageId }));
-  if (!r.ok) { box.textContent = "AI simplify failed (" + r.status + ")"; return; }
-  // becomes a new version; every earlier version stays one click away in the strip
-  addVersion(await r.json(), "AI simplified");
+  aiBusy(true, "aiSimplify", "🎨 painting…");
+  try {
+    const r = await fetch("/simplify?" + new URLSearchParams({ image_id: imageId }));
+    if (!r.ok) { box.textContent = "AI simplify failed (" + r.status + ")"; toast("AI simplify failed"); return; }
+    // becomes a new version; every earlier version stays one click away in the strip
+    addVersion(await r.json(), "AI simplified");
+  } finally { aiBusy(false, "aiSimplify"); }
 });
 
 $("applyRec").addEventListener("click", () => {
@@ -213,6 +243,10 @@ $("realOnly").addEventListener("change", refresh);
 $("dither").addEventListener("change", refresh);
 $("useInv").addEventListener("change", refresh);
 $("colorsN").addEventListener("change", refresh);
+
+// dim the sim while a new render is on its way; the load event clears it
+["load", "error"].forEach((ev) =>
+  $("sim").addEventListener(ev, () => document.querySelector(".simwrap").classList.remove("loading")));
 
 // hold the compare button to swap the cap sim for the original (same framing)
 const _cmp = $("compareBtn");
@@ -265,7 +299,7 @@ $("cropBtn").addEventListener("click", async () => {
   if (!selFrac || !imageId) return;
   const q = new URLSearchParams({ image_id: imageId, ...selFrac });
   const r = await fetch("/crop?" + q.toString());
-  if (!r.ok) { alert("crop failed"); return; }
+  if (!r.ok) { toast("Crop failed — try a larger selection."); return; }
   addVersion(await r.json(), "Crop");
 });
 
@@ -312,13 +346,14 @@ async function refresh() {
   $("quality").textContent = readQuality(distM());
   $("colours").textContent = `${b.colors_used} / ${b.effective_colors}`;
 
+  // red = the piece won't read (act now); amber = a quality hint (nice to fix)
   const warn = $("warning");
-  const msg = b.warning || (!b.legible ? "Too few caps to represent this image." : "") ;
-  const hint = b.thin_hint || "";
-  if (msg || hint) {
-    warn.hidden = false;
-    warn.textContent = [msg, hint].filter(Boolean).join("  ");
-  } else { warn.hidden = true; }
+  const msg = b.warning || (!b.legible ? "Too few caps to represent this image." : "");
+  warn.hidden = !msg;
+  if (msg) warn.textContent = msg;
+  const note = $("notice");
+  note.hidden = !b.thin_hint;
+  if (b.thin_hint) note.textContent = "💡 " + b.thin_hint;
 
   // inventory gap (have/need/short), when "Use my caps" is on
   const inv = b.inventory || null;
@@ -347,6 +382,7 @@ async function refresh() {
   const q = new URLSearchParams({ image_id: imageId, mode: mode(), pitch_mm: PITCH, size_mm: sizeMm(), distance_m: distM(), ...extraParams() });
   if (highlight) q.set("highlight", highlight);
   curSimSrc = "/simulate?" + q.toString() + "&_=" + Date.now();
+  document.querySelector(".simwrap").classList.add("loading");  // cleared on img load
   $("sim").src = curSimSrc;
   const tq = new URLSearchParams({ image_id: imageId, mode: mode(), pitch_mm: PITCH, size_mm: sizeMm(), distance_m: distM() });
   curTargetSrc = "/target?" + tq.toString() + "&_=" + Date.now();
