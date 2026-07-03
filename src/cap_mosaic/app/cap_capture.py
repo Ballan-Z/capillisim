@@ -35,9 +35,17 @@ from ..vision.card_reader import (
     crop_cap,
     detect_card,
     frames_spread_de,
+    measure_cap_diameter_mm,
     read_cap_field,
     white_balance,
 )
+
+# Crop window widths (mm): default fits the placement circle; large caps (38mm
+# class) overflow it, so they get the wide window. Recorded per cap so
+# mm-per-pixel stays derivable from the stored crops.
+DEFAULT_SPAN_MM = 37.8
+WIDE_SPAN_MM = 48.0
+LARGE_CAP_MM = 32.0  # measured above this -> use the wide window
 
 
 def _median(values: list[float]) -> float:
@@ -114,6 +122,8 @@ def main(argv: list[str] | None = None) -> None:
         marks: list[float] = []
         mosaics: list[tuple[int, int, int]] = []
         sigs: list = []
+        dias: list[float] = []
+        span: float | None = None  # decided on the first measured frame
         for fk in range(args.frames_per_cap):
             ok2, b2 = cap.read()
             if not ok2:
@@ -123,7 +133,12 @@ def main(argv: list[str] | None = None) -> None:
             if h2 is None:
                 h2 = h_use
             wb = white_balance(r2, h2)
-            crop = crop_cap(wb, h2, args.size)
+            dia = measure_cap_diameter_mm(wb, h2)
+            if dia is not None:
+                dias.append(dia)
+            if span is None:
+                span = WIDE_SPAN_MM if (dia or 0) > LARGE_CAP_MM else None
+            crop = crop_cap(wb, h2, args.size, span_mm=span)
             if crop is None:
                 continue
             path = crops / f"cap_{idx:04d}_f{fk}.png"
@@ -163,9 +178,12 @@ def main(argv: list[str] | None = None) -> None:
         color = _median_rgb(fields) if fields else tuple(col_use)
         marking = _median(marks) if marks else None
         mosaic = median_rgb(mosaics) if mosaics else None
+        diameter = _median(dias) if dias else None
         now = datetime.now(timezone.utc).isoformat(timespec="seconds")
         cap_id = db.add_cap(color, frames, captured_at=now, source="card_capture",
-                            marking_frac=marking, mosaic_rgb=mosaic)
+                            marking_frac=marking, mosaic_rgb=mosaic,
+                            diameter_mm=diameter,
+                            crop_span_mm=span if span is not None else DEFAULT_SPAN_MM)
         if sigs:
             import numpy as _np
 
@@ -189,8 +207,14 @@ def main(argv: list[str] | None = None) -> None:
         # near-50/50 field/marking split: the single field colour is untrustworthy
         # (e.g. a gold+red+white cap reads "brown") — the mosaic colour still is.
         amb = "  AMBIGUOUS-FIELD" if (marking or 0) >= 0.40 else ""
+        size = ""
+        if diameter is not None:
+            cls = next((n for mm, n in ((26.0, "crown-26"), (29.0, "crown-29"),
+                                        (38.0, "large-38")) if abs(diameter - mm) <= 1.5),
+                       "other")
+            size = f"  Ø{diameter:.1f}mm {cls}"
         print(f"  saved cap #{idx}: {len(frames)} crops  field{color}  "
-              f"mosaic{mosaic}{busy}{amb}", flush=True)
+              f"mosaic{mosaic}{size}{busy}{amb}", flush=True)
         idx += 1
         return True
 
