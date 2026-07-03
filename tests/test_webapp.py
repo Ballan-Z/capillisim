@@ -209,6 +209,24 @@ def test_critique_llm_merges_qwen_verdict(monkeypatch):
     assert b["score"] == plain["score"]             # heuristic part unchanged
 
 
+def test_simplify_stores_edited_image_under_new_id(monkeypatch):
+    from cap_mosaic.app import ai_edit
+
+    def fake_simplify(img, instructions):
+        assert "bottle-cap" in instructions        # default instruction used
+        return Image.new("RGB", (40, 30), (1, 2, 3))  # a recognizably new image
+
+    monkeypatch.setattr(ai_edit, "ai_simplify", fake_simplify)
+    iid = _upload()
+    b = client.get("/simplify", params={"image_id": iid}).json()
+    assert b["id"] != iid                          # stored as a NEW image
+    served = Image.open(io.BytesIO(client.get("/image", params={"image_id": b["id"]}).content))
+    assert served.size == (40, 30) and served.getpixel((0, 0)) == (1, 2, 3)
+    # the original is still intact under its old id
+    orig = Image.open(io.BytesIO(client.get("/image", params={"image_id": iid}).content))
+    assert orig.size != (40, 30)
+
+
 def test_palettes_returns_a_comparison_sheet():
     iid = _upload()
     r = client.get("/palettes", params={"image_id": iid, "size_mm": 1500})

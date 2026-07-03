@@ -150,6 +150,20 @@ $("aiFix").addEventListener("click", async () => {
 
 $("beforeClose").addEventListener("click", () => { $("beforewrap").hidden = true; });
 
+$("aiSimplify").addEventListener("click", async () => {
+  if (!imageId) return;
+  const box = $("cllm");
+  box.hidden = false; box.textContent = "AI is simplifying the image… (can take ~20s)";
+  const r = await fetch("/simplify?" + new URLSearchParams({ image_id: imageId }));
+  if (!r.ok) { box.textContent = "AI simplify failed (" + r.status + ")"; return; }
+  const b = await r.json();
+  // switch to the simplified image; the original stays via ↺ Full image
+  imageId = b.id; aspect = b.aspect;
+  setPreview(b.id); clearSelection();
+  box.textContent = "🎨 simplified — showing the AI-edited version; ↺ Full image restores the original.";
+  refresh(); loadCritique();
+});
+
 $("applyRec").addEventListener("click", () => {
   if (!lastRec) return;
   $("dither").checked = !!lastRec.dither;

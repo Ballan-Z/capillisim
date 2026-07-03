@@ -319,6 +319,29 @@ def simulate(
     return Response(content=buf.getvalue(), media_type="image/png")
 
 
+@app.get("/simplify")
+def simplify(image_id: str) -> dict:
+    """AI-edit the image into a cap-friendly simplified version (qwen-image-edit)
+    and store it as a NEW image id — the original stays untouched. The edit
+    instruction reuses the AI judge's tips for this image when available."""
+    from .. import ai_edit
+
+    img = _get(image_id)
+    tips = (_LLM_CRITIQUE.get(image_id) or {}).get("tips") or []
+    instructions = ai_edit.DEFAULT_INSTRUCTIONS
+    if tips:
+        instructions += " Specifically: " + "; ".join(tips) + "."
+    try:
+        out = ai_edit.ai_simplify(img, instructions)
+    except Exception as exc:  # noqa: BLE001 - key/network/quota surface to UI
+        raise HTTPException(502, f"AI simplify failed: {exc}") from exc
+    _COUNTER["n"] += 1
+    iid = str(_COUNTER["n"])
+    _IMAGES[iid] = out
+    return {"id": iid, "width": out.width, "height": out.height,
+            "aspect": out.width / out.height}
+
+
 @app.get("/palettes")
 def palettes(
     image_id: str,
