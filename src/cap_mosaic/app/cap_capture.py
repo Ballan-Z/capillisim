@@ -122,6 +122,20 @@ def render_recent_strip(entries: list[dict], width: int = 640) -> "np.ndarray":
     return strip
 
 
+def save_flash_text(idx: int, diameter: float | None) -> tuple[str, str]:
+    """Flash lines shown on save: 'SAVED #n' + the size that went into the DB.
+
+    A large cap gets an unmissable 'LARGE CAP' so the user knows the class was
+    recognised and written. (Hershey fonts are ASCII-only — no Ø here.)
+    """
+    msg = f"SAVED #{idx}"
+    if diameter is None:
+        return msg, "size not measured"
+    cls = size_class_of(diameter)
+    label = "LARGE CAP (large-38)" if cls == "large-38" else cls
+    return msg, f"{diameter:.0f}mm {label}"
+
+
 def recent_entries_from_db(db: CapDataset, n: int = RECENT_N) -> list[dict]:
     """Seed the strip from the DB so a restarted scanner still shows history."""
     entries: list[dict] = []
@@ -167,6 +181,7 @@ def main(argv: list[str] | None = None) -> None:
 
     flash_until = 0.0
     flash_msg = ""
+    flash_sub = ""  # second flash line: the size class written to the DB
     flash_color = (60, 235, 90)  # BGR-ish green; red on a rejected capture
     captured = False  # has the current cap already been auto-saved?
     stable_col = None
@@ -174,7 +189,7 @@ def main(argv: list[str] | None = None) -> None:
     FONT = cv2.FONT_HERSHEY_SIMPLEX
 
     def save_cap(h_use, col_use):
-        nonlocal idx, flash_until, flash_msg, flash_color
+        nonlocal idx, flash_until, flash_msg, flash_sub, flash_color
         frames: list[FrameRecord] = []
         fields: list[tuple[int, int, int]] = []
         marks: list[float] = []
@@ -226,6 +241,7 @@ def main(argv: list[str] | None = None) -> None:
                 except OSError:
                     pass
             flash_msg = f"REJECTED (dE {spread:.0f})"
+            flash_sub = ""
             flash_color = (60, 60, 235)
             flash_until = time.time() + 1.2
             print(f"  rejected capture: frame colours spread {spread:.1f} dE "
@@ -259,8 +275,10 @@ def main(argv: list[str] | None = None) -> None:
             except Exception:  # noqa: BLE001 - a hint must never break capture
                 pass
         threading.Thread(target=_ding, daemon=True).start()
-        flash_msg, flash_color = f"SAVED #{idx}", (60, 235, 90)
-        flash_until = time.time() + 0.8
+        flash_msg, flash_sub = save_flash_text(idx, diameter)
+        flash_color = (60, 235, 90)
+        # a large cap holds the flash longer — the size line is the point
+        flash_until = time.time() + (1.8 if size_class_of(diameter) == "large-38" else 0.9)
         busy = f"  busy {int(marking * 100)}%" if marking else ""
         # near-50/50 field/marking split: the single field colour is untrustworthy
         # (e.g. a gold+red+white cap reads "brown") — the mosaic colour still is.
@@ -306,7 +324,11 @@ def main(argv: list[str] | None = None) -> None:
                         cv2.rectangle(preview, (500, 296), (632, 354), (255, 255, 255), 2)
                         cv2.putText(preview, "mosaic (afar)", (502, 290), FONT, 0.5, (255, 255, 255), 1)
                 busy = int(fld[1] * 100) if fld else 0
-                label = "empty (no cap)" if not present else f"cap #{idx}  rgb{col}  busy {busy}%"
+                dia_live = measure_cap_diameter_mm(wb, h) if present else None
+                sz = f"  {dia_live:.0f}mm" if dia_live else ""
+                label = "empty (no cap)" if not present else f"cap #{idx}  rgb{col}{sz}  busy {busy}%"
+                if dia_live and size_class_of(dia_live) == "large-38":
+                    cv2.putText(preview, "LARGE CAP", (12, 56), FONT, 0.7, (0, 165, 255), 2)
                 mode = "AUTO" if args.auto else "SPACE=save"
                 cv2.putText(preview, f"{label}   [{mode}]", (12, 28), FONT, 0.6,
                             (170, 170, 170) if not present else (60, 235, 90), 2)
@@ -325,7 +347,9 @@ def main(argv: list[str] | None = None) -> None:
                                 stable_n, stable_col = 0, None
             if time.time() < flash_until:  # SAVED (green) / REJECTED (red) flash
                 cv2.rectangle(preview, (3, 3), (637, 357), flash_color, 6)
-                cv2.putText(preview, flash_msg, (150, 195), FONT, 1.1, flash_color, 3)
+                cv2.putText(preview, flash_msg, (150, 180), FONT, 1.1, flash_color, 3)
+                if flash_sub:  # size class as written to the DB
+                    cv2.putText(preview, flash_sub, (150, 222), FONT, 0.85, flash_color, 2)
             cv2.imshow("cap capture", np.vstack([preview, render_recent_strip(recent, preview.shape[1])]))
             k = cv2.waitKey(30) & 0xFF
             if k in (ord("q"), 27):
@@ -340,7 +364,7 @@ def main(argv: list[str] | None = None) -> None:
                     for e in recent:
                         if e["id"] == last:
                             e["deleted"] = True
-                    flash_msg, flash_until = f"REMOVED #{last}", time.time() + 0.8
+                    flash_msg, flash_sub, flash_until = f"REMOVED #{last}", "", time.time() + 0.8
                     print(f"  removed cap #{last}", flush=True)
     finally:
         cap.release()

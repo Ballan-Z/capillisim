@@ -11,6 +11,7 @@ from cap_mosaic.app.cap_capture import (
     _thumb,
     recent_entries_from_db,
     render_recent_strip,
+    save_flash_text,
 )
 from cap_mosaic.data.store import CapDataset, FrameRecord
 
@@ -74,6 +75,19 @@ def test_recent_entries_from_db_reads_last_caps(tmp_path):
         assert entries[-1]["thumb"].shape == (_TILE, _TILE, 3)
     finally:
         db.close()
+
+
+def test_save_flash_announces_large_cap():
+    msg, sub = save_flash_text(236, 41.7)
+    assert msg == "SAVED #236"
+    assert "LARGE CAP" in sub and "42mm" in sub
+
+
+def test_save_flash_standard_and_unmeasured():
+    _, sub = save_flash_text(1, 30.3)
+    assert sub == "30mm standard-26"
+    _, sub = save_flash_text(2, None)
+    assert sub == "size not measured"
 
 
 def test_recent_entries_survive_missing_crop_file(tmp_path):
