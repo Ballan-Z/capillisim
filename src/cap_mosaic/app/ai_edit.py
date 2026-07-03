@@ -1,0 +1,86 @@
+"""AI image simplify — qwen-image-edit via DashScope (olga_movie's pattern).
+
+Sends the image + an edit instruction (built from the AI judge's own tips) to
+``qwen-image-edit-plus`` and returns the edited image: fewer flat colours,
+thicker lines — a cap-friendly version of the same subject. Always opt-in and
+non-destructive: callers store the result as a NEW image. Network is injected
+(``post``/``get_bytes``) so tests run offline; key = ``QWEEN_KEY`` (shared
+loader with ``llm_judge``).
+"""
+
+from __future__ import annotations
+
+import base64
+import io
+import json
+from typing import Callable
+
+from PIL import Image
+
+from .llm_judge import _load_key
+
+EDIT_URL = ("https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/"
+            "multimodal-generation/generation")
+EDIT_MODEL = "qwen-image-edit-plus"
+
+DEFAULT_INSTRUCTIONS = (
+    "Simplify this image for a bottle-cap mosaic: flatten it into at most 6 "
+    "flat poster colours, thicken all thin lines and outlines so none is "
+    "hairline, remove fine texture and background clutter, keep the same "
+    "subject, composition and colour feel. Bold, high-contrast, pixel-art "
+    "friendly."
+)
+
+
+def _default_post(url: str, headers: dict, body: dict) -> dict:
+    import urllib.request
+
+    req = urllib.request.Request(url, data=json.dumps(body).encode(),
+                                 headers={"Content-Type": "application/json", **headers},
+                                 method="POST")
+    with urllib.request.urlopen(req, timeout=180) as r:
+        return json.load(r)
+
+
+def _default_get_bytes(url: str) -> bytes:
+    import urllib.request
+
+    with urllib.request.urlopen(url, timeout=60) as r:
+        return r.read()
+
+
+def ai_simplify(
+    image: Image.Image,
+    instructions: str = DEFAULT_INSTRUCTIONS,
+    key: str | None = None,
+    model: str = EDIT_MODEL,
+    post: Callable[[str, dict, dict], dict] = _default_post,
+    get_bytes: Callable[[str], bytes] = _default_get_bytes,
+) -> Image.Image:
+    """Edit `image` into a cap-friendly simplified version. Returns a new image."""
+    key = key or _load_key()
+    im = image.convert("RGB")
+    im.thumbnail((2048, 2048))  # DashScope 10MB payload cap
+    buf = io.BytesIO()
+    im.save(buf, format="JPEG", quality=92)
+    data_uri = f"data:image/jpeg;base64,{base64.b64encode(buf.getvalue()).decode()}"
+
+    body = {
+        "model": model,
+        "input": {"messages": [{"role": "user", "content": [
+            {"image": data_uri},
+            {"text": instructions},
+        ]}]},
+        "parameters": {"negative_prompt": "", "watermark": False},
+    }
+    resp = post(EDIT_URL, {"Authorization": f"Bearer {key}"}, body)
+
+    for ch in resp.get("output", {}).get("choices") or []:
+        for item in ch.get("message", {}).get("content", []):
+            url = item.get("image")
+            if url:
+                return Image.open(io.BytesIO(get_bytes(url))).convert("RGB")
+            b64 = item.get("image_base64") or item.get("data")
+            if b64:
+                return Image.open(io.BytesIO(base64.b64decode(b64))).convert("RGB")
+    raise RuntimeError(f"no image in edit response: {str(resp)[:200]}")
