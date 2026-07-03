@@ -1,111 +1,117 @@
 # Capillisim
 
-*cap + pointillism* — because building a picture from discrete colored caps is
-exactly what the pointillists did with dots.
+*cap + pointillism.* Build a wall-sized mosaic out of bottle caps, guided by
+software: design the artwork from any image, scan the caps you collect, and let
+a projector show you where every cap goes.
 
-Interactively build a mosaic out of bottle caps (mostly beer caps), guided by a
-projector and a phone camera. You design a target image, the system computes the
-cap layout at true real-world scale, and then — as you pick up each random cap —
-it tells you the best empty slot (or that the cap doesn't help) and the projector
-lights up that exact cell so you just drop the cap in place. The build happens in
-stages over time; state persists between sessions.
+A cap is one fat pixel of about 32 mm. Up close you see caps; from a few metres
+the eye blends them into a picture. Everything in this repo serves that trick.
 
-This is a fresh project, independent of the personal-wiki repo it was sketched
-in. See `docs/` for the full design.
+![generate, AI simplify, caps up close, reads from afar](docs/images/pipeline-lion.jpg)
 
-## Cap recognition, live
+## Quickstart
 
-Place a cap on the printed reading card — the scanner locates the card, colour-
-corrects, reads both colours (field + mosaic-at-distance swatches on the right),
-and auto-saves when the reading is stable. A hand in frame or glare gets
-rejected and retried:
+```bash
+pip install -e .[web]
 
-![live cap scanning: two caps recognised and saved](docs/images/cap-scan-demo.gif)
+# the designer web app
+PYTHONPATH=src python -m cap_mosaic.app.webapp        # http://127.0.0.1:8000
 
-Every scanned cap also gets a rotation-invariant **ring signature**, so the
-scanner recognises a cap it has seen before ("likely SAME design as cap #28")
-and the inventory can be browsed by visual similarity:
+# the cap scanner (print the reading card first: python -m cap_mosaic.app.make_card)
+PYTHONPATH=src python -m cap_mosaic.app.cap_capture --out dataset --auto
+```
 
-![caps ranked by similarity to a query cap](docs/images/similar-caps.png)
+Full illustrated walkthrough: **[docs/GUIDE.md](docs/GUIDE.md)**.
 
-Cap **size** is measured automatically off the card's mm-true geometry
-(standard crowns vs 38 mm large caps — the green circle is the measured edge),
-so the inventory knows which caps fit which artwork:
+## 1. Design the artwork
 
-![automatic size measurement of a large cap](docs/images/cap-size-measure.png)
+Drop, paste, or generate any image. The estimator turns it into a buildable cap
+plan: trade off physical size against viewing distance, and watch a perceptually
+honest simulation (the mosaic shrinks and stays sharp with distance, colours mix
+in linear light, no fake blur).
 
-## From any image to a buildable mosaic
+![the estimator: judge, versions, simulation, BOM](docs/images/app-ui.jpg)
 
-The **Mosaic Estimator** web app (`PYTHONPATH=src python -m cap_mosaic.app.webapp`,
-then http://127.0.0.1:8000/) takes any image — even one you just generated with
-an LLM — and turns it into a physically buildable cap plan:
-
-![generate → AI simplify → caps up close → reads from afar](docs/images/pipeline-lion.jpg)
-
-Everything happens in one screen: drop/paste an image, drag the **size** and
-**viewing-distance** sliders, and watch the piece as caps up close vs a picture
-from afar (perceptually correct: the mosaic *shrinks and stays sharp*, colours
-mix in linear light — no fake blur):
-
-![the estimator: judge, simulation, BOM, cap map](docs/images/app-ui.jpg)
-
-Highlights (full walkthrough in **[docs/GUIDE.md](docs/GUIDE.md)**):
-
-- **AI judge + one-click fixes** — a heuristic + Qwen-vision judge scores the
-  image for cap-art suitability; `🪄 AI fix` applies its recommended settings
-  (colours, thicken, size…), `🎨 AI simplify` rewrites the image itself into
-  flat, thick-lined, cap-friendly art:
+- **Judges.** A heuristic check scores every image for cap-art suitability
+  (contrast, detail floor, background). A Qwen vision judge adds taste on
+  demand: `🪄 AI fix` applies its recommended settings, `🎨 AI simplify`
+  redraws the image itself into flat, thick-lined, cap-friendly art:
 
   ![before and after AI simplify](docs/images/ai-simplify.jpg)
-- **Build artifacts** — a printable paint-by-numbers **cap map** (PDF), a
-  per-colour BOM with *have/short* from your scanned inventory, and projector
-  **stencil / one-colour-at-a-time** modes for the physical build:
+- **Versions.** Original, crops, and AI edits live in a version strip: click to
+  switch, save any of them.
+- **Build artifacts.** A printable paint-by-numbers cap map (PDF), and a
+  per-colour bill of materials with have/short counts from your scanned caps:
 
   ![paint-by-numbers cap map](docs/images/capmap-sample.png)
 
+## 2. Scan your caps
+
+Place a cap on the printed reading card. The scanner locates the card,
+colour-corrects, reads the cap, and auto-saves when the reading is stable;
+a hand in frame or glare gets rejected and retried:
+
+![live cap scanning: two caps recognised and saved](docs/images/cap-scan-demo.gif)
+
+Each cap is stored with two colours: the *field* colour (recognises the cap in
+hand) and the *mosaic* colour (the linear-light mix of the whole face, logo
+included, which is what the cap contributes to the picture from a distance and
+what the planner matches on):
+
+![field vs mosaic colour of real caps](docs/images/field-vs-mosaic.png)
+
+The scanner also computes a rotation-invariant ring signature, so it recognises
+a cap it has seen before and the inventory can be browsed by similarity:
+
+![caps ranked by similarity to a query cap](docs/images/similar-caps.png)
+
+Cap size is measured automatically off the card's mm-true geometry (standard
+crowns vs 38 mm large caps), so the inventory knows which caps fit which artwork:
+
+![automatic size measurement of a large cap](docs/images/cap-size-measure.png)
+
+## 3. Build it
+
+Two projector modes place the caps on the board at true 1:1 scale
+(`python -m cap_mosaic.app.project_plan`): a full colour **stencil** where you
+drop each cap on the disc lit in its colour, and a **one colour at a time** pass
+like muralists work. The interactive loop goes further: hold any random cap up
+to the camera, the software matches it to the best empty cell (or says set it
+aside), and the projector glows on that exact cell. State persists between
+sessions; caps stay removable until the final glue-down.
+
 ## Why this might be original
 
-The mosaic-*generation* problem is well-solved (academic "structure-aware bottle
-cap art", open-source generators, bead/cross-stitch tools). What does **not**
-exist as a product is the interactive build loop: show an *arbitrary* cap to a
-camera, have software match it to the best remaining slot or reject it, and have
-a projector highlight that slot at 1:1 scale. That integration is the point of
-this project. Details in `docs/PRIOR_ART.md`.
+Mosaic *generation* is a solved problem (academic bottle-cap-art papers,
+photomosaic and bead-pattern tools). What does not exist as a product is the
+interactive build loop: show an arbitrary cap to a camera, match it to the best
+remaining slot or reject it, and highlight that slot with a projector at 1:1
+scale. That integration is the point of this project. See `docs/PRIOR_ART.md`.
 
-## Design decisions (locked)
+## Design decisions
 
-- **Compute:** PC + phone for the POC (laptop drives projector + runs logic;
-  phone streams its camera). Phone-only is a later goal, so the core logic is
-  isolated for reuse.
-- **Surface:** flat table, projector and phone looking straight down; caps
-  removable until the final glue-down.
-- **Caps:** open-ended / random supply. Matching tolerates "unknown cap, closest
-  slot, or set aside."
-- **Recognition:** dominant color for the POC; brand/logo ID architected but
+- **Compute:** PC + phone for the proof of concept (the laptop drives the
+  projector and logic, the phone streams its camera). The core logic is
+  isolated so it can move to phone-only later.
+- **Caps:** open-ended random supply; matching tolerates "no good slot, set it
+  aside."
+- **Recognition:** dominant colour for the POC; brand/logo ID architected but
   deferred.
-- **Two colours per cap:** the *field* colour recognises a cap in hand; the
-  *mosaic* colour — the linear-light mix of the whole face, logo included — is
-  what the cap contributes to the picture from viewing distance, and is what
-  the planner matches on. Real scanned caps:
-
-  ![field vs mosaic colour of real caps](docs/images/field-vs-mosaic.png)
-- **Designer:** supports both simple patterns and photo/portrait mosaics, with a
-  viewing-distance simulator to guide the trade-off.
 - **Stack:** Python + OpenCV.
 
 ## Docs
 
-- `docs/GUIDE.md` — **start here as a user:** the full illustrated guide — design, judge, simulate, print, project, build.
-- `docs/RIG_SETUP.md` — **start here for the build:** boxes → calibration → live loop, with diagrams.
-- `docs/PRIOR_ART.md` — what exists, what's novel.
-- `docs/ARCHITECTURE.md` — components, data flow, the portable-core split, math.
-- `docs/POC_OPERATION.md` — how projector + phone + PC connect and run the loop.
-- `docs/CALIBRATION.md` — the projector→table calibration procedure (step by step).
-- `docs/SIZING_AND_VIEWING.md` — piece size, cap count, and viewing distance.
-- `docs/ESTIMATOR.md` — the web app: drag an image, trade off size ↔ distance, see the caps-vs-picture simulation and per-colour BOM.
-- `docs/COLOR_MATCHING.md` — perceptual ΔE matching and the place-or-leave-empty threshold: research, anchors, calibration plan.
-- `docs/DATA_MODEL.md` — the SQLite cap dataset/inventory schema (caps + crops + quality + busy-ness + future embeddings).
-- `docs/HARDWARE.md` — the physical rig and the specs we still need.
-- `docs/ROADMAP.md` — phased scope, milestones, and the POC success criteria.
-- `docs/RESEARCH.md` — cap-image datasets to import and photomosaic/build techniques to adopt.
-- `docs/HANDOFF.md` — current state + what's built vs pending (start here to resume).
+- `docs/GUIDE.md`: **start here as a user.** The illustrated guide: design, judge, simulate, print, project, build.
+- `docs/RIG_SETUP.md`: **start here for the physical build.** Boxes, calibration, live loop, with diagrams.
+- `docs/ESTIMATOR.md`: the web app's model and endpoint reference.
+- `docs/ARCHITECTURE.md`: components, data flow, the portable-core split.
+- `docs/CALIBRATION.md`: the projector-to-table calibration procedure.
+- `docs/POC_OPERATION.md`: how projector, phone, and PC connect and run the loop.
+- `docs/SIZING_AND_VIEWING.md`: piece size, cap count, viewing distance.
+- `docs/COLOR_MATCHING.md`: perceptual ΔE matching and the place-or-leave-empty threshold.
+- `docs/DATA_MODEL.md`: the SQLite cap inventory schema.
+- `docs/HARDWARE.md`: the rig and the specs still needed.
+- `docs/ROADMAP.md`: milestones and POC success criteria.
+- `docs/PRIOR_ART.md`: what exists, what's novel.
+- `docs/RESEARCH.md`: cap datasets to import and techniques to adopt.
+- `docs/HANDOFF.md`: current state, built vs pending. Start here to resume work.
