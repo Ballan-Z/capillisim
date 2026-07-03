@@ -80,13 +80,12 @@ to the camera, the software matches it to the best empty cell (or says set it
 aside), and the projector glows on that exact cell. State persists between
 sessions; caps stay removable until the final glue-down.
 
-## Why this might be original
+## Prior art
 
-Mosaic *generation* is a solved problem (academic bottle-cap-art papers,
-photomosaic and bead-pattern tools). What does not exist as a product is the
-interactive build loop: show an arbitrary cap to a camera, match it to the best
-remaining slot or reject it, and highlight that slot with a projector at 1:1
-scale. That integration is the point of this project. See `docs/PRIOR_ART.md`.
+Mosaic generation itself is well covered by existing tools (photomosaic
+generators, bead-pattern apps, academic bottle-cap-art papers). This project's
+focus is the part those tools stop short of: the camera-plus-projector loop
+that guides the physical placement of each cap. Survey in `docs/PRIOR_ART.md`.
 
 ## Design decisions
 

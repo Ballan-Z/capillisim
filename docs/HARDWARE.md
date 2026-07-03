@@ -12,22 +12,22 @@ A top-down setup on a flat table:
         the build area (caps placed here)
 ```
 
-- **Projector** — mounted above the table pointing straight down (ceiling mount,
+- **Projector**: mounted above the table pointing straight down (ceiling mount,
   a tripod with a horizontal arm, or a sturdy shelf/overhang). Top-down keeps the
   calibration geometry simple and the highlight aligned with where your hand goes.
-- **Phone** — on a stand or handheld. Two jobs: (a) read the cap you hold up
+- **Phone**: on a stand or handheld. Two jobs: (a) read the cap you hold up
   (do this just outside the projector beam so the projection doesn't tint the
   color), and (b) optionally, later, verify a cap landed in the right cell.
-- **Table / board** — flat, matte, and a neutral light color so both the
+- **Table / board**: flat, matte, and a neutral light color so both the
   projection and the caps are clearly visible. Caps ~32 mm.
-- **Lighting** — dim the room for projector contrast; add one small steady lamp
+- **Lighting**: dim the room for projector contrast; add one small steady lamp
   over the cap-reading zone for stable color reads.
-- **Laptop** — HDMI to the projector, Wi-Fi to the phone.
+- **Laptop**: HDMI to the projector, Wi-Fi to the phone.
 
 ## What we already have
 
 Per your answers: a projector, a laptop/PC, a decent smartphone, and a build
-surface/frame. Good — no purchases needed to start the POC.
+surface/frame. Good: no purchases needed to start the POC.
 
 ## Specs still needed (please fill in)
 

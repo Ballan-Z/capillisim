@@ -1,4 +1,4 @@
-# Capillisim — The Full Guide
+# Capillisim: The Full Guide
 
 *From any picture to a wall of bottle caps.* This is the user-facing walkthrough
 of the whole program: what it does, how to use each part, and how the pieces fit
@@ -33,43 +33,43 @@ immediately clickable:
 paste from the clipboard. Drag a rectangle on the preview and hit **✂ Crop to
 selection** to build from only part of it.
 
-**Versions.** Every derived image — crops, AI edits — appears as a thumbnail in
+**Versions.** Every derived image (crops, AI edits) appears as a thumbnail in
 the **version strip** under the preview (`Original · Crop · AI simplified`).
 Click a thumbnail to switch the whole app to that version; the active one is
-outlined; **⬇** on any tile saves that version as a file. Nothing is ever lost —
+outlined; **⬇** on any tile saves that version as a file. Nothing is ever lost:
 the original is always one click away.
 
 ---
 
 ## 2 · Is this a good image for caps? (the judges)
 
-Cap art is a *shouting* medium — bold shapes, high contrast, few colours. Two
+Cap art is a *shouting* medium: bold shapes, high contrast, few colours. Two
 judges tell you where you stand the moment an image loads:
 
 | Judge | What it is | What it's good at |
 |---|---|---|
-| **Cap-art check** (instant) | deterministic heuristics: contrast, detail floor (min caps-across for the subject to read at all), background busyness | the *numbers* — "this needs ≥3.2 m", "61 thin outline caps will vanish" |
-| **🧠 AI judge** (one click) | Qwen vision model (`qwen3-vl-plus`) with a cap-art rubric | *taste* — knows a bold halftone poster is great even when the heuristic frets |
+| **Cap-art check** (instant) | deterministic heuristics: contrast, detail floor (min caps-across for the subject to read at all), background busyness | the *numbers*: "this needs ≥3.2 m", "61 thin outline caps will vanish" |
+| **🧠 AI judge** (one click) | Qwen vision model (`qwen3-vl-plus`) with a cap-art rubric | *taste*: knows a bold halftone poster is great even when the heuristic frets |
 
 Then the two buttons that act on the verdict:
 
-- **🪄 AI fix** — the AI judge returns machine-applicable settings (palette
-  size, thicken, dither, physical size, palette preset — a fixed whitelist, it
+- **🪄 AI fix**: the AI judge returns machine-applicable settings (palette
+  size, thicken, dither, physical size, palette preset; a fixed whitelist, it
   can't touch anything else). One click applies them and keeps a **before**
   snapshot next to the new simulation so you can compare.
-- **🎨 AI simplify** — the AI edits *the image itself* (qwen-image-edit):
-  flattens it to ≤6 poster colours, thickens hairlines, cleans the background —
+- **🎨 AI simplify**: the AI edits *the image itself* (qwen-image-edit):
+  flattens it to ≤6 poster colours, thickens hairlines, cleans the background:
   same subject, cap-friendly. The result lands as a new entry in the version
-  strip — switch back to the original (or save either) any time.
+  strip. Switch back to the original (or save either) any time.
 
 ![before and after AI simplify](images/ai-simplify.jpg)
 
 Real numbers from the lion above: the raw render needed **~11,400 caps** to
-read; after AI simplify it reads at **~4,400** — the AI edit more than halved
+read; after AI simplify it reads at **~4,400**. The AI edit more than halved
 the build.
 
 > Needs `QWEEN_KEY` in the repo `.env` (DashScope). Without it, the heuristic
-> judge and everything else still works — only the 🧠/🪄/🎨 buttons are AI.
+> judge and everything else still works; only the 🧠/🪄/🎨 buttons are AI.
 
 ---
 
@@ -79,19 +79,19 @@ Caps are fixed-size, so **physical width decides resolution**: a 2 m piece at
 32 mm pitch is 62 caps across, full stop. The two sliders + three solver
 buttons explore that:
 
-- **Size (width)** / **Viewing distance** sliders — live update of everything.
-- **↳ size for this distance** — how big must it be to fill your view from here?
-- **↳ distance for this size** — where should you stand for this width?
-- **↳ minimal size** — the smallest width that can represent this image at all
+- **Size (width)** / **Viewing distance** sliders: live update of everything.
+- **↳ size for this distance**: how big must it be to fill your view from here?
+- **↳ distance for this size**: where should you stand for this width?
+- **↳ minimal size**: the smallest width that can represent this image at all
   (the legibility floor), plus the closest distance it reads from. Below that
   width, *no* distance saves it.
 
-The stats row keeps score: caps across, total caps (background holes excluded —
+The stats row keeps score: caps across, total caps (background holes excluded:
 what you'd actually buy), min caps to read, reads-from distance, and colours
-*used vs seen* (far away, similar shades merge — the effective palette shrinks).
+*used vs seen* (far away, similar shades merge; the effective palette shrinks).
 
 **The simulation is perceptually honest.** Farther away, the piece *shrinks
-inside a fixed field-of-view frame and stays sharp* — neighbouring caps merge
+inside a fixed field-of-view frame and stays sharp*: neighbouring caps merge
 through linear-light area-resampling (physically correct colour mixing), never
 a fake blur. Hold **👁 hold to compare** to flash the original image with
 identical framing.
@@ -100,21 +100,21 @@ identical framing.
 
 ## 4 · Palette, dither, and the look
 
-- **Palette** — *Auto* derives colours from the image (CIELAB k-means); the
+- **Palette**: *Auto* derives colours from the image (CIELAB k-means); the
   curated presets (*Portrait* 6-tone skin ramp, *Sunset*, *Space*) usually read
   bolder. **⇆ Compare palettes** renders all four side by side:
 
   ![the same image under four palettes](images/palettes-sample.jpg)
-- **Colours** — the palette size (4–24). Fewer = bolder. Down-cluster before
+- **Colours**: the palette size (4–24). Fewer = bolder. Down-cluster before
   you doubt the subject.
-- **Dither** — with few colours, per-cell nearest-colour banding is ugly;
+- **Dither**: with few colours, per-cell nearest-colour banding is ugly;
   error-diffusion (CIELAB Floyd–Steinberg over the cap grid) mixes adjacent
   caps so gradients and skin tones read from distance. Turn it *off* for flat
   poster/pixel art (the AI judge does exactly that).
-- **Thicken outlines** — 1-cap-wide strokes (whiskers, eyes, skylines) vanish
+- **Thicken outlines**: 1-cap-wide strokes (whiskers, eyes, skylines) vanish
   from afar; this widens them to ≥2 caps. The warning banner tells you when
   it matters.
-- **Board** — the backing-board colour (wood/paint/paper). Round caps leave
+- **Board**: the backing-board colour (wood/paint/paper). Round caps leave
   gaps; the gaps and any background *holes* show this colour, so pick it like a
   real material. Near-white image areas become bare board automatically
   (`bare_white`), not white caps.
@@ -124,7 +124,7 @@ identical framing.
 ## 5 · Caps you actually own (inventory)
 
 Scan caps with the reading card (`python -m cap_mosaic.app.cap_capture --out
-dataset --auto` — see the README animation): each cap gets colour-corrected
+dataset --auto`; see the README animation): each cap gets colour-corrected
 crops, a field colour, a mosaic-at-distance colour, and a similarity signature
 in `dataset/caps.db`.
 
@@ -132,8 +132,8 @@ In the estimator:
 
 In the **My scanned caps (N)** group:
 
-- **Shopping list (have / short per colour)** — the BOM gains *have / short*
-  per colour plus a total ("you own 218 of 4,367 needed") — your shopping list.
+- **Shopping list (have / short per colour)**: the BOM gains *have / short*
+  per colour plus a total ("you own 218 of 4,367 needed"), your shopping list.
   Report only; the plan is never silently constrained.
 - **Render using my caps' photos** — draw the simulation from your photographed
   caps (auto-cropped to uniform discs) instead of generated ones, for a preview

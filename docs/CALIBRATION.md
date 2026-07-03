@@ -11,7 +11,7 @@ perpendicular. A rectangle it projects lands as a **keystoned** (skewed)
 quadrilateral, at an unknown position and scale. Calibration measures that
 distortion once and inverts it.
 
-Concretely it finds a **homography** — a 3×3 projective transform that maps
+Concretely it finds a **homography**, a 3×3 projective transform that maps
 *table millimetres → projector pixels*. Four point correspondences fully
 determine it (position, scale, rotation, and keystone = 8 numbers). The math is
 in `procam/calibrate.py`; this doc is the operator procedure.
@@ -36,7 +36,7 @@ on whichever screen is correct.
 
 1. Decide a **table origin** and axes. Tape a corner of your working rectangle:
    that corner is (0, 0). **+x to the right, +y away from you**, in millimetres.
-   (Use this same frame as the piece you'll build — see "Orientation" below.)
+   (Use this same frame as the piece you'll build; see "Orientation" below.)
 
 2. Run:
 
@@ -54,7 +54,7 @@ on whichever screen is correct.
 
 6. **Verify 1:1:** it then projects a rectangle plus a **100 mm yellow bar**.
    Measure the bar with a ruler. If it reads 100 mm (±~1–2 mm), scale is true.
-   If it's off, the markers were mis-measured — rerun and re-measure carefully.
+   If it's off, the markers were mis-measured; rerun and re-measure carefully.
    Press a key in the projector window to finish.
 
 ## Orientation (first-light gotcha)
@@ -70,7 +70,7 @@ orientation once and keep it.
 
 Calibration is per physical setup. If the projector, its mount, or the table
 move at all, **recalibrate** before building (it takes about a minute). If
-nothing moved between sessions, the saved `table.json` is still valid — just load
+nothing moved between sessions, the saved `table.json` is still valid; just load
 it. A good habit is to recalibrate at the start of each session anyway.
 
 ## Output

@@ -10,20 +10,20 @@ focus ~0.7 m) and a **32 mm cap pitch**. Re-run `app/sizing.py` for other values
 
 A finished piece is decided by two things that don't affect each other:
 
-1. **Geometry — the projector.** A fixed-throw projector mounted height **H**
+1. **Geometry: the projector.** A fixed-throw projector mounted height **H**
    above the table paints an image of width **W = H ÷ throw_ratio** (16:9, so the
    table depth is W × 9/16). With cap pitch **p**, that's **W ÷ p caps across**.
    Because focus has a minimum (~0.7 m), the *smallest sharp image is ~64 cm
-   wide* — your piece can't be tiny.
+   wide*; your piece can't be tiny.
 
-2. **Perception — the eye.** Physical size does **not** change perceived detail;
+2. **Perception: the eye.** Physical size does **not** change perceived detail;
    it only sets how far back you stand. A cap of pitch *p* viewed at distance *d*
    subtends an angle `p / d`.
 
 ## The key law: detail = caps across, not size
 
 Caps-across is the real "resolution" of the piece, exactly like pixels across an
-image. A bigger piece with the same caps-across is *not* more detailed — you just
+image. A bigger piece with the same caps-across is *not* more detailed; you just
 view it from further away, and it looks identical. So:
 
 - Choose **caps-across** for the detail you want.
@@ -47,20 +47,20 @@ piece gets large and dim, so favour **bold, high-contrast subjects**.
 | 1.60 m | 145 cm | 82 cm | 45 | 25 | ~1125 | 2.0 m | 5.5 m |
 
 "View @40°/@15°" is the distance at which the whole width fills that horizontal
-field of view — 40° is an immersive close look, 15° sees it as a single picture.
+field of view: 40° is an immersive close look, 15° sees it as a single picture.
 
 ## Viewing distance & the pointillism effect
 
 Individual caps stay visible up close and only become physically unresolvable
-very far away (a 32 mm cap subtends 1 arc-minute — the eye's limit — at ~110 m).
+very far away (a 32 mm cap subtends 1 arc-minute, the eye's limit, at ~110 m).
 You don't need them to vanish. A *picture* made of caps "reads" once each cap
 subtends roughly **20–30 arc-minutes**, because the brain integrates coarse tiles
 into an image. For 32 mm caps:
 
 - **Reads as a picture** from about **4 m** out.
-- **Essentially smooth** tiles only beyond ~35 m (not practical — and not needed).
+- **Essentially smooth** tiles only beyond ~35 m (not practical, and not needed).
 
-So in practice: build it, then step back to **~3–5 m** for a ~0.7–1.0 m piece —
+So in practice: build it, then step back to **~3–5 m** for a ~0.7–1.0 m piece,
 far enough that the tiles blend, close enough to see the whole thing. Bigger
 pieces are viewed proportionally further back.
 
@@ -104,8 +104,8 @@ PYTHONPATH=src python -m cap_mosaic.app.cli design --image yourpic.jpg \
 ```
 
 The `--preview-dir` distance images show exactly how your subject will read as it
-blends — check them before committing to a cap count.
+blends; check them before committing to a cap count.
 
-For an interactive version of all this — drag an image and slide size vs. viewing
-distance with a live caps-vs-picture simulation and a per-colour cap count — see
+For an interactive version of all this (drag an image and slide size vs. viewing
+distance with a live caps-vs-picture simulation and a per-colour cap count), see
 the **Mosaic Estimator** web app (`docs/ESTIMATOR.md`).

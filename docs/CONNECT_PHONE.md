@@ -1,7 +1,7 @@
 # Connecting the Phone to the PC (first hardware step)
 
 Goal: confirm the PC can see the phone's camera and read cap colors over your
-Wi-Fi, before any projector work. No projector and no OpenCV needed for this —
+Wi-Fi, before any projector work. No projector and no OpenCV needed for this:
 just Python + Pillow (already installed) and an IP-webcam app on the phone.
 
 ## How the link works
@@ -10,14 +10,14 @@ Phone and PC are on the **same Wi-Fi network**. An app on the phone runs a tiny
 web server that serves its camera over HTTP. The PC reads from the phone's local
 IP address. Two endpoints matter:
 
-- **Snapshot** (a single JPEG): `http://<phone-ip>:<port>/shot.jpg` — simplest;
-  this is what we use first.
-- **Video** (continuous MJPEG): `http://<phone-ip>:<port>/video` — for the live
+- **Snapshot** (a single JPEG): `http://<phone-ip>:<port>/shot.jpg` (simplest;
+  this is what we use first).
+- **Video** (continuous MJPEG): `http://<phone-ip>:<port>/video`, for the live
   loop later (read with OpenCV).
 
 ## 1. Install an IP-webcam app
 
-- **Android:** "IP Webcam" (Pavel Khlebovich) is the easiest — it serves both
+- **Android:** "IP Webcam" (Pavel Khlebovich) is the easiest; it serves both
   `/shot.jpg` and `/video`. Free.
 - **iOS:** use any app that advertises an "IP camera" / "MJPEG" / "HTTP server"
   mode (e.g. "IP Camera Lite"). Note the snapshot/stream URLs it shows. (Apps
@@ -48,9 +48,9 @@ Hold a cap in front of the phone. Each sample prints what it sees, e.g.:
 ```
 
 Useful flags:
-- `--save seen.png` — save the first frame to eyeball framing and lighting.
-- `--center 0.5` — sample only the middle of the frame (hold the cap centered).
-- `--samples 20 --interval 0.5` — read more often while you test colors.
+- `--save seen.png`: save the first frame to eyeball framing and lighting.
+- `--center 0.5`: sample only the middle of the frame (hold the cap centered).
+- `--samples 20 --interval 0.5`: read more often while you test colors.
 
 ## 4. (Later) Live video stream
 
@@ -69,5 +69,5 @@ python -m cap_mosaic.app.camera_check --stream http://192.168.1.42:8080/video --
   caps; use `--center 0.5` so the background isn't sampled.
 - **iOS sleeps / stops streaming:** keep the app in the foreground and disable
   auto-lock while building.
-- **Wrong port/path:** endpoints vary by app — check the app's on-screen help for
+- **Wrong port/path:** endpoints vary by app; check the app's on-screen help for
   its exact snapshot and video URLs.

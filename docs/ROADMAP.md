@@ -17,16 +17,16 @@ Milestone 4) and is not required for success.
 
 ## Milestones
 
-### M0 — Project setup *(done)*
+### M0: Project setup *(done)*
 Repo, prior-art review, architecture/hardware/scope docs, package skeleton.
 
-### M1 — Designer core (no hardware, fully testable) *(done)*
+### M1: Designer core (no hardware, fully testable) *(done)*
 Pure-Python `core/`: hex-grid layout, palette quantization, image → `GridPlan`,
 bill-of-materials, the viewing-distance simulator, and the JSON project-file
 format. **Deliverable:** a CLI that turns an image + size/cap-count into a plan,
 a per-color BOM, and "view from X metres" preview PNGs.
 
-### M2 — Projection + calibration *(core done; on-rig display pending)*
+### M2: Projection + calibration *(core done; on-rig display pending)*
 4-corner / known-rectangle calibration to recover 1:1 scale + keystone
 (homography between table mm and projector px); render the full template and a
 single glowing highlighted cell at the correct table position. The homography
@@ -34,7 +34,7 @@ math and frame rendering are implemented and unit-tested headless; putting the
 frame fullscreen on the real projector is the remaining hardware step.
 **Deliverable:** project a plan at true size and light up any chosen cell.
 
-### M3 — The interactive loop (this is the POC) *(logic done; phone capture pending)*
+### M3: The interactive loop (this is the POC) *(logic done; phone capture pending)*
 Phone MJPEG stream → detect cap → read color (glare-robust) → match to best empty
 cell or reject → highlight → manual confirm → persist. Wire M1 + M2 + vision
 together. The matcher, the glare-robust color reader, and the full loop are
@@ -44,21 +44,21 @@ from a real phone stream (OpenCV), put the projector frame fullscreen, and tune
 the reject threshold against real caps. **Deliverable:** the full small-grid
 loop meeting the success criteria above. See `docs/POC_OPERATION.md`.
 
-### M4 — Enhancements
+### M4: Enhancements
 - Brand/logo recognition (the deferred request): a classifier + cap dataset;
   lets designs target specific caps and refines matches.
 - Auto-verify placement via a phone↔table homography (no manual confirm).
 - Scarcity-aware matching so rare colors aren't wasted.
 - Inventory capture: photograph your cap pile to estimate what palette you have.
 
-### M5 — Phone-only port
+### M5: Phone-only port
 Reuse `core/` unchanged; replace the PC shell with on-phone camera capture and a
 cast/HDMI projection path. This is why the core is kept I/O-free from day one.
 
 ## Out of scope (for now)
 
 - Permanent vertical mounting and glue-as-you-go (we chose flat + removable).
-- Robotic/automatic placement — a human places every cap.
+- Robotic/automatic placement (a human places every cap).
 - Selling/cloud/multi-user features.
 
 ## Open items to confirm

@@ -36,9 +36,9 @@ component-weighted). This document is the basis for choosing both.
 ## What the research says about thresholds
 
 There *is* a proven framework for this kind of accept/reject decision: the
-**two-threshold model — Perceptibility Threshold (PT) vs. Acceptability Threshold
+**two-threshold model: Perceptibility Threshold (PT) vs. Acceptability Threshold
 (AT)**. The canonical measurement (Paravina et al., dental colour-matching, large
-observer panel — the most-cited study because it measured *both* thresholds
+observer panel; the most-cited study because it measured *both* thresholds
 rigorously):
 
 | Threshold | ΔE₀₀ | Meaning |
@@ -54,20 +54,20 @@ place; "mismatch" → leave the hole.
 
 ## Why we cannot just use 2.7
 
-Those studies use **side-by-side, full-field, close viewing** — the *hardest*
+Those studies use **side-by-side, full-field, close viewing**, the *hardest*
 case for the eye. A cap mosaic is the opposite regime:
 
 - **Discrete tiles + viewing distance.** Caps are large tiles viewed from metres
-  away; the eye **spatially blends** them (optical mixing — see `PRIOR_ART.md`).
+  away; the eye **spatially blends** them (optical mixing; see `PRIOR_ART.md`).
   Per-cap colour error that would fail at arm's length disappears at distance, so
-  our *effective* AT is **higher (more tolerant) than 2.7** — possibly much
+  our *effective* AT is **higher (more tolerant) than 2.7**, possibly much
   higher. The exact figure depends on cap size and viewing distance and is **not
   published anywhere** for our case.
 
 This means: **2.7 ΔE₀₀ is a conservative floor**, and the real working threshold
 must be measured on the rig.
 
-## How we will calibrate (deferred — needs the rig)
+## How we will calibrate (deferred: needs the rig)
 
 Blocked: we cannot run this yet because we cannot print the true-size colour
 target. When the rig allows it:
@@ -77,7 +77,7 @@ target. When the rig allows it:
    (e.g. steps of 2, 4, 6, 8, 10). Stand at the painting's real viewing distance.
    Find the step where the mismatch becomes objectionable. That ΔE is *our*
    threshold for *our* tile size and distance.
-3. The threshold **scales with viewing distance and tile size** — bigger caps or
+3. The threshold **scales with viewing distance and tile size**: bigger caps or
    closer viewing → tighter threshold. See `SIZING_AND_VIEWING.md`.
 
 ## The refinement that handles the purple-in-blue case
@@ -110,7 +110,7 @@ scalar cannot express. Recommended as the eventual shape of `reject_threshold`.
 - [ ] **Blocked on rig:** ramp-test calibration of the true threshold at real
       viewing distance + cap size.
 - [ ] **Enhancement (deferred):** error-diffusion dithering against the
-      inventory palette (optical mixing) to cut holes further — see §"Pipeline
+      inventory palette (optical mixing) to cut holes further; see §"Pipeline
       upgrades", item 2.
 - [ ] **Enhancement:** component-weighted (ΔH'/ΔL'/ΔC') gate to better reject
       hue errors while tolerating lightness/chroma error.
@@ -121,13 +121,13 @@ scalar cannot express. Recommended as the eventual shape of `reject_threshold`.
 ## Pipeline upgrades from pointillism research
 
 We read the Stanford EE368 pointillism paper (Hong & Liu, *Create Pointillism Art
-from Digital Images*) in full. Most of its techniques **do not transfer** — it
+from Digital Images*) in full. Most of its techniques **do not transfer**: it
 paints with *translucent, overlapping* dots, *many dots per pixel*, variable dot
 *density* for tone (stippling), and rotated brushstrokes. We place **one opaque
 cap per fixed grid cell**, so none of opacity / overlap / density / orientation
 is available to us. But three ideas transfer directly, and each exposes a gap in
 the current planner (`app/planner_designer.py`, `plan_from_image`), which today
-does a naive independent per-cell `nearest(mean, fixed_10_palette)` — no
+does a naive independent per-cell `nearest(mean, fixed_10_palette)`: no
 image-derived palette, no inventory awareness, no spatial blending, and **no
 plan-time reject gate**.
 
@@ -137,7 +137,7 @@ plan-time reject gate**.
    derive the working palette per-painting by clustering the image *and*
    intersecting with the **actual cap inventory** (the dataset). This is the
    owner's stated intent (cluster real caps, decide needed colours per painting)
-   and matches the research. Cluster in **CIELAB**, not RGB — the paper clusters
+   and matches the research. Cluster in **CIELAB**, not RGB: the paper clusters
    in RGB and then has to hand-boost because RGB k-means skews dark; LAB avoids
    that.
 
@@ -149,7 +149,7 @@ plan-time reject gate**.
    have** so their average reads correct at viewing distance. Mechanism:
    **error-diffusion dithering** (Floyd–Steinberg) over the grid against the
    inventory palette, instead of independent per-cell nearest-match. Payoff: this
-   is the principled way to **minimise holes** — it lets the inventory cover
+   is the principled way to **minimise holes**. It lets the inventory cover
    colours it doesn't literally contain, *without* the bad single-cell matches
    the reject gate would (correctly) reject. Dithering and the reject gate are
    complementary: dithering spreads quantization error spatially so the *local
@@ -163,14 +163,14 @@ plan-time reject gate**.
    error is masked by optical mixing, hue error is not.
 
 **Sequencing.** (1) and the **plan-time reject gate** align with already-locked
-decisions and are pure-core, headless-testable, *not* blocked on the rig — safe
+decisions and are pure-core, headless-testable, *not* blocked on the rig: safe
 to implement now. (2) dithering is a larger aesthetic change (it trades flat
-colour fields for visible blended texture) — implement behind a flag and compare
+colour fields for visible blended texture); implement behind a flag and compare
 with `simulate_distance` before adopting. (3) is the eventual shape of the gate.
 
 ## Reading a cap: field colour, marking, and presence
 
-How a cap is *read* matters as much as how colours are matched — especially for
+How a cap is *read* matters as much as how colours are matched, especially for
 caps with logos/text (a white cap with a red "SB" logo). Implemented in
 `vision/card_reader.py`:
 
@@ -183,7 +183,7 @@ caps with logos/text (a white cap with a red "SB" logo). Implemented in
   stored as `marking_frac` (the cap-art "internal marking" feature). Use it later
   to favour busy caps for detailed/edge regions and flat caps for smooth fields.
 - **Mosaic colour: what the cap contributes at distance.** At viewing distance a
-  busy cap reads as its **linear-light area mean** — field + logo mixed by the
+  busy cap reads as its **linear-light area mean**: field + logo mixed by the
   same optics as the distance simulator (a black cap with a big gold logo reads
   dark *bronze*, not black). Stored per cap as `mosaic_rgb` (schema v3, computed
   by `app.cap_color.mosaic_rgb_from_crop`, which locates the cap disc inside the
@@ -192,7 +192,7 @@ caps with logos/text (a white cap with a red "SB" logo). Implemented in
   `python -m cap_mosaic.app.backfill_mosaic --db dataset/caps.db`.
 - **Capture spread gate.** Frames of one capture that disagree by more than
   `SPREAD_REJECT_DE` (CIEDE2000 from the frame median) mean a contaminated
-  capture — a hand still in frame, a wandering reflection on a metallic cap, or
+  capture: a hand still in frame, a wandering reflection on a metallic cap, or
   glare. The scanner rejects it (red flash) and, in auto mode, re-arms instead
   of saving a corrupted colour.
 - **Illuminant-cast neutralisation.** Metallic caps mirror the room light, so a
@@ -205,7 +205,7 @@ caps with logos/text (a white cap with a red "SB" logo). Implemented in
 - **Presence ≠ brightness.** A white cap is as bright as the empty white circle,
   so `cap_present` decides presence from **coloured-pixel fraction and luma
   variance**, not brightness. Known limitation: a perfectly plain matte-white cap
-  with no marking is still ambiguous — printing the placement circle **mid-gray**
+  with no marking is still ambiguous; printing the placement circle **mid-gray**
   (`make_card(circle_value=128)`, `card_layout.CIRCLE_FILL_VALUE`) removes the
   ambiguity for every cap and is the recommended fix at the next card reprint.
 
@@ -214,12 +214,12 @@ dominant-colour-via-k-means in CIELAB (MDPI 2072-4292/12/3/520).
 
 ## Sources
 
-- Hong & Liu, *Create Pointillism Art from Digital Images* (Stanford EE368) —
+- Hong & Liu, *Create Pointillism Art from Digital Images* (Stanford EE368):
   https://web.stanford.edu/class/ee368/Project_Autumn_1516/Reports/Hong_Liu.pdf
-- Roy Feinson — Bottle Cap Mosaics — https://royfeinson.com/bottle-cap-mosaics/
-- Dominant Color Extraction with K-Means in CIELAB —
+- Roy Feinson, Bottle Cap Mosaics: https://royfeinson.com/bottle-cap-mosaics/
+- Dominant Color Extraction with K-Means in CIELAB:
   https://www.mdpi.com/2072-4292/12/3/520
 - Paravina et al., *Perceptibility and acceptability thresholds for colour
-  differences in dentistry* — https://www.sciencedirect.com/science/article/abs/pii/S0300571213003175
-- *Color difference* (ΔE, CIEDE2000, JND) — https://en.wikipedia.org/wiki/Color_difference
-- Delta E and colour tolerance, CIE standards — https://skychemi.com/color-difference-formula-delta-e/
+  differences in dentistry*: https://www.sciencedirect.com/science/article/abs/pii/S0300571213003175
+- *Color difference* (ΔE, CIEDE2000, JND): https://en.wikipedia.org/wiki/Color_difference
+- Delta E and colour tolerance, CIE standards: https://skychemi.com/color-difference-formula-delta-e/

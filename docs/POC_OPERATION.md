@@ -23,10 +23,10 @@ POC.
    └─────────┘   MJPEG video        └──────────┘
 ```
 
-- **PC ↔ projector — HDMI cable.** The projector is a second display. The PC
+- **PC ↔ projector: HDMI cable.** The projector is a second display. The PC
   shows the projection frame as a fullscreen window on it. The projector hangs
   above the table pointing straight down.
-- **PC ↔ phone — Wi-Fi, same network.** The phone runs an off-the-shelf
+- **PC ↔ phone: Wi-Fi, same network.** The phone runs an off-the-shelf
   IP-webcam app that serves its camera as a stream at a URL like
   `http://192.168.1.42:8080/video`. The PC reads that URL. No app to build.
 - **Phone position.** It only needs to see the cap you hold up, in a small
@@ -48,11 +48,11 @@ actually landed in the right cell.)
 
 1. Grab a frame from the phone stream.
 2. Find the cap and read its dominant color (masking metallic glare).
-3. Ask the matcher for the best empty cell whose target color matches — or a
+3. Ask the matcher for the best empty cell whose target color matches, or a
    rejection if nothing is close enough.
 4. Push an updated frame to the projector: faint rings for the whole plan,
    brighter rings for caps already placed, and a bright green **glow** on the
-   target cell. On a rejection, no glow — that means "set this cap aside."
+   target cell. On a rejection, no glow; that means "set this cap aside."
 5. You drop the cap onto the glowing spot and press a key to confirm.
 6. Mark the cell filled, save the project file, and loop to the next cap.
 
@@ -79,7 +79,7 @@ laptop), and the table. That's the whole rig.
 
 - **Same LAN.** Phone and laptop must share a network. Guest/isolated Wi-Fi
   blocks the stream; a phone hotspot is a fine fallback.
-- **Latency.** MJPEG adds ~100–300 ms — invisible for this use.
+- **Latency.** MJPEG adds ~100–300 ms, invisible for this use.
 - **Color reads.** Read the cap outside the projector beam, or briefly blank the
   projection while reading, so projected light doesn't shift the measured color.
 - **Confirmation is manual** for the POC (a keypress). Auto-verify via the
@@ -89,5 +89,5 @@ laptop), and the table. That's the whole rig.
 
 The PC-as-hub setup is the easiest thing to get working. In the phone-only
 version (Milestone 5) the phone becomes camera + brains and casts the projection
-itself, collapsing the three boxes into one — but the loop above is unchanged,
+itself, collapsing the three boxes into one, but the loop above is unchanged,
 which is why the matching/geometry logic lives in the device-independent core.

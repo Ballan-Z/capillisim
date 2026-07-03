@@ -1,4 +1,4 @@
-# Rig Setup — start to finish
+# Rig Setup: start to finish
 
 The one-page checklist to go from boxes to building, the first time. It chains
 the hardware, the calibration, and the live loop. Deeper detail lives in
@@ -24,9 +24,9 @@ just a wireless webcam on Wi-Fi. Nothing custom runs on either.
 ## 1. Mount the projector
 
 Hang it **straight down**, lens ~**0.80 m** above the table (gives a sharp
-~73 × 41 cm image, ~22 caps across — see the table in
+~73 × 41 cm image, ~22 caps across; see the table in
 [`SIZING_AND_VIEWING.md`](SIZING_AND_VIEWING.md) to pick another height). Keep it
-from moving once placed — any nudge means re-calibrating.
+from moving once placed; any nudge means re-calibrating.
 
 ## 2. Connect it as a second screen
 
@@ -63,12 +63,12 @@ PYTHONPATH=src python -m cap_mosaic.app.calibrate \
 
 Pick a taped corner as origin (+x right, +y away from you, mm), measure each
 crosshair centre, type `x y` for each. Then measure the yellow **100 mm bar** with
-a ruler — it must read 100 mm. Full detail in [`CALIBRATION.md`](CALIBRATION.md).
-**Can it be automatic?** Yes, eventually — a printed ArUco board + the phone
+a ruler; it must read 100 mm. Full detail in [`CALIBRATION.md`](CALIBRATION.md).
+**Can it be automatic?** Yes, eventually: a printed ArUco board + the phone
 camera could solve it with no tape measure, but that needs camera-to-table
 registration (an M4 feature). The 4-point measure is the fast first-light path.
 
-**Can you skip it?** Yes — if the projector is mounted square and you use its own
+**Can you skip it?** Yes: if the projector is mounted square and you use its own
 **keystone + autofocus** to square and sharpen the image, you can run the build
 with `--no-calibration` (step 6). The software then just projects the grid to
 fill the frame; you set physical size by mount height and tape the board to the
