@@ -266,7 +266,18 @@ async function refresh() {
   // printable cap map uses the same plan-shaping params (no distance needed)
   const mq = new URLSearchParams({ image_id: imageId, mode: mode(), pitch_mm: PITCH, size_mm: sizeMm(), ...extraParams(), format: "pdf" });
   $("capmap").href = "/capmap?" + mq.toString();
+  $("palcmp").href = "/palettes?" + new URLSearchParams({ image_id: imageId, mode: mode(), pitch_mm: PITCH, size_mm: sizeMm(), dither: dither() }).toString();
   const pct = b.apparent_pct != null ? `fills ~${b.apparent_pct}% of your view` : "";
   $("simhint").textContent =
     `${(sizeMm() / 1000).toFixed(2)} m wide, seen from ${distM().toFixed(1)} m — ${pct} · ${readQuality(distM())}`;
 }
+
+// Load a sample image on first open so creators see the app working immediately.
+(async function loadSample() {
+  try {
+    const r = await fetch("/static/default.jpg");
+    if (!r.ok) return;
+    const blob = await r.blob();
+    upload(new File([blob], "sample-lion.jpg", { type: "image/jpeg" }));
+  } catch (_) { /* no sample -> start empty */ }
+})();

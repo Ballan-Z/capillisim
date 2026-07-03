@@ -306,6 +306,52 @@ def simulate(
     return Response(content=buf.getvalue(), media_type="image/png")
 
 
+@app.get("/palettes")
+def palettes(
+    image_id: str,
+    mode: str = "picture",
+    pitch_mm: float = 32.0,
+    size_mm: float = 1500.0,
+    colors: int = 12,
+    bare_white: bool = True,
+    dither: bool = True,
+) -> Response:
+    """One sheet comparing the mosaic under each palette preset (auto/portrait/
+    sunset/space), so a creator can see them side by side and pick."""
+    from PIL import ImageDraw
+
+    img = _get(image_id)
+    res = _solve(img, image_id, mode, pitch_mm, size_mm, None)
+    across = min(res["caps_across"], 44)  # cap resolution for a fast comparison
+    board = (60, 45, 35)
+    options = [("Auto", None), ("Portrait", "portrait"), ("Sunset", "sunset"), ("Space", "space")]
+
+    thumbs = []
+    for label, preset in options:
+        plan = _plan(image_id, img, across, colors, bare_white=bare_white,
+                     preset=preset, dither=dither)
+        pal = list({tuple(c.rgb) for c in plan.cells if not c.is_hole})
+        lib = build_library(pal, db_path=None, size=48)
+        m = render_mosaic_caps(plan, lib, px_per_cap=8, background=board)
+        thumbs.append((label, m))
+
+    tw = 320
+    resized = [(lab, m.resize((tw, max(1, round(tw * m.height / m.width))))) for lab, m in thumbs]
+    th = max(r.height for _, r in resized)
+    lh, cols = 26, 2
+    cw, ch = tw, th + lh
+    rows = (len(resized) + cols - 1) // cols
+    sheet = Image.new("RGB", (cols * cw, rows * ch), (20, 22, 28))
+    draw = ImageDraw.Draw(sheet)
+    for i, (label, r) in enumerate(resized):
+        x, y = (i % cols) * cw, (i // cols) * ch
+        draw.text((x + 8, y + 5), label, fill=(230, 230, 230))
+        sheet.paste(r, (x, y + lh))
+    buf = io.BytesIO()
+    sheet.save(buf, format="PNG")
+    return Response(content=buf.getvalue(), media_type="image/png")
+
+
 @app.get("/capmap")
 def capmap(
     image_id: str,
