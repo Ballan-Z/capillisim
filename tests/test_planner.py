@@ -132,6 +132,21 @@ def test_bare_white_leaves_white_border_as_holes():
     assert plan2.hole_count == 0
 
 
+def test_inventory_filters_by_size_class(tmp_path):
+    from cap_mosaic.data.store import CapDataset
+
+    path = tmp_path / "caps.db"
+    with CapDataset(path) as db:
+        db.add_cap((200, 30, 30), captured_at="t", diameter_mm=30.2)   # standard
+        db.add_cap((30, 60, 200), captured_at="t", diameter_mm=37.4)   # large
+        db.add_cap((10, 10, 10), captured_at="t")                       # unmeasured
+    assert len(designer.inventory_from_db(path)) == 3                   # no filter
+    std = designer.inventory_from_db(path, size_class="standard-26")
+    assert [c.rgb for c in std] == [(200, 30, 30)]
+    lrg = designer.inventory_from_db(path, size_class="large-38")
+    assert [c.rgb for c in lrg] == [(30, 60, 200)]
+
+
 def test_inventory_from_db_prefers_mosaic_colour(tmp_path):
     from cap_mosaic.data.store import CapDataset
 

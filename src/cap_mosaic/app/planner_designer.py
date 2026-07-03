@@ -149,19 +149,22 @@ def inventory_from_labels(path) -> tuple[CapColor, ...]:
     return tuple(caps)
 
 
-def inventory_from_db(path) -> tuple[CapColor, ...]:
+def inventory_from_db(path, size_class: str | None = None) -> tuple[CapColor, ...]:
     """Load the SQLite cap dataset (caps.db) as inventory.
 
     Matching uses the cap's **mosaic** colour (its at-distance contribution,
     logo mixed in — see ``app.cap_color``) when available; legacy rows fall
-    back to the field colour.
+    back to the field colour. A mosaic is built from ONE physical cap size, so
+    pass ``size_class`` ('standard-26' / 'large-38') to restrict the inventory
+    to caps of that size (unmeasured caps are excluded by a filter).
     """
     from ..data.store import CapDataset
 
     with CapDataset(path) as db:
-        return tuple(
-            CapColor(f"cap{c.id}", c.mosaic_rgb or c.rgb) for c in db.caps()
-        )
+        caps = db.caps()
+        if size_class is not None:
+            caps = [c for c in caps if c.size_class == size_class]
+        return tuple(CapColor(f"cap{c.id}", c.mosaic_rgb or c.rgb) for c in caps)
 
 
 def load_inventory(path) -> tuple[CapColor, ...]:
