@@ -22,8 +22,9 @@ function dither() { return $("dither").checked; }
 function bgColor() { return $("bgColor").value; }
 function realOnly() { return $("realOnly").checked; }
 function useInv() { return $("useInv").checked; }
+function colorsN() { return Math.max(4, Math.min(24, Number($("colorsN").value) || 12)); }
 function extraParams() {
-  const p = { bg_color: bgColor(), dither: dither() };
+  const p = { bg_color: bgColor(), dither: dither(), colors: colorsN() };
   if (preset()) p.preset = preset();
   if (thicken()) p.thicken = true;
   if (realOnly()) p.real_only = true;
@@ -89,7 +90,8 @@ async function loadCritique() {
   if (!r.ok) return;
   const c = await r.json();
   lastRec = c.recommend;
-  $("cllm").hidden = true;  // stale AI verdict belongs to the previous image
+  $("cllm").hidden = true;       // stale AI verdict belongs to the previous image
+  $("beforewrap").hidden = true;  // ...as does the before-AI-fix snapshot
   const box = $("critique"); box.hidden = false;
   const s = $("cscore"); s.textContent = c.score;
   s.className = "cscore " + c.verdict;
@@ -114,6 +116,40 @@ $("askLLM").addEventListener("click", async () => {
   // reset the LLM box when a new image loads
 });
 
+// apply a whitelisted judge action to its control (getElementById — the helper
+// names `dither`/`preset` are functions and would shadow the elements)
+function applyAction(a) {
+  const el = document.getElementById.bind(document);
+  if (a.set === "colors") el("colorsN").value = a.value;
+  else if (a.set === "thicken") el("thicken").checked = !!a.value;
+  else if (a.set === "dither") el("dither").checked = !!a.value;
+  else if (a.set === "preset") el("preset").value = a.value;
+  else if (a.set === "size_m") {
+    const w = Math.round(a.value * 1000);
+    el("size").value = w; el("sizeVal").textContent = (w / 1000).toFixed(2) + " m";
+  }
+}
+
+$("aiFix").addEventListener("click", async () => {
+  if (!imageId) return;
+  const box = $("cllm");
+  box.hidden = false; box.textContent = "asking the AI judge…";
+  const r = await fetch("/critique?" + new URLSearchParams({ image_id: imageId, mode: mode(), llm: true }));
+  if (!r.ok) { box.textContent = "AI judge failed"; return; }
+  const l = (await r.json()).llm || {};
+  if (l.error) { box.textContent = "AI judge: " + l.error; return; }
+  // snapshot the current sim as "before", then apply the judge's actions
+  if (curSimSrc) { $("beforeimg").src = curSimSrc; $("beforewrap").hidden = false; }
+  const acts = l.actions || [];
+  acts.forEach(applyAction);
+  const applied = acts.map((a) => `${a.set} → ${a.value}`).join(" · ") || "(no setting changes)";
+  const tips = (l.tips || []).map((t) => `• ${t}`).join("\n");
+  box.textContent = `🪄 ${l.verdict} (${l.score}/100) — applied: ${applied}\n${tips}`;
+  refresh();
+});
+
+$("beforeClose").addEventListener("click", () => { $("beforewrap").hidden = true; });
+
 $("applyRec").addEventListener("click", () => {
   if (!lastRec) return;
   $("dither").checked = !!lastRec.dither;
@@ -133,6 +169,7 @@ $("thicken").addEventListener("change", refresh);
 $("realOnly").addEventListener("change", refresh);
 $("dither").addEventListener("change", refresh);
 $("useInv").addEventListener("change", refresh);
+$("colorsN").addEventListener("change", refresh);
 
 // hold the compare button to swap the cap sim for the original (same framing)
 const _cmp = $("compareBtn");

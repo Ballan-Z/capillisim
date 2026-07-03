@@ -44,6 +44,9 @@
               <option value="space">Space</option>
             </select>
           </label>
+          <label>Colours:
+            <input type="number" id="colorsN" min="4" max="24" step="1" value="12" title="palette size — fewer colours read bolder" />
+          </label>
           <label class="chk"><input type="checkbox" id="dither" checked /> Dither</label>
           <label class="chk"><input type="checkbox" id="thicken" /> Thicken outlines</label>
           <label class="chk"><input type="checkbox" id="realOnly" /> Real caps only</label>
@@ -80,6 +83,7 @@
             <div id="csig" class="csig"></div>
           </div>
           <button id="askLLM" title="ask the Qwen vision judge (needs QWEEN_KEY)">🧠 AI judge</button>
+          <button id="aiFix" title="ask the AI judge AND apply its recommended settings, with before/after">🪄 AI fix</button>
           <button id="applyRec" title="apply the suggested size + toggles">✨ Apply suggestions</button>
         </div>
         <ul id="ctips" class="ctips"></ul>
@@ -90,6 +94,10 @@
         <img id="sim" alt="mosaic simulation" />
         <button id="compareBtn" class="compare" title="hold to see the original">👁 hold to compare</button>
         <div id="simhint" class="simhint"></div>
+        <div id="beforewrap" class="beforewrap" hidden>
+          <div class="beforelabel">before AI fix <button id="beforeClose" title="dismiss">×</button></div>
+          <img id="beforeimg" alt="simulation before AI fix" />
+        </div>
       </div>
 
       <div class="stats" id="stats" hidden>

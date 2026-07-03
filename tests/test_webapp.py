@@ -198,12 +198,14 @@ def test_critique_llm_merges_qwen_verdict(monkeypatch):
     monkeypatch.setattr(llm_judge, "qwen_judge",
                         lambda img: {"score": 88, "verdict": "great",
                                      "tips": ["bold"], "better_subject": "",
+                                     "actions": [{"set": "colors", "value": 6}],
                                      "model": "qwen3-vl-plus"})
     iid = _upload()
     plain = client.get("/critique", params={"image_id": iid}).json()
     assert "llm" not in plain                       # opt-in only
     b = client.get("/critique", params={"image_id": iid, "llm": True}).json()
     assert b["llm"]["score"] == 88 and b["llm"]["verdict"] == "great"
+    assert b["llm"]["actions"] == [{"set": "colors", "value": 6}]  # actions flow through
     assert b["score"] == plain["score"]             # heuristic part unchanged
 
 

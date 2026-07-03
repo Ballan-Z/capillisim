@@ -44,6 +44,11 @@ main { display:grid; grid-template-columns:340px 1fr; gap:20px; padding:18px 26p
 .ctips li { margin:3px 0; }
 .cllm { margin-top:10px; padding:10px 12px; background:#141a26; border:1px solid #2b3550;
   border-radius:10px; color:#cdd6e4; font-size:13px; white-space:pre-wrap; }
+.beforewrap { margin-top:10px; }
+.beforewrap .beforelabel { color:var(--mut); font-size:12px; margin-bottom:4px; display:flex; align-items:center; gap:8px; }
+.beforewrap .beforelabel button { margin-left:auto; padding:0 8px; cursor:pointer; }
+.beforewrap img { width:46%; min-width:220px; border-radius:8px; opacity:.9; border:1px dashed #39445a; }
+.palette input[type=number] { width:56px; background:#141a26; color:#dfe6f2; border:1px solid #333a49; border-radius:6px; padding:3px 6px; }
 .simwrap { position:relative; background:var(--panel); border-radius:14px; padding:12px; }
 #sim { width:100%; border-radius:9px; display:block; background:#0d0f14; image-rendering:auto; min-height:120px; }
 .compare { position:absolute; top:20px; right:20px; padding:5px 10px; font-size:12px; cursor:pointer;
