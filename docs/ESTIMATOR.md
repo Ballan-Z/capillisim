@@ -4,7 +4,7 @@ Date: 2026-07-01. Code: `src/cap_mosaic/app/webapp/`, `core/estimator.py`,
 `core/legibility.py`, `app/cap_render.py`, `app/fake_caps.py`.
 
 A local web app to answer, for any image: **how big must the mosaic be, from how
-far is it seen well, and how many caps of each colour does it take** — with a
+far is it seen well, and how many caps of each colour does it take**, with a
 realistic simulation of how it reads at a chosen size and distance.
 
 ## Run
@@ -23,66 +23,66 @@ this distance" / "distance for this size").
 Caps are a fixed physical size (~32 mm), so a mosaic is a heavy downsampling of
 the target and only reads once you stand far enough that caps blend.
 
-- **Legibility floor** (`core/legibility.py`) — render the image at N caps-across
+- **Legibility floor** (`core/legibility.py`): render the image at N caps-across
   and compare structure to the original (windowed SSIM); the smallest N that
   clears a threshold is the minimum caps to represent the subject. Below it the
   app warns: *won't read from any distance*. Detailed images need many more caps
   than simple ones; **Pattern** mode uses a looser threshold (no subject to
   recognise).
-- **Size ↔ distance** (`core/estimator.py`) —
+- **Size ↔ distance** (`core/estimator.py`):
   - *size → distance*: caps-across from the width; the **min distance** where
     caps stop being visible (they blend) and the **recommended** distance that
     fills a comfortable field of view;
   - *distance → size*: the width that fills the view at that distance, flagged if
     it falls below the legibility floor.
-- **Shades merge with distance** — far away, near colours blend, so the effective
+- **Shades merge with distance**: far away, near colours blend, so the effective
   palette shrinks (`effective_colors`); the app shows *colours used / seen*.
 - **Realistic simulation** (`app/cap_render.py`, `app/fake_caps.py`,
-  `planner_designer.view_at_distance`, `core/sizing.py`) — the mosaic is tiled
+  `planner_designer.view_at_distance`, `core/sizing.py`): the mosaic is tiled
   from actual cap images (real `dataset/caps.db` crops + procedurally generated
   fake caps with rims/logos). To show a viewing distance it is **not** blurred:
   it **shrinks inside a fixed field of view frame and stays sharp**. As it
   subtends fewer pixels, an area-resample done in **linear light** (sRGB→linear→
-  area-average→sRGB) merges neighbouring caps — that is physically-correct
+  area-average→sRGB) merges neighbouring caps; that is physically-correct
   optical colour mixing, so a 50/50 black+white tile averages to the linear
   midpoint (~188), not the sRGB midpoint (~128). `apparent_fraction(width,
   distance, fov)` sets how much of the ~50° frame the piece fills (shown as
   *fills ~X% of your view*). **Close up it fills your view as caps; far away it
   is a small sharp picture in bare board.**
-- **Bare-white background** — cells sampled as near-white (all channels ≥
+- **Bare-white background**: cells sampled as near-white (all channels ≥
   `white_level`, default 238) are left as **bare board** (holes), not paved with
   white caps. Controlled by `plan_from_image(bare_white=...)`; on by default in
   the app, overridable with `&bare_white=false`.
-- **Dither** — with `dither=true` (default on in the UI), non-hole cell colours
+- **Dither**: with `dither=true` (default on in the UI), non-hole cell colours
   come from CIELAB Floyd–Steinberg error diffusion (`core/dither.py`) instead of
   independent nearest-colour. A small palette then reproduces gradients/tones via
   a blend the eye merges at distance, rather than banding. See docs/RESEARCH.md.
-- **Hold-to-compare (A/B)** — the `👁 hold to compare` button swaps the cap sim
+- **Hold-to-compare (A/B)**: the `👁 hold to compare` button swaps the cap sim
   for the *original* image framed identically (`/target`), so you can judge how
   faithfully the caps read at the chosen size/distance.
-- **Printable cap map** — `⬇ Cap map (PDF)` downloads a paint-by-numbers sheet
+- **Printable cap map**: `⬇ Cap map (PDF)` downloads a paint-by-numbers sheet
   (`app/cap_map.py`): a letter per colour on each cell, row/col rulers, and a
   legend (letter · hex · count). The artifact you actually build from.
-- **Inventory gap** — `Shopping list (have / short per colour)` (in the "My
+- **Inventory gap**: `Shopping list (have / short per colour)` (in the "My
   scanned caps" group) matches your scanned `caps.db` against the
   BOM (greedy nearest, CIEDE2000 ≤ 12) and shows *have · short* per colour plus
-  *you own X of Y needed*. Report only — the plan is not constrained by stock.
-- **Cap-art check + AI judge** — every upload gets a heuristic score (contrast,
+  *you own X of Y needed*. Report only; the plan is not constrained by stock.
+- **Cap-art check + AI judge**: every upload gets a heuristic score (contrast,
   detail floor, background simplicity) with tips and `✨ Apply suggestions`.
   `🧠 AI judge` (Qwen `qwen3-vl-plus`, needs `QWEEN_KEY`) adds an AI verdict.
   `🪄 AI fix` goes further: the judge returns **whitelisted actions** (colors
-  4–24, thicken, dither, size_m, preset — nothing else is accepted) which are
+  4–24, thicken, dither, size_m, preset; nothing else is accepted) which are
   auto-applied to the controls, with a *before* snapshot kept next to the new
   simulation for comparison.
-- **AI simplify** — `🎨 AI simplify` (qwen-image-edit-plus) edits the image
-  itself into a cap-friendly version — ≤6 flat colours, thickened lines, clutter
-  removed, same subject — using the judge's own tips as the edit instruction.
-  Stored as a NEW image in the **version strip** (Original · crops · AI edits —
+- **AI simplify**: `🎨 AI simplify` (qwen-image-edit-plus) edits the image
+  itself into a cap-friendly version (≤6 flat colours, thickened lines, clutter
+  removed, same subject) using the judge's own tips as the edit instruction.
+  Stored as a NEW image in the **version strip** (Original · crops · AI edits;
   click to switch, ⬇ to save any version). Opt-in per click.
 
 ## Endpoints
 
-- `POST /upload` — image -> `{id, width, height, aspect}`
+- `POST /upload`: image -> `{id, width, height, aspect}`
 - `GET /estimate?image_id=&size_mm=|distance_m=&mode=&colors=&bare_white=&preset=&thicken=&dither=&inventory=`
   -> caps, legibility, distances, `bom` (hex -> count), colours used/effective,
   `apparent_pct`, and (with `inventory=true`) `inventory` + `inventory_totals`
@@ -102,7 +102,7 @@ the target and only reads once you stand far enough that caps blend.
 
 Once you have a `.capproj.json` plan, `app/project_plan.py` projects it onto the
 board (`procam/render.render_stencil`): **S** lights every cell in its cap colour
-(a 1:1 stencil — drop each cap on its disc); **C** / **N** / **P** light one
+(a 1:1 stencil: drop each cap on its disc); **C** / **N** / **P** light one
 colour at a time so you glue a whole colour before moving on; **Q** quits. Display
 and keys are injected callables (headless-tested); `main` drives the real
 fullscreen projector. On-rig calibration + verification is still pending.
@@ -111,7 +111,7 @@ fullscreen projector. On-rig calibration + verification is still pending.
 
 - SSIM legibility threshold is a heuristic (exposed for calibration on real
   images). Pattern/picture is a manual toggle; recognition comes later.
-- Online cap datasets (Kaggle, images.cv) are deferred — they need auth +
+- Online cap datasets (Kaggle, images.cv) are deferred: they need auth +
   licensing review; the POC uses procedural + captured caps.
 - Plan/BOM resolution is capped (`_MAX_CAPS_ACROSS`) to keep the UI responsive.
 
@@ -127,7 +127,7 @@ light. Left for later:
   *perceptual-integration* heuristic (when the brain fuses tiles into a subject),
   a different thing from the optical area-resample; the two are not yet unified.
 - **White subject vs white background.** Bare-white holing can't tell a white
-  *subject* from a white *background* — it drops both. A subject/background
+  *subject* from a white *background*; it drops both. A subject/background
   segmentation would disambiguate.
 - **Gloss & lighting.** Cap gloss, specular highlights, and ambient lighting are
   out of scope; the simulation assumes flat, evenly-lit matte tiles.

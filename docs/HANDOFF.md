@@ -1,4 +1,4 @@
-# Handoff — current state
+# Handoff: current state
 
 Resume anchor: what's built, what's pending. See `docs/ROADMAP.md` for the full
 milestone plan and `docs/RESEARCH.md` for the dataset/technique shortlist.
@@ -10,7 +10,7 @@ milestone plan and `docs/RESEARCH.md` for the dataset/technique shortlist.
   (portrait/sunset/space), reject-gate holes, bare-white background holes.
 - Thin-outline detect + thicken (`core/features.py`) so ~1-cap strokes survive.
 - **Dither** (`core/dither.py`): CIELAB Floyd–Steinberg error diffusion over the
-  cap grid — a small palette reads far better on gradients/tones.
+  cap grid; a small palette reads far better on gradients/tones.
 
 **Estimator web app** (`app/webapp/`, see `docs/ESTIMATOR.md`)
 - size ↔ distance solve, legibility floor, minimal size, effective colours.
@@ -29,18 +29,18 @@ milestone plan and `docs/RESEARCH.md` for the dataset/technique shortlist.
 
 **Projector build** (`procam/render.py`, `app/project_plan.py`)
 - **Stencil** (`render_stencil`): every cell lit in its cap colour at 1:1, plus a
-  **per-colour pass** (light one colour at a time — glue it, then next).
+  **per-colour pass** (light one colour at a time: glue it, then next).
 - `project_plan` entrypoint with S/C/N/P/Q keys; display + keys injected as
   callables (headless-tested). `main` drives the real fullscreen projector.
 - Interactive per-cap loop (`build_loop.run_loop`) from M3 still in place.
 
-**Cap scanning** (`app/cap_capture.py`, `app/make_card.py`) — card-based capture
+**Cap scanning** (`app/cap_capture.py`, `app/make_card.py`): card-based capture
 into `caps.db` with median-colour + busy-ness.
 
 ## Pending (needs the rig + this machine)
 
 - On-rig projector calibration (`from_correspondences`) and a live
-  stencil/per-colour verification — the projection code is done, untested on glass.
+  stencil/per-colour verification; the projection code is done, untested on glass.
 - Live phone stream for the interactive loop (snapshot path works today).
 - Threshold tuning on real caps (reject ΔE, dither kernel, inventory tolerance).
 

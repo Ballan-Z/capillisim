@@ -10,10 +10,10 @@ into one pipeline. Architecture and rig details live in the other docs
 ![generate → AI simplify → caps up close → reads from afar](images/pipeline-lion.jpg)
 
 A bottle cap is one fat pixel (~32 mm). Up close you see caps; from a few metres
-the eye blends them into a picture. Capillisim handles everything between those
-two facts: choosing/fixing the image, computing the cap layout at true physical
-scale, simulating how it reads at any distance, telling you which caps to
-collect, and finally guiding your hands with a projector while you glue.
+the eye blends them into a picture. The steps between those two facts: choose
+and fix the image, compute the cap layout at true physical scale, simulate how
+it reads at any distance, list which caps to collect, and guide the placement
+with a projector while you glue.
 
 ---
 
@@ -90,11 +90,11 @@ The stats row keeps score: caps across, total caps (background holes excluded:
 what you'd actually buy), min caps to read, reads-from distance, and colours
 *used vs seen* (far away, similar shades merge; the effective palette shrinks).
 
-**The simulation is perceptually honest.** Farther away, the piece *shrinks
-inside a fixed field-of-view frame and stays sharp*: neighbouring caps merge
-through linear-light area-resampling (physically correct colour mixing), never
-a fake blur. Hold **👁 hold to compare** to flash the original image with
-identical framing.
+**How the distance simulation works.** Farther away, the piece *shrinks inside
+a fixed field-of-view frame and stays sharp*: neighbouring caps merge through
+linear-light area-resampling (the physics of colour mixing at a distance),
+rather than an applied blur. Hold **👁 hold to compare** to flash the original
+image with identical framing.
 
 ---
 
@@ -128,17 +128,15 @@ dataset --auto`; see the README animation): each cap gets colour-corrected
 crops, a field colour, a mosaic-at-distance colour, and a similarity signature
 in `dataset/caps.db`.
 
-In the estimator:
-
-In the **My scanned caps (N)** group:
+In the estimator's **My scanned caps (N)** group:
 
 - **Shopping list (have / short per colour)**: the BOM gains *have / short*
   per colour plus a total ("you own 218 of 4,367 needed"), your shopping list.
   Report only; the plan is never silently constrained.
-- **Render using my caps' photos** — draw the simulation from your photographed
+- **Render using my caps' photos**: draw the simulation from your photographed
   caps (auto-cropped to uniform discs) instead of generated ones, for a preview
   in *your* caps.
-- Click any BOM colour to **isolate** it — every other cap ghosts out so you
+- Click any BOM colour to **isolate** it: every other cap ghosts out so you
   see exactly where that colour goes.
 
 ---
@@ -147,12 +145,12 @@ In the **My scanned caps (N)** group:
 
 Three artifacts take you from screen to board:
 
-1. **⬇ Cap map (PDF)** — a printable paint-by-numbers sheet: one letter per
+1. **⬇ Cap map (PDF)**, a printable paint-by-numbers sheet: one letter per
    colour in each cell, row/column rulers, and a legend with counts:
 
    ![paint-by-numbers cap map](images/capmap-sample.png)
 
-2. **Projector stencil** — with the projector rigged (see `RIG_SETUP.md` +
+2. **Projector stencil**: with the projector rigged (see `RIG_SETUP.md` +
    `CALIBRATION.md`), project the plan at true 1:1 onto the board:
 
    ```bash
@@ -162,7 +160,7 @@ Three artifacts take you from screen to board:
    ```
 
    Keys: **S** = full colour stencil (drop each cap on its lit disc) ·
-   **C/N/P** = one colour at a time, like muralists work — glue all of one
+   **C/N/P** = one colour at a time, like muralists work: glue all of one
    colour, then the next · **Q** = quit.
 
 3. **The interactive loop** (the project's heart, `run_build`): hold a random
@@ -194,8 +192,8 @@ Three artifacts take you from screen to board:
 - **Bold beats accurate.** A slightly wrong colour with strong contrast reads
   better than the "right" colour that blends into its neighbour.
 - **Never go below the floor.** If the app says "62 < 100 needed", the subject
-  cannot read at that size — grow it or 🎨 simplify the image.
-- **Outlines ≥ 2 caps.** Eyes, mouths, skylines — thicken or lose them.
+  cannot read at that size; grow it or 🎨 simplify the image.
+- **Outlines ≥ 2 caps.** Eyes, mouths, skylines: thicken or lose them.
 - **Fewer colours than you think.** 6 well-chosen beats 12 similar.
 - **Dark board hides sins.** Gaps between caps disappear on a dark background.
 - **Great first subjects:** space/black-hole, sunsets, skulls/lions/logos,
@@ -203,13 +201,13 @@ Three artifacts take you from screen to board:
 
 ## Endpoint reference
 
-Everything the UI does is a plain HTTP call — scriptable:
+Everything the UI does is a plain HTTP call, scriptable:
 
 | Endpoint | Purpose |
 |---|---|
 | `POST /upload` | image → `{id, width, height, aspect}` |
 | `GET /estimate` | size↔distance solve, legibility, BOM, inventory gap, thin-outline count |
-| `GET /simulate` | the cap render (PNG) — framed at distance, board colour, highlight, real caps |
+| `GET /simulate` | the cap render (PNG): framed at distance, board colour, highlight, real caps |
 | `GET /target` | the original with identical framing (A/B compare) |
 | `GET /critique` | heuristic judge; `llm=true` adds the Qwen verdict + actions |
 | `GET /simplify` | AI-edit the image into a cap-friendly copy (new id) |
