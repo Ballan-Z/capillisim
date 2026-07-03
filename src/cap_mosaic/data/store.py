@@ -280,6 +280,32 @@ class CapDataset:
         )
         self.conn.commit()
 
+    def set_field(self, cap_id: int, rgb: RGB) -> None:
+        """Set/replace a cap's field colour (Lab re-derived) — used by capture repair."""
+        lab = rgb_to_lab(rgb)
+        self.conn.execute(
+            "UPDATE cap SET r = ?, g = ?, b = ?, lab_l = ?, lab_a = ?, lab_b = ? "
+            "WHERE id = ?",
+            (rgb[0], rgb[1], rgb[2], lab[0], lab[1], lab[2], cap_id),
+        )
+        self.conn.commit()
+
+    def set_notes(self, cap_id: int, text: str) -> None:
+        self.conn.execute("UPDATE cap SET notes = ? WHERE id = ?", (text, cap_id))
+        self.conn.commit()
+
+    def get_embeddings(self, model: str) -> list[tuple[int, list[float]]]:
+        """All (cap_id, vector) pairs stored for `model` (float32 round-trip)."""
+        out: list[tuple[int, list[float]]] = []
+        for row in self.conn.execute(
+            "SELECT cap_id, dim, vec FROM embedding WHERE model = ? ORDER BY cap_id",
+            (model,),
+        ):
+            buf = array("f")
+            buf.frombytes(row["vec"])
+            out.append((row["cap_id"], list(buf)))
+        return out
+
     def last_cap_id(self) -> int | None:
         """Id of the most recently added cap, or None if the dataset is empty."""
         row = self.conn.execute("SELECT id FROM cap ORDER BY id DESC LIMIT 1").fetchone()

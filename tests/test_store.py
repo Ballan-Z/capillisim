@@ -192,3 +192,32 @@ def test_import_legacy_labels_csv_links_crops(tmp_path):
         cap = db.caps(with_frames=True)[0]
         assert cap.rgb == (67, 122, 150)
         assert len(cap.frames) == 3
+
+
+def test_set_field_updates_rgb_and_lab(tmp_path):
+    with CapDataset(tmp_path / "caps.db") as db:
+        cid = db.add_cap((10, 20, 30), captured_at="t")
+        old_lab = db.caps()[0].lab
+        db.set_field(cid, (200, 30, 30))
+        cap = db.caps()[0]
+        assert cap.rgb == (200, 30, 30)
+        assert cap.lab != old_lab  # lab re-derived from the new field colour
+
+
+def test_set_notes_roundtrips(tmp_path):
+    with CapDataset(tmp_path / "caps.db") as db:
+        cid = db.add_cap((10, 20, 30), captured_at="t")
+        db.set_notes(cid, "corrupt-capture")
+        assert db.caps()[0].notes == "corrupt-capture"
+
+
+def test_get_embeddings_roundtrips_float32(tmp_path):
+    with CapDataset(tmp_path / "caps.db") as db:
+        a = db.add_cap((1, 2, 3), captured_at="t")
+        b = db.add_cap((4, 5, 6), captured_at="t")
+        db.add_embedding(a, "ringsig-v1", [0.1, 0.2, 0.3], created_at="t")
+        db.add_embedding(b, "ringsig-v1", [0.9, 0.8, 0.7], created_at="t")
+        out = dict(db.get_embeddings("ringsig-v1"))
+        assert set(out) == {a, b}
+        assert abs(out[a][1] - 0.2) < 1e-6 and len(out[b]) == 3
+        assert db.get_embeddings("other-model") == []
