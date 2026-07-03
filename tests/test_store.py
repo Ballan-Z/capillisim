@@ -221,3 +221,49 @@ def test_get_embeddings_roundtrips_float32(tmp_path):
         assert set(out) == {a, b}
         assert abs(out[a][1] - 0.2) < 1e-6 and len(out[b]) == 3
         assert db.get_embeddings("other-model") == []
+
+
+def test_diameter_and_span_roundtrip_v4(tmp_path):
+    with CapDataset(tmp_path / "caps.db") as db:
+        a = db.add_cap((10, 20, 30), captured_at="t")  # legacy-style, no size
+        b = db.add_cap((10, 20, 30), captured_at="t", diameter_mm=26.4,
+                       crop_span_mm=37.8)
+        caps = {c.id: c for c in db.caps()}
+        assert caps[a].diameter_mm is None and caps[a].crop_span_mm is None
+        assert abs(caps[b].diameter_mm - 26.4) < 1e-6
+        assert abs(caps[b].crop_span_mm - 37.8) < 1e-6
+        db.set_diameter(a, 37.4)
+        assert abs(db.caps()[0].diameter_mm - 37.4) < 1e-6
+
+
+def test_size_class_mapping(tmp_path):
+    with CapDataset(tmp_path / "caps.db") as db:
+        for mm in (26.4, 28.9, 37.4, 33.0, None):
+            db.add_cap((1, 2, 3), captured_at="t", diameter_mm=mm)
+        classes = [c.size_class for c in db.caps()]
+        assert classes == ["crown-26", "crown-29", "large-38", "other", None]
+
+
+def test_v3_db_upgrades_in_place_to_v4(tmp_path):
+    import sqlite3
+
+    from cap_mosaic.data.store import _SCHEMA_V1
+
+    path = tmp_path / "caps.db"
+    conn = sqlite3.connect(str(path))
+    conn.executescript(_SCHEMA_V1)
+    conn.execute("ALTER TABLE cap ADD COLUMN marking_frac REAL")
+    for col in ("mosaic_r", "mosaic_g", "mosaic_b"):
+        conn.execute(f"ALTER TABLE cap ADD COLUMN {col} INTEGER")
+    conn.execute("PRAGMA user_version = 3")
+    conn.execute(
+        "INSERT INTO cap (captured_at, r, g, b, lab_l, lab_a, lab_b, n_frames, source) "
+        "VALUES ('t', 10, 20, 30, 5, 0, 0, 0, 'legacy')"
+    )
+    conn.commit()
+    conn.close()
+
+    with CapDataset(path) as db:
+        assert db.conn.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION
+        cap = db.caps()[0]
+        assert cap.diameter_mm is None and cap.size_class is None

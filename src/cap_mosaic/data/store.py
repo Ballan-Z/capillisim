@@ -61,11 +61,23 @@ class CapRecord:
     color_std: float | None = None
     marking_frac: float | None = None
     mosaic_rgb: RGB | None = None  # at-distance colour (linear mean); None until backfilled
+    diameter_mm: float | None = None  # physical size measured off the card (v4)
+    crop_span_mm: float | None = None  # crop window width; legacy rows = 37.8 implied
     n_frames: int = 0
     source: str = "unknown"
     brand: str | None = None
     notes: str | None = None
     frames: list[FrameRecord] = field(default_factory=list)
+
+    @property
+    def size_class(self) -> str | None:
+        """'crown-26' | 'crown-29' | 'large-38' | 'other', or None if unmeasured."""
+        if self.diameter_mm is None:
+            return None
+        for mm, name in ((26.0, "crown-26"), (29.0, "crown-29"), (38.0, "large-38")):
+            if abs(self.diameter_mm - mm) <= 1.5:
+                return name
+        return "other"
 
     @property
     def is_ambiguous(self) -> bool:
@@ -136,8 +148,17 @@ def _migrate_to_v3(conn: sqlite3.Connection) -> None:
         conn.execute(f"ALTER TABLE cap ADD COLUMN {col} INTEGER")
 
 
+def _migrate_to_v4(conn: sqlite3.Connection) -> None:
+    # Physical size: diameter measured off the card's mm-true homography
+    # (standard crown ~26mm, champagne 29mm, large 38mm), and the crop window
+    # width used for this cap's frames so mm-per-pixel stays derivable. NULL on
+    # legacy rows (crop_span_mm effectively 37.8 for them).
+    conn.execute("ALTER TABLE cap ADD COLUMN diameter_mm REAL")
+    conn.execute("ALTER TABLE cap ADD COLUMN crop_span_mm REAL")
+
+
 # index i (0-based) upgrades a DB from user_version i to i+1.
-_MIGRATIONS = [_migrate_to_v1, _migrate_to_v2, _migrate_to_v3]
+_MIGRATIONS = [_migrate_to_v1, _migrate_to_v2, _migrate_to_v3, _migrate_to_v4]
 SCHEMA_VERSION = len(_MIGRATIONS)
 
 
@@ -182,6 +203,8 @@ class CapDataset:
         color_std: float | None = None,
         marking_frac: float | None = None,
         mosaic_rgb: RGB | None = None,
+        diameter_mm: float | None = None,
+        crop_span_mm: float | None = None,
         brand: str | None = None,
         notes: str | None = None,
     ) -> int:
@@ -205,11 +228,11 @@ class CapDataset:
         cur = self.conn.execute(
             "INSERT INTO cap (captured_at, r, g, b, lab_l, lab_a, lab_b, "
             "color_std, marking_frac, mosaic_r, mosaic_g, mosaic_b, "
-            "n_frames, source, brand, notes) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "diameter_mm, crop_span_mm, n_frames, source, brand, notes) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (captured_at, rgb[0], rgb[1], rgb[2], lab[0], lab[1], lab[2],
              color_std, marking_frac, m[0], m[1], m[2],
-             len(frames), source, brand, notes),
+             diameter_mm, crop_span_mm, len(frames), source, brand, notes),
         )
         cap_id = int(cur.lastrowid)
         for fr in frames:
@@ -290,6 +313,11 @@ class CapDataset:
         )
         self.conn.commit()
 
+    def set_diameter(self, cap_id: int, mm: float) -> None:
+        """Set/replace a cap's measured diameter — used by the size backfill."""
+        self.conn.execute("UPDATE cap SET diameter_mm = ? WHERE id = ?", (mm, cap_id))
+        self.conn.commit()
+
     def set_notes(self, cap_id: int, text: str) -> None:
         self.conn.execute("UPDATE cap SET notes = ? WHERE id = ?", (text, cap_id))
         self.conn.commit()
@@ -355,6 +383,8 @@ class CapDataset:
             color_std=r["color_std"],
             marking_frac=r["marking_frac"],
             mosaic_rgb=mosaic,
+            diameter_mm=r["diameter_mm"],
+            crop_span_mm=r["crop_span_mm"],
             n_frames=r["n_frames"],
             source=r["source"],
             brand=r["brand"],
