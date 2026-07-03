@@ -1,6 +1,6 @@
 # Data Model — the cap dataset / inventory store
 
-Date: 2026-07-02. Status: schema **v3**. Code: `src/cap_mosaic/data/store.py`.
+Date: 2026-07-03. Status: schema **v4**. Code: `src/cap_mosaic/data/store.py`.
 
 The capture loop produces a growing set of caps, each with several
 colour-corrected crops, a measured colour, a quality signal, and — later —
@@ -34,6 +34,10 @@ cap            one physical cap and its measured colours
  ├─ mosaic_r,g,b  INTEGER nullable MOSAIC colour (v3): at-distance contribution —
  │                                 linear-light mean of the whole face, logo mixed
  │                                 in (app.cap_color); drives planning/matching
+ ├─ diameter_mm   REAL nullable    physical size measured off the card's mm-true
+ │                                 homography (v4); size_class derives from it
+ ├─ crop_span_mm  REAL nullable    crop window width in mm (v4; legacy = 37.8) so
+ │                                 mm-per-pixel stays derivable from stored crops
  ├─ n_frames      INTEGER
  ├─ source        TEXT             e.g. 'card_capture', 'labels.csv'
  ├─ brand         TEXT  nullable   future logo/brand label
@@ -102,6 +106,19 @@ meta           dataset-level key/value (name, calibration ref, …)
   were contaminated, `app.repair_capture` drops the outlier frames and
   recomputes field + mosaic from the agreeing ones; truly corrupt captures get
   `notes='corrupt-capture'` and keep their colours as best-effort.
+- **Cap size, measured not assumed (v4).** The card homography is mm-true, so
+  the scanner measures each cap's diameter as it saves (`measure_cap_diameter_mm`,
+  validated live at ±1 mm) and picks a wider crop window for large caps so they
+  aren't clipped. `size_class` gives `standard-26` (< 33 mm — a *used* nominal-26
+  crown flares to ~29–31 mm across the pried-open skirt) or `large-38` (≥ 35 mm);
+  nominal 26 vs 29 mm crowns are indistinguishable once flared, so they share one
+  class. Inventory can be filtered per artwork:
+  `inventory_from_db(path, size_class="standard-26")`. Backfill:
+  `python -m cap_mosaic.app.backfill_diameter --db dataset/caps.db`. Mixed-size
+  layouts (big caps as super-pixels) are a future phase.
+
+  ![automatic size measurement: 37.4 mm large cap](images/cap-size-measure.png)
+
 - **Re-identification (`embedding` table, model `ringsig-v1`).** Every cap gets
   a rotation-invariant ring signature (`app.cap_signature`: 8 annuli × mean Lab
   + luminance histogram). The scanner prints "likely SAME design as cap #N"

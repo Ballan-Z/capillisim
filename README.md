@@ -28,6 +28,12 @@ and the inventory can be browsed by visual similarity:
 
 ![caps ranked by similarity to a query cap](docs/images/similar-caps.png)
 
+Cap **size** is measured automatically off the card's mm-true geometry
+(standard crowns vs 38 mm large caps — the green circle is the measured edge),
+so the inventory knows which caps fit which artwork:
+
+![automatic size measurement of a large cap](docs/images/cap-size-measure.png)
+
 ## From any image to a buildable mosaic
 
 The **Mosaic Estimator** web app (`PYTHONPATH=src python -m cap_mosaic.app.webapp`,
