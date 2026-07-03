@@ -48,10 +48,12 @@ in linear light, no fake blur).
 ## 2. Scan your caps
 
 Place a cap on the printed reading card. The scanner locates the card,
-colour-corrects, reads the cap, and auto-saves when the reading is stable;
-a hand in frame or glare gets rejected and retried:
+colour-corrects, reads the cap, measures its true size in mm, and auto-saves
+when the reading is stable; a hand in frame or glare gets rejected and retried.
+Here a 37 mm large cap (note the LARGE CAP badge and size line) followed by a
+standard crown, with the last-scans strip updating below:
 
-![live cap scanning: two caps recognised and saved](docs/images/cap-scan-demo.gif)
+![live cap scanning: a large cap and a standard cap recognised, sized and saved](docs/images/cap-scan-demo.gif)
 
 Each cap is stored with two colours: the *field* colour (recognises the cap in
 hand) and the *mosaic* colour (the linear-light mix of the whole face, logo
