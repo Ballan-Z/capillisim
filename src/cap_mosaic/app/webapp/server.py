@@ -258,7 +258,10 @@ def inventory_test(cap_id: int, distance_m: float = Query(2.0, ge=0.3, le=40.0),
     if path is None:
         raise HTTPException(404, "crop file missing")
     tile = 48
-    cut = cap_cutout_from_path(path, tile)
+    # dataset crops have known geometry: cap class size over the crop span
+    mm = canonical_diameter_mm(cap.size_class) or cap.diameter_mm or 32.1
+    span = cap.crop_span_mm or 37.8
+    cut = cap_cutout_from_path(path, tile, radius_frac=mm / span / 2.0)
     if cut is None:
         raise HTTPException(500, "could not cut out the cap")
     board = _hex_rgb(bg, (255, 255, 255))

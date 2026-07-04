@@ -144,7 +144,7 @@ def test_corner_cap_stays_round_not_squished():
 FIXTURES = Path(__file__).parent / "fixtures"
 
 
-def _roundness(path: Path) -> float:
+def _roundness(path: Path, radius_frac: float | None = None) -> float:
     """p10/p90 of the cutout content's edge radius — 1.0 = centred circle.
 
     Off-centre or lopsided cutouts (real dataset failures) score low: the
@@ -152,7 +152,7 @@ def _roundness(path: Path) -> float:
     """
     img = cv2.imread(str(path))
     assert img is not None
-    cut = np.asarray(cap_cutout(img, 96)).astype(int)
+    cut = np.asarray(cap_cutout(img, 96, radius_frac=radius_frac)).astype(int)
     inside = cut[..., 3] > 0
     capish = inside & ~((cut[..., :3] >= 210).all(axis=2))
     ys, xs = np.nonzero(capish)
@@ -167,19 +167,45 @@ def _roundness(path: Path) -> float:
     return float(np.percentile(cov, 10) / max(1.0, np.percentile(cov, 90)))
 
 
-def test_real_white_cap_centred_and_round():
-    # real Hoegaarden-style white cap: blob fallback used to lock onto the
-    # logo/shadow and produce a lopsided cutout (was 0.70)
-    assert _roundness(FIXTURES / "white_cap_overzoom.png") > 0.80
+# dataset crops carry known geometry: standard cap 32.1mm in a 37.8mm (legacy)
+# or 48mm (wide) window -> the cap radius as a fraction of the crop width
+LEGACY_FRAC = 32.1 / 37.8 / 2
+WIDE_FRAC = 32.1 / 48.0 / 2
 
 
-def test_real_corner_cap_centred_and_round():
-    # real cap photographed near the crop corner: was squished/off-centre (0.31)
-    assert _roundness(FIXTURES / "corner_cap_offcentre.png") > 0.80
+def _assert_circle(path, radius_frac, truth, tol_c=5, tol_r=6):
+    """The chosen cutout circle must hug the hand-verified cap edge."""
+    from cap_mosaic.app.cap_crop import cap_circle
+
+    img = cv2.imread(str(path))
+    assert img is not None
+    cx, cy, r = cap_circle(img, radius_frac)
+    tx, ty, tr = truth
+    assert np.hypot(cx - tx, cy - ty) <= tol_c, (cx, cy, truth)
+    assert abs(r - tr) <= tol_r, (r, truth)
 
 
-def test_real_shadow_cap_stays_good():
-    # regression guard: this real cap with a soft shadow is already handled
+def test_real_white_cap_hugs_edge():
+    # real Hoegaarden-style white cap on the white card: invisible to any
+    # threshold (only its shadow shows) — the pixel path lopsided/zoomed it.
+    # Ground truth annotated from a verified overlay.
+    _assert_circle(FIXTURES / "white_cap_overzoom.png", LEGACY_FRAC, (66, 68, 56))
+
+
+def test_real_offcentre_white_cap_hugs_edge():
+    # real white cap sitting off the crop centre: was squished/off-centre
+    _assert_circle(FIXTURES / "corner_cap_offcentre.png", LEGACY_FRAC, (62, 68, 57))
+
+
+def test_real_shadow_cap_hugs_edge():
+    # dark cap with a strong soft shadow lobe: the circle must stop at the
+    # metal edge, not the shadow halo, and not the inner label ring
+    _assert_circle(FIXTURES / "shadow_lobe_cap.png", WIDE_FRAC, (69, 75, 39))
+
+
+def test_real_dark_cap_without_geometry_still_reasonable():
+    # the no-geometry path (locate_cap) must not crash or zoom into the logo
+    # on the shadow fixture (dark cap: pixels alone are enough)
     assert _roundness(FIXTURES / "shadow_lobe_cap.png") > 0.80
 
 
