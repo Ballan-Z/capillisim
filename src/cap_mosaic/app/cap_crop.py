@@ -131,9 +131,11 @@ def _refine_known_circle(bgr: np.ndarray, r_px: float) -> tuple[int, int, int]:
         return abs(px - w / 2) < 0.25 * w and abs(py - h / 2) < 0.25 * h
 
     # centre: the pixel pipeline's distance-transform peak is the most precise
-    # for dark caps; a white cap is invisible to it, so fall back to Hough
+    # for dark caps; a white cap is invisible to it (it then grabs a shadow
+    # blob), so only trust it when its own radius agrees with the known size
     located = locate_cap(bgr)
-    if located is not None and _sane(located[0], located[1]):
+    if (located is not None and _sane(located[0], located[1])
+            and 0.75 * r_px <= located[2] <= 1.2 * r_px):
         cx, cy = float(located[0]), float(located[1])
     else:
         circles = cv2.HoughCircles(

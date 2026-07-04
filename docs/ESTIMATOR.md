@@ -109,7 +109,11 @@ the target and only reads once you stand far enough that caps blend.
   stores for it; the patch shrinks with the distance slider under the same
   linear-light optics as the simulator. If the seam between the halves
   disappears as you step back, the stored mosaic colour is exactly what the
-  eye gets from that cap in a wall.
+  eye gets from that cap in a wall. Cap tiles are cut GEOMETRY-DRIVEN
+  (`cap_crop.cap_circle` with the cap's known class size over the crop span):
+  centre from the distance-transform peak or narrow-band Hough (white caps are
+  invisible to thresholds), radius from the steepest radial-brightness step
+  under a size prior — so tiles meet at the metal edge like really glued caps.
 
 ## Building from caps (projector)
 
