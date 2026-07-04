@@ -248,6 +248,17 @@ def test_size_class_mapping(tmp_path):
                            "standard-26", "standard-26", None]
 
 
+def test_canonical_diameter_per_class():
+    from cap_mosaic.data.store import canonical_diameter_mm
+
+    # caps are standardised: a 26mm crown's spec OUTSIDE diameter is 32.1mm,
+    # large caps are the 38mm family; unmeasured stays unknown
+    assert canonical_diameter_mm("standard-26") == 32.1
+    assert canonical_diameter_mm("large-38") == 38.0
+    assert canonical_diameter_mm(None) is None
+    assert canonical_diameter_mm("other") is None
+
+
 def test_v3_db_upgrades_in_place_to_v4(tmp_path):
     import sqlite3
 

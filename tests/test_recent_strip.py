@@ -80,12 +80,12 @@ def test_recent_entries_from_db_reads_last_caps(tmp_path):
 def test_save_flash_announces_large_cap():
     msg, sub = save_flash_text(236, 41.7)
     assert msg == "SAVED #236"
-    assert "LARGE CAP" in sub and "42mm" in sub
+    assert "LARGE CAP" in sub and "38mm" in sub  # canonical class size, not raw
 
 
 def test_save_flash_standard_and_unmeasured():
     _, sub = save_flash_text(1, 30.3)
-    assert sub == "30mm standard-26"
+    assert sub == "standard 26mm crown"
     _, sub = save_flash_text(2, None)
     assert sub == "size not measured"
 

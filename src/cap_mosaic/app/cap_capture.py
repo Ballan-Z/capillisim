@@ -123,17 +123,19 @@ def render_recent_strip(entries: list[dict], width: int = 640) -> "np.ndarray":
 
 
 def save_flash_text(idx: int, diameter: float | None) -> tuple[str, str]:
-    """Flash lines shown on save: 'SAVED #n' + the size that went into the DB.
+    """Flash lines shown on save: 'SAVED #n' + the size CLASS that was stored.
 
-    A large cap gets an unmissable 'LARGE CAP' so the user knows the class was
-    recognised and written. (Hershey fonts are ASCII-only — no Ø here.)
+    Caps are standardised, so the flash shows the canonical class size (all
+    standard caps are one size, all large caps another) — the measured mm only
+    picks the class. A large cap gets an unmissable 'LARGE CAP'. (Hershey
+    fonts are ASCII-only — no Ø here.)
     """
     msg = f"SAVED #{idx}"
     if diameter is None:
         return msg, "size not measured"
-    cls = size_class_of(diameter)
-    label = "LARGE CAP (large-38)" if cls == "large-38" else cls
-    return msg, f"{diameter:.0f}mm {label}"
+    if size_class_of(diameter) == "large-38":
+        return msg, "LARGE CAP (38mm class)"
+    return msg, "standard 26mm crown"
 
 
 def recent_entries_from_db(db: CapDataset, n: int = RECENT_N) -> list[dict]:
@@ -325,7 +327,9 @@ def main(argv: list[str] | None = None) -> None:
                         cv2.putText(preview, "mosaic (afar)", (502, 290), FONT, 0.5, (255, 255, 255), 1)
                 busy = int(fld[1] * 100) if fld else 0
                 dia_live = measure_cap_diameter_mm(wb, h) if present else None
-                sz = f"  {dia_live:.0f}mm" if dia_live else ""
+                sz = ""
+                if dia_live:
+                    sz = "  38mm" if size_class_of(dia_live) == "large-38" else "  26mm"
                 label = "empty (no cap)" if not present else f"cap #{idx}  rgb{col}{sz}  busy {busy}%"
                 if dia_live and size_class_of(dia_live) == "large-38":
                     cv2.putText(preview, "LARGE CAP", (12, 56), FONT, 0.7, (0, 165, 255), 2)

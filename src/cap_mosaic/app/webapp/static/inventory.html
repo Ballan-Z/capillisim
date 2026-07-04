@@ -73,7 +73,8 @@ function disarm() {
 document.body.addEventListener('click', e => { if (!e.target.closest('.del')) disarm(); });
 
 function fmt(c) {
-  const mm = c.diameter_mm ? c.diameter_mm.toFixed(0) + 'mm' : '?mm';
+  // caps are standardised: show the class size, not the noisy per-cap reading
+  const mm = c.size_class === 'large-38' ? '38mm' : (c.size_class ? '26mm' : '?mm');
   const cls = c.size_class === 'large-38' ? 'L' : (c.size_class ? 'S' : '·');
   return {mm, cls};
 }
@@ -97,7 +98,8 @@ function render() {
                   : `<div class="noimg">no crop</div>`) +
       `<div class="sw2" title="field | mosaic"><span style="background:rgb(${f})"></span>` +
       `<span style="background:rgb(${m})"></span></div>` +
-      `<div class="meta"><b>#${c.id}</b> ${mm}<span class="sizecls ${cls}">${cls}</span></div>` +
+      `<div class="meta" title="measured ${c.diameter_mm ? c.diameter_mm.toFixed(1) + 'mm' : 'n/a'}">` +
+      `<b>#${c.id}</b> ${mm}<span class="sizecls ${cls}">${cls}</span></div>` +
       `<button class="del" title="delete this cap">×</button>`;
     el.querySelector('.del').addEventListener('click', async e => {
       e.stopPropagation();

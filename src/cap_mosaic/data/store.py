@@ -66,6 +66,19 @@ def size_class_of(diameter_mm: float | None) -> str | None:
     return "standard-26" if diameter_mm < 35.0 else "large-38"
 
 
+# Canonical per-class diameters. Caps are industrially standardised, so per-cap
+# measured mm is noise around these — the measurement only decides the CLASS;
+# sizing (display, layout pitch) uses the canonical value. A "26 mm" crown
+# (26 = bottle-mouth size) has a specified OUTSIDE diameter of 32.10±0.20 mm;
+# the large class is the 38 mm cap family.
+CANONICAL_MM = {"standard-26": 32.1, "large-38": 38.0}
+
+
+def canonical_diameter_mm(size_class: str | None) -> float | None:
+    """The assumed-uniform physical diameter for a size class, or None."""
+    return CANONICAL_MM.get(size_class or "")
+
+
 @dataclass
 class CapRecord:
     """One physical cap and its measured colour."""
