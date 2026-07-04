@@ -208,6 +208,52 @@ def inventory_crop(cap_id: int) -> FileResponse:
     raise HTTPException(404, f"no cap #{cap_id}")
 
 
+@app.get("/inventory/test/{cap_id}")
+def inventory_test(cap_id: int, distance_m: float = Query(2.0, ge=0.3, le=40.0),
+                   across: int = Query(12, ge=4, le=40)) -> Response:
+    """The believe-your-eyes colour test for one scanned cap.
+
+    Renders a physical patch — LEFT half: the cap's real photo tiled `across/2`
+    wide; RIGHT half: a solid block of its stored MOSAIC colour — then shows it
+    from `distance_m` with the same optics as the estimator (shrinks, stays
+    sharp, mixes in linear light). If the boundary between the halves vanishes
+    as you step back, the stored mosaic colour is what the eye really gets.
+    """
+    if not _DB.exists():
+        raise HTTPException(404, "no cap database")
+    from ...data.store import CapDataset, canonical_diameter_mm
+    from ..cap_crop import cap_cutout_from_path
+
+    with CapDataset(_DB) as db:
+        cap = next((c for c in db.caps(with_frames=True) if c.id == cap_id), None)
+    if cap is None:
+        raise HTTPException(404, f"no cap #{cap_id}")
+    path = next((f.path for f in cap.frames if Path(f.path).exists()), None)
+    if path is None:
+        raise HTTPException(404, "crop file missing")
+    tile = 48
+    cut = cap_cutout_from_path(path, tile)
+    if cut is None:
+        raise HTTPException(500, "could not cut out the cap")
+    rows = max(4, (across * 2) // 3)
+    W, H = across * tile, rows * tile
+    board = (60, 45, 35)  # same default board as the estimator
+    patch = Image.new("RGB", (W, H), board)
+    for iy in range(rows):
+        for ix in range(across // 2):
+            patch.paste(cut, (ix * tile, iy * tile), cut)
+    mosaic = cap.mosaic_rgb or cap.rgb
+    patch.paste(Image.new("RGB", (W - (across // 2) * tile, H), tuple(mosaic)),
+                ((across // 2) * tile, 0))
+    mm = canonical_diameter_mm(cap.size_class) or 32.1
+    out = view_at_distance(patch, across * mm, distance_m,
+                           frame_px=(900, 620), board=(13, 15, 20))
+    buf = io.BytesIO()
+    out.save(buf, format="PNG")
+    return Response(buf.getvalue(), media_type="image/png",
+                    headers={"Cache-Control": "no-store"})
+
+
 @app.delete("/inventory/caps/{cap_id}")
 def inventory_delete(cap_id: int) -> dict:
     """Delete a cap: its DB row (frames/embeddings cascade) AND its crop files."""

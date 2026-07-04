@@ -103,6 +103,13 @@ the target and only reads once you stand far enough that caps blend.
   from the "My scanned caps" group: browse every scanned cap (photo,
   field|mosaic swatch bar, mm + S/L class, size filters) and delete a mis-scan
   with the mouse — click ×, then `delete?`; clicking anywhere else cancels.
+- `GET /inventory/test/{id}?distance_m=&across=` -> the believe-your-eyes
+  colour test (click any cap in the browser): LEFT half of a patch is the
+  cap's real photo tiled, RIGHT half is the solid mosaic colour the planner
+  stores for it; the patch shrinks with the distance slider under the same
+  linear-light optics as the simulator. If the seam between the halves
+  disappears as you step back, the stored mosaic colour is exactly what the
+  eye gets from that cap in a wall.
 
 ## Building from caps (projector)
 

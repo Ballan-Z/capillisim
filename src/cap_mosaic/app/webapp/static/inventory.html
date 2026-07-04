@@ -34,6 +34,20 @@
     .cap.gone { opacity:0; pointer-events:none; }
     .backlink { color:#6cf; text-decoration:none; font-size:14px; }
     .backlink:hover { text-decoration:underline; }
+    .modal { position:fixed; inset:0; background:#000a; display:flex; align-items:center;
+             justify-content:center; z-index:40; }
+    .modal[hidden] { display:none; }  /* display:flex would defeat the hidden attribute */
+    .modal .box { background:var(--panel); border:1px solid #3b4457; border-radius:14px;
+                  padding:18px 20px; max-width:960px; width:92vw; }
+    .modal h2 { margin:0 0 4px; font-size:17px; display:flex; align-items:center; gap:10px; }
+    .modal h2 button { margin-left:auto; }
+    .modal .hint { color:var(--mut); font-size:13px; margin:0 0 10px; }
+    .modal img { width:100%; border-radius:10px; background:#0d0f14; min-height:200px; }
+    .modal .row { display:flex; align-items:center; gap:14px; margin-top:10px; color:var(--mut); font-size:13px; flex-wrap:wrap; }
+    .modal .row input[type=range] { flex:1; min-width:180px; accent-color:var(--acc); }
+    .modal .row b { color:var(--ink); }
+    .modal .msw { display:inline-block; width:20px; height:20px; border-radius:5px; border:1px solid #0006; vertical-align:middle; }
+    .modal .halves { display:flex; justify-content:space-between; color:var(--mut); font-size:12px; margin-top:4px; padding:0 4px; }
   </style>
 </head>
 <body>
@@ -55,6 +69,25 @@
 
   <div class="grid" id="grid"></div>
   <div id="toast" class="toast" hidden></div>
+
+  <div class="modal" id="modal" hidden>
+    <div class="box">
+      <h2>Cap <span id="mid"></span> — does its colour hold at distance?
+        <button id="mclose">× close</button></h2>
+      <p class="hint">Left half: <b>your cap, tiled</b> (real photo). Right half: the solid
+        <b>mosaic colour</b> the planner will use for it. Drag the distance back — the halves
+        shrink and blend exactly like a real wall. <b>If the seam disappears, the planner's
+        colour is what your eye truly gets.</b></p>
+      <img id="mimg" alt="cap distance test" />
+      <div class="halves"><span>← your cap × many</span><span>planner's colour →</span></div>
+      <div class="row">
+        <span>viewing distance <b id="mdist">2.0 m</b></span>
+        <input id="mrange" type="range" min="0.5" max="12" step="0.5" value="2" />
+        <span>field <span class="msw" id="mswf"></span></span>
+        <span>mosaic <span class="msw" id="mswm"></span></span>
+      </div>
+    </div>
+  </div>
 
 <script>
 const grid = document.getElementById('grid');
@@ -101,6 +134,14 @@ function render() {
       `<div class="meta" title="measured ${c.diameter_mm ? c.diameter_mm.toFixed(1) + 'mm' : 'n/a'}">` +
       `<b>#${c.id}</b> ${mm}<span class="sizecls ${cls}">${cls}</span></div>` +
       `<button class="del" title="delete this cap">×</button>`;
+    if (c.has_crop) {
+      el.style.cursor = 'zoom-in';
+      el.title = 'click to test this cap colour at distance';
+      el.addEventListener('click', e => {
+        if (e.target.closest('.del')) return;
+        openTest(c);
+      });
+    }
     el.querySelector('.del').addEventListener('click', async e => {
       e.stopPropagation();
       if (armed !== el) {                    // first click: arm
@@ -128,6 +169,29 @@ document.getElementById('filters').addEventListener('click', e => {
   for (const x of document.querySelectorAll('.filters button')) x.classList.toggle('on', x === b);
   render();
 });
+
+// ── the believe-your-eyes test: cap tiled vs the planner's mosaic colour ──
+const modal = document.getElementById('modal');
+const mimg = document.getElementById('mimg');
+const mrange = document.getElementById('mrange');
+let testCap = null;
+
+function loadTest() {
+  if (!testCap) return;
+  document.getElementById('mdist').textContent = (+mrange.value).toFixed(1) + ' m';
+  mimg.src = `/inventory/test/${testCap.id}?distance_m=${mrange.value}`;
+}
+function openTest(c) {
+  testCap = c;
+  document.getElementById('mid').textContent = '#' + c.id;
+  document.getElementById('mswf').style.background = `rgb(${c.field})`;
+  document.getElementById('mswm').style.background = `rgb(${c.mosaic || c.field})`;
+  modal.hidden = false;
+  loadTest();
+}
+mrange.addEventListener('input', loadTest);
+document.getElementById('mclose').addEventListener('click', () => { modal.hidden = true; testCap = null; });
+modal.addEventListener('click', e => { if (e.target === modal) { modal.hidden = true; testCap = null; } });
 
 fetch('/inventory/caps').then(r => r.json()).then(d => { caps = d; render(); })
   .catch(() => counts.textContent = 'no cap database found (scan some caps first)');

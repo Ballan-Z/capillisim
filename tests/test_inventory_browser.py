@@ -67,6 +67,30 @@ def test_inventory_delete_removes_row_and_files(inv_db):
     assert client.delete(f"/inventory/caps/{inv_db['a']}").status_code == 404
 
 
+def test_inventory_distance_test_renders(inv_db):
+    import io as _io
+
+    r = client.get(f"/inventory/test/{inv_db['a']}?distance_m=1.0")
+    assert r.status_code == 200
+    img = Image.open(_io.BytesIO(r.content))
+    assert img.size == (900, 620)
+    # nearby the patch is big: frame carries both the tiled cap (gray 90-ish)
+    # and the solid mosaic half (50,60,70) as distinct colours
+    px = np.asarray(img.convert("RGB"))
+    assert (np.abs(px.astype(int) - [50, 60, 70]).sum(axis=2) < 12).any()
+    # far away it shrinks: much more frame background than at 1m
+    far = client.get(f"/inventory/test/{inv_db['a']}?distance_m=10.0")
+    pf = np.asarray(Image.open(_io.BytesIO(far.content)).convert("RGB"))
+    bg = (np.abs(px.astype(int) - [13, 15, 20]).sum(axis=2) < 12).mean()
+    bgf = (np.abs(pf.astype(int) - [13, 15, 20]).sum(axis=2) < 12).mean()
+    assert bgf > bg
+
+
+def test_inventory_distance_test_404s(inv_db):
+    assert client.get(f"/inventory/test/{inv_db['b']}").status_code == 404  # no crop
+    assert client.get("/inventory/test/99999").status_code == 404
+
+
 def test_inventory_empty_without_db(tmp_path, monkeypatch):
     monkeypatch.setattr(server, "_DB", tmp_path / "absent.db")
     assert client.get("/inventory/caps").json() == []
