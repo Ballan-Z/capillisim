@@ -208,6 +208,27 @@ def inventory_crop(cap_id: int) -> FileResponse:
     raise HTTPException(404, f"no cap #{cap_id}")
 
 
+def _split_test_patch(cut: Image.Image, tile: int, across: int,
+                      board: tuple[int, int, int],
+                      mosaic: tuple[int, int, int]) -> Image.Image:
+    """LEFT half: the cap HEX-PACKED as it would really be glued — circles
+    touching, board showing only in the small curved gaps between them.
+    RIGHT half: a solid block of the planner's mosaic colour."""
+    row_h = max(1, int(round(tile * 0.8660254)))  # touching rows: pitch·√3/2
+    rows = max(4, (across * 2) // 3)
+    W, H = across * tile, (rows - 1) * row_h + tile
+    half = (across // 2) * tile
+    patch = Image.new("RGB", (W, H), board)
+    for iy in range(rows):
+        xoff = tile // 2 if iy % 2 else 0
+        x = xoff
+        while x + tile <= half + tile // 2:  # seam overlap is painted over below
+            patch.paste(cut, (x, iy * row_h), cut)
+            x += tile
+    patch.paste(Image.new("RGB", (W - half, H), tuple(mosaic)), (half, 0))
+    return patch
+
+
 @app.get("/inventory/test/{cap_id}")
 def inventory_test(cap_id: int, distance_m: float = Query(2.0, ge=0.3, le=40.0),
                    across: int = Query(12, ge=4, le=40),
@@ -240,16 +261,8 @@ def inventory_test(cap_id: int, distance_m: float = Query(2.0, ge=0.3, le=40.0),
     cut = cap_cutout_from_path(path, tile)
     if cut is None:
         raise HTTPException(500, "could not cut out the cap")
-    rows = max(4, (across * 2) // 3)
-    W, H = across * tile, rows * tile
     board = _hex_rgb(bg, (255, 255, 255))
-    patch = Image.new("RGB", (W, H), board)
-    for iy in range(rows):
-        for ix in range(across // 2):
-            patch.paste(cut, (ix * tile, iy * tile), cut)
-    mosaic = cap.mosaic_rgb or cap.rgb
-    patch.paste(Image.new("RGB", (W - (across // 2) * tile, H), tuple(mosaic)),
-                ((across // 2) * tile, 0))
+    patch = _split_test_patch(cut, tile, across, board, cap.mosaic_rgb or cap.rgb)
     mm = canonical_diameter_mm(cap.size_class) or 32.1
     out = view_at_distance(patch, across * mm, distance_m,
                            frame_px=(900, 620), board=board)

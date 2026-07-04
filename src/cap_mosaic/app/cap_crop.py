@@ -36,12 +36,34 @@ def detect_cap_circle(bgr: np.ndarray) -> tuple[int, int, int] | None:
     return int(cx), int(cy), int(r)
 
 
+def _shrink_to_cap_edge(bgr: np.ndarray, cx: int, cy: int, r: int) -> int:
+    """Walk the radius inward while the outer ring is still card-white.
+
+    Hough often locks onto the printed placement circle (bigger than the cap),
+    which pads the cutout with white card — glued caps must meet at their real
+    edges, so the circle has to hug the cap. Stop as soon as the ring band just
+    inside the radius is mostly non-white (the cap edge), floor at 0.55·r.
+    """
+    rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+    h, w = rgb.shape[:2]
+    yy, xx = np.ogrid[:h, :w]
+    d2 = (xx - cx) ** 2 + (yy - cy) ** 2
+    rr = float(r)
+    while rr > 0.55 * r:
+        band = (d2 >= (0.90 * rr) ** 2) & (d2 <= rr ** 2)
+        px = rgb[band]
+        if px.size and (px >= 215).all(axis=1).mean() < 0.5:
+            break
+        rr *= 0.96
+    return max(4, int(rr))
+
+
 def cap_cutout(bgr: np.ndarray, size: int = 64) -> Image.Image:
     """Tight, centred, circular RGBA cut-out of the cap in `bgr`, `size` px square."""
     h, w = bgr.shape[:2]
     c = detect_cap_circle(bgr)
     cx, cy, r = c if c is not None else (w // 2, h // 2, min(w, h) // 2 - 1)
-    r = max(4, r)
+    r = _shrink_to_cap_edge(bgr, cx, cy, max(4, r))
     x0, y0, x1, y1 = max(0, cx - r), max(0, cy - r), min(w, cx + r), min(h, cy + r)
     crop = cv2.resize(bgr[y0:y1, x0:x1], (size, size), interpolation=cv2.INTER_AREA)
     rgb = cv2.cvtColor(crop, cv2.COLOR_BGR2RGB)

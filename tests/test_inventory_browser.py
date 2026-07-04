@@ -100,6 +100,45 @@ def test_inventory_distance_test_404s(inv_db):
     assert client.get("/inventory/test/99999").status_code == 404
 
 
+def test_split_patch_hex_packs_caps_close():
+    # glued caps touch: board must show ONLY in the small curved gaps between
+    # circles (~9% hex interstices + edges), never as full margins
+    from cap_mosaic.app.webapp.server import _split_test_patch
+
+    tile = 48
+    disc = Image.new("RGBA", (tile, tile), (0, 0, 0, 0))
+    from PIL import ImageDraw
+
+    ImageDraw.Draw(disc).ellipse([0, 0, tile - 1, tile - 1], fill=(40, 90, 40, 255))
+    patch = _split_test_patch(disc, tile, 12, (255, 0, 255), (10, 10, 10))
+    px = np.asarray(patch)
+    half = 6 * tile
+    left = px[:, :half]
+    board_frac = ((left == [255, 0, 255]).all(axis=2)).mean()
+    assert board_frac < 0.17, board_frac          # hex-close, not sparse grid
+    right = px[:, half:]
+    assert ((right == [10, 10, 10]).all(axis=2)).mean() > 0.99  # clean solid half
+
+
+def test_cap_cutout_shrinks_past_printed_circle():
+    # Hough locks onto the printed placement circle; the cutout must walk in
+    # to the real cap edge or every tile carries a white card ring
+    import cv2
+    from cap_mosaic.app.cap_crop import cap_cutout
+
+    img = np.full((128, 128, 3), 245, np.uint8)
+    cv2.circle(img, (64, 64), 55, (150, 150, 150), 2)    # printed circle
+    cv2.circle(img, (64, 64), 34, (30, 40, 120), -1)     # the actual cap
+    cut = np.asarray(cap_cutout(img, 48))
+    # the ring just inside the cutout edge must be cap, not card-white
+    yy, xx = np.ogrid[:48, :48]
+    d2 = (xx - 24) ** 2 + (yy - 24) ** 2
+    band = (d2 >= 20 ** 2) & (d2 <= 23 ** 2)
+    edge = cut[band]
+    white = (edge[:, :3] >= 215).all(axis=1) & (edge[:, 3] > 0)
+    assert white.mean() < 0.2, white.mean()
+
+
 def test_inventory_empty_without_db(tmp_path, monkeypatch):
     monkeypatch.setattr(server, "_DB", tmp_path / "absent.db")
     assert client.get("/inventory/caps").json() == []
