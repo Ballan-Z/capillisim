@@ -22,6 +22,25 @@ button:focus-visible { outline:2px solid var(--acc); outline-offset:2px; }
 .btn-gold { background:linear-gradient(180deg,#4a3c14,#37300f); border-color:#8a6d1f; color:#ffe9a8; }
 .btn-gold:hover:not(:disabled) { border-color:var(--acc); background:linear-gradient(180deg,#5a4a18,#413a12);
   box-shadow:0 1px 8px #f2b70533, inset 0 1px 0 #ffffff14; }
+
+/* --- instant hover tooltips: any element with data-tip explains itself --- */
+[data-tip] { position:relative; }
+[data-tip]:hover::after {
+  content:attr(data-tip);
+  position:absolute; top:calc(100% + 7px); left:50%; transform:translateX(-50%);
+  width:max-content; max-width:250px; z-index:80; pointer-events:none;
+  background:#0d1117; color:#dfe6f2; border:1px solid #4a5670; border-radius:9px;
+  padding:7px 10px; font-size:12px; font-weight:400; line-height:1.4;
+  text-align:left; white-space:normal; box-shadow:0 8px 22px #000c;
+}
+[data-tip]:hover::before {
+  content:""; position:absolute; top:calc(100% + 2px); left:50%; transform:translateX(-50%) rotate(45deg);
+  width:9px; height:9px; background:#0d1117; border-left:1px solid #4a5670; border-top:1px solid #4a5670;
+  z-index:81; pointer-events:none;
+}
+/* right-edge elements: anchor the bubble to their right side instead of centring */
+.tip-left[data-tip]:hover::after { left:auto; right:0; transform:none; }
+.tip-left[data-tip]:hover::before { left:auto; right:14px; transform:rotate(45deg); }
 body { margin:0; font:15px/1.45 system-ui,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--ink); }
 header { padding:22px 26px 8px; }
 h1 { margin:0; font-size:22px; letter-spacing:.3px; }

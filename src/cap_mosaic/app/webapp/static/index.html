@@ -25,7 +25,7 @@
       </div>
       <div id="croptools" class="croptools" hidden>
         <small>Drag on the image to select a region.</small>
-        <button id="cropBtn" class="btn-gold" disabled>✂ Crop to selection</button>
+        <button id="cropBtn" class="btn-gold" data-tip="Build the mosaic from only the selected rectangle. Becomes a new version; the full image stays in the strip." disabled>✂ Crop to selection</button>
       </div>
 
       <div id="versionswrap" class="versionswrap" hidden>
@@ -48,9 +48,9 @@
             <input id="dist" type="range" min="0.5" max="40" step="0.5" value="6" />
           </label>
           <div class="solvers">
-            <button id="fitSize" title="Set the size so the piece fills a comfortable view from the current distance">↳ size for this distance</button>
-            <button id="fitDist" title="Set the distance recommended for the current size">↳ distance for this size</button>
-            <button id="fitMin" title="Smallest size that still reads, and the closest you can stand">↳ minimal size</button>
+            <button id="fitSize" data-tip="Keep the current viewing distance and set the size so the piece comfortably fills your view from there.">↳ size for this distance</button>
+            <button id="fitDist" data-tip="Keep the current size and set the recommended viewing distance for it.">↳ distance for this size</button>
+            <button id="fitMin" data-tip="Jump to the smallest size that can still represent this image, plus the closest distance it reads from. Any smaller and no distance saves it.">↳ minimal size</button>
           </div>
         </div>
 
@@ -73,7 +73,7 @@
             <label>Board:
               <input type="color" id="bgColor" value="#3c2d23" title="backing board colour (wood / paper / paint) — shows in the gaps between caps" />
             </label>
-            <a id="palcmp" class="capmaplink" target="_blank" rel="noopener" style="float:none">⇆ Compare palettes</a>
+            <a id="palcmp" class="capmaplink" target="_blank" rel="noopener" style="float:none" data-tip="Open a sheet showing this image rendered under all four palettes (Auto / Portrait / Sunset / Space) side by side.">⇆ Compare palettes</a>
           </div>
         </div>
 
@@ -100,10 +100,10 @@
             <b id="cverdict">Cap-art check</b>
             <div id="csig" class="csig"></div>
           </div>
-          <button id="askLLM" class="btn-ai" title="ask the Qwen vision judge (needs QWEEN_KEY)">🧠 AI judge</button>
-          <button id="aiFix" class="btn-ai" title="ask the AI judge AND apply its recommended settings, with before/after">🪄 AI fix</button>
-          <button id="aiSimplify" class="btn-ai" title="AI-edit the image itself into a cap-friendly simplified version — appears as a new version in the strip">🎨 AI simplify</button>
-          <button id="applyRec" class="btn-gold" title="apply the suggested size + toggles">✨ Apply suggestions</button>
+          <button id="askLLM" class="btn-ai" data-tip="Ask the AI (Qwen vision) for a verdict on this image: score, what works, what to fix. Read-only — changes nothing.">🧠 AI judge</button>
+          <button id="aiFix" class="btn-ai" data-tip="Ask the AI judge AND apply its recommended settings (colours, thicken, dither, size, palette). Keeps a 'before' snapshot so you can compare. Does not touch the image itself.">🪄 AI fix</button>
+          <button id="aiSimplify" class="btn-ai" data-tip="The AI redraws the image itself into cap-friendly art: flat colours, thick outlines, clean background — keeping the original colours. Lands as a new version in the strip; the original stays.">🎨 AI simplify</button>
+          <button id="applyRec" class="btn-gold" data-tip="Apply the instant cap-art check's suggestions: minimum readable size + recommended toggles. No AI call, free.">✨ Apply suggestions</button>
         </div>
         <ul id="ctips" class="ctips"></ul>
         <div id="cllm" class="cllm" hidden></div>
@@ -111,7 +111,7 @@
 
       <div class="simwrap">
         <img id="sim" alt="mosaic simulation" />
-        <button id="compareBtn" class="compare" title="hold to see the original">👁 hold to compare</button>
+        <button id="compareBtn" class="compare tip-left" data-tip="Press and hold to see the original image with identical framing; release to go back to the caps.">👁 hold to compare</button>
         <div id="simhint" class="simhint"></div>
         <div id="beforewrap" class="beforewrap" hidden>
           <div class="beforelabel">before AI fix <button id="beforeClose" title="dismiss">×</button></div>
@@ -131,7 +131,7 @@
       <div class="bom" id="bomwrap" hidden>
         <h3>Caps needed by colour
           <small style="font-weight:400;opacity:.7">— click a colour to isolate it</small>
-          <a id="capmap" class="capmaplink" target="_blank" rel="noopener">⬇ Cap map (PDF)</a>
+          <a id="capmap" class="capmaplink tip-left" target="_blank" rel="noopener" data-tip="Download a printable paint-by-numbers sheet: a letter per colour on every cell, row/column rulers, and a legend with counts.">⬇ Cap map (PDF)</a>
         </h3>
         <div id="invtotals" class="invtotals" hidden></div>
         <ul id="bom"></ul>

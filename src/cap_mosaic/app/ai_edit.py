@@ -24,12 +24,17 @@ EDIT_URL = ("https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/"
 EDIT_MODEL = "qwen-image-edit-plus"
 
 DEFAULT_INSTRUCTIONS = (
-    "Simplify this image for a bottle-cap mosaic: flatten it into at most 6 "
-    "flat poster colours, thicken all thin lines and outlines so none is "
+    "Simplify this image for a bottle-cap mosaic: flatten shading into at most "
+    "6 flat poster colours, thicken all thin lines and outlines so none is "
     "hairline, remove fine texture and background clutter, keep the same "
-    "subject, composition and colour feel. Bold, high-contrast, pixel-art "
-    "friendly."
+    "subject and composition. PRESERVE THE ORIGINAL COLOURS EXACTLY: every "
+    "element must keep its own hue from the source image (pick each element's "
+    "dominant existing colour; do not recolour, restyle or shift any hue). "
+    "Bold, high-contrast, pixel-art friendly."
 )
+
+# steer the edit model away from its habit of re-palette-ing the picture
+NEGATIVE_PROMPT = "recolored, changed colors, different palette, hue shift, new color scheme"
 
 
 def _default_post(url: str, headers: dict, body: dict) -> dict:
@@ -71,7 +76,7 @@ def ai_simplify(
             {"image": data_uri},
             {"text": instructions},
         ]}]},
-        "parameters": {"negative_prompt": "", "watermark": False},
+        "parameters": {"negative_prompt": NEGATIVE_PROMPT, "watermark": False},
     }
     resp = post(EDIT_URL, {"Authorization": f"Bearer {key}"}, body)
 
