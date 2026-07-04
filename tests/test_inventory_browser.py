@@ -78,12 +78,21 @@ def test_inventory_distance_test_renders(inv_db):
     # and the solid mosaic half (50,60,70) as distinct colours
     px = np.asarray(img.convert("RGB"))
     assert (np.abs(px.astype(int) - [50, 60, 70]).sum(axis=2) < 12).any()
-    # far away it shrinks: much more frame background than at 1m
+    # far away it shrinks: much more (white, default) background than at 1m
     far = client.get(f"/inventory/test/{inv_db['a']}?distance_m=10.0")
     pf = np.asarray(Image.open(_io.BytesIO(far.content)).convert("RGB"))
-    bg = (np.abs(px.astype(int) - [13, 15, 20]).sum(axis=2) < 12).mean()
-    bgf = (np.abs(pf.astype(int) - [13, 15, 20]).sum(axis=2) < 12).mean()
+    bg = (px >= 250).all(axis=2).mean()
+    bgf = (pf >= 250).all(axis=2).mean()
     assert bgf > bg
+
+
+def test_inventory_distance_test_selectable_background(inv_db):
+    import io as _io
+
+    r = client.get(f"/inventory/test/{inv_db['a']}?distance_m=6.0&bg=%23103050")
+    px = np.asarray(Image.open(_io.BytesIO(r.content)).convert("RGB"))
+    corner = px[:20, :20].reshape(-1, 3)
+    assert (np.abs(corner.astype(int) - [16, 48, 80]).sum(axis=1) < 12).all()
 
 
 def test_inventory_distance_test_404s(inv_db):

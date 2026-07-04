@@ -83,6 +83,8 @@
       <div class="row">
         <span>viewing distance <b id="mdist">2.0 m</b></span>
         <input id="mrange" type="range" min="0.5" max="12" step="0.5" value="2" />
+        <span title="board + surround colour — the surround shifts what your eye sees">bg
+          <input type="color" id="mbg" value="#ffffff" /></span>
         <span>field <span class="msw" id="mswf"></span></span>
         <span>mosaic <span class="msw" id="mswm"></span></span>
       </div>
@@ -179,7 +181,8 @@ let testCap = null;
 function loadTest() {
   if (!testCap) return;
   document.getElementById('mdist').textContent = (+mrange.value).toFixed(1) + ' m';
-  mimg.src = `/inventory/test/${testCap.id}?distance_m=${mrange.value}`;
+  const bg = encodeURIComponent(document.getElementById('mbg').value);
+  mimg.src = `/inventory/test/${testCap.id}?distance_m=${mrange.value}&bg=${bg}`;
 }
 function openTest(c) {
   testCap = c;
@@ -190,6 +193,7 @@ function openTest(c) {
   loadTest();
 }
 mrange.addEventListener('input', loadTest);
+document.getElementById('mbg').addEventListener('input', loadTest);
 document.getElementById('mclose').addEventListener('click', () => { modal.hidden = true; testCap = null; });
 modal.addEventListener('click', e => { if (e.target === modal) { modal.hidden = true; testCap = null; } });
 
