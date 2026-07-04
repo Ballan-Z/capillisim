@@ -167,8 +167,31 @@ def measure_cap_diameter_mm(rgb: np.ndarray, h: np.ndarray) -> float | None:
     The card homography is mm-true, so size falls out of geometry: take the
     region around the placement circle at full frame resolution, mask what is
     not card-white, erase the thin printed circle line by a morphological
-    opening scaled to ~1.5 mm, and measure the min enclosing circle of the
-    biggest remaining blob. Standard crowns read ~26 mm, large caps ~38 mm.
+    opening scaled to ~1.5 mm, and size the blob nearest the placement centre.
+
+    Robustness — every guard here fixes an observed failure:
+    - CLOSE (~2 mm) before anything else: glare glints break the dark rim and
+      let a white text ring leak out to the background, splitting the cap into
+      inner disc + rim ring.
+    - clip to a 24 mm disc around the placement centre: dark table past the
+      card edge can't dominate the mask.
+    - hole-fill + take the connected component covering the centre: printed
+      card text near the circle is a separate blob and must not be measured
+      (measuring the union read every crown as ~38 mm); white logos/text are
+      holes inside the cap, not splits.
+    - per-direction outermost radius of that component, DISCARDING directions
+      that reach the clip edge: only a shadow bridge to dark table spans that
+      far, never a cap (min-enclosing-circle spanned cap+table and read a
+      standard crown as 40 mm -> large-38).
+    - SYMMETRIC FOLD, min(r(θ), r(θ+180°)): a cap is round, so its radius
+      survives the fold; a cast shadow is one-sided and gets replaced by the
+      true cap edge opposite it (a huge shadow lobe once made a standard crown
+      read as large even after all the guards above).
+    - diameter = 80th percentile of the folded directions: the envelope of the
+      crown's teeth TIPS (a plain median sits in the teeth valleys and
+      under-reads a real 38 mm cap as ~32 mm).
+    A cap must subtend most directions around the centre; a lone table wedge
+    does not, and is rejected rather than sized.
     """
     import cv2
 
@@ -177,21 +200,73 @@ def measure_cap_diameter_mm(rgb: np.ndarray, h: np.ndarray) -> float | None:
     px_per_mm = float(np.hypot(cx1 - cx0, cy1 - cy0)) / 10.0
     if px_per_mm <= 0.1:
         return None
-    R = int(30.0 * px_per_mm)  # generous: covers caps up to ~55 mm
+    R = int(30.0 * px_per_mm)
     img_h, img_w = rgb.shape[:2]
     x0, x1 = max(0, int(cx0 - R)), min(img_w, int(cx0 + R))
     y0, y1 = max(0, int(cy0 - R)), min(img_h, int(cy0 + R))
     if x1 - x0 < 10 or y1 - y0 < 10:
         return None
     roi = rgb[y0:y1, x0:x1]
+    return cap_diameter_from_patch(roi, float(cx0) - x0, float(cy0) - y0, px_per_mm)
+
+
+def cap_diameter_from_patch(roi: np.ndarray, ccx: float, ccy: float,
+                            px_per_mm: float) -> float | None:
+    """The measurement core of ``measure_cap_diameter_mm``, on any RGB patch.
+
+    ``(ccx, ccy)`` is the cap/placement centre in patch pixels. Shared with
+    crop-based re-measurement (`app.backfill_diameter`) so stored crops and the
+    live camera path are sized by the *identical* pipeline.
+    """
+    import cv2
+
     mask = (~np.all(roi >= 215, axis=2)).astype(np.uint8) * 255
-    k = max(3, int(round(1.5 * px_per_mm)) | 1)  # odd kernel ~1.5 mm
+    # seal glare glints in the rim (~1.2mm) WITHOUT bridging to the printed
+    # card text ~2-3mm away — a wider close welded the text into the cap blob
+    # and the tips-envelope percentile then read every crown as large
+    kc = max(3, int(round(1.2 * px_per_mm)) | 1)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, np.ones((kc, kc), np.uint8))
+    k = max(3, int(round(1.5 * px_per_mm)) | 1)  # erase the printed circle line
     mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, np.ones((k, k), np.uint8))
-    cnts, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    if not cnts:
+    # clip to a 24mm disc around the placement centre (caps top out ~42mm)
+    clip_r = min(24.0 * px_per_mm,
+                 ccx, ccy, roi.shape[1] - ccx, roi.shape[0] - ccy)
+    gy, gx = np.ogrid[: mask.shape[0], : mask.shape[1]]
+    mask[(gx - ccx) ** 2 + (gy - ccy) ** 2 > clip_r ** 2] = 0
+    # fill holes (white logos/text inside the cap), then keep only the blob
+    # covering the placement centre — printed card text is a separate blob
+    solid = (mask > 0).astype(np.uint8)
+    ff = solid.copy()
+    cv2.floodFill(ff, np.zeros((solid.shape[0] + 2, solid.shape[1] + 2), np.uint8), (0, 0), 1)
+    solid[(ff == 0)] = 1
+    n, labels, _, cents = cv2.connectedComponentsWithStats(solid, connectivity=8)
+    best = None
+    for i in range(1, n):
+        d2 = (cents[i][0] - ccx) ** 2 + (cents[i][1] - ccy) ** 2
+        if best is None or d2 < best[0]:
+            best = (d2, i)
+    if best is None:
         return None
-    (_, _), br = cv2.minEnclosingCircle(max(cnts, key=cv2.contourArea))
-    dia = 2.0 * br / px_per_mm
+    ys, xs = np.nonzero(labels == best[1])
+    dx, dy = xs - ccx, ys - ccy
+    r = np.hypot(dx, dy)
+    # outermost radius of the cap blob in each of 360 directions
+    bins = (np.degrees(np.arctan2(dy, dx)) % 360.0).astype(int) % 360
+    rmax = np.zeros(360)
+    np.maximum.at(rmax, bins, r)
+    covered = rmax > 0
+    if covered.sum() < 270:  # a cap surrounds the centre; a table wedge doesn't
+        return None
+    # directions reaching (near) the clip edge saw table/bridge, not cap edge
+    rmax[rmax >= clip_r - 1.0 * px_per_mm] = 0.0
+    # symmetric fold: a shadow is one-sided, the cap edge opposite it is real
+    opp = np.roll(rmax, 180)
+    both = (rmax > 0) & (opp > 0)
+    folded = np.where(both, np.minimum(rmax, opp), np.maximum(rmax, opp))
+    folded = folded[folded > 0]
+    if folded.size < 180:
+        return None
+    dia = 2.0 * float(np.percentile(folded, 80)) / px_per_mm
     return dia if dia >= 10.0 else None  # tiny blob = noise, not a cap
 
 

@@ -45,6 +45,67 @@ def test_works_at_a_different_camera_scale():
     assert d is not None and abs(d - 29.0) < 1.5, d
 
 
+def test_ignores_dark_table_at_roi_edge():
+    # dark table visible past the card edge is a BIGGER blob than the cap;
+    # the measurement must size the cap (nearest the placement centre), not it
+    img, h = _frame(cap_mm=26.0)
+    img[:, 380:] = 25                       # dark table strip through the ROI edge
+    d = measure_cap_diameter_mm(img, h)
+    assert d is not None and abs(d - 26.0) < 1.5, d
+
+
+def test_shadow_bridge_does_not_inflate():
+    # a shadow bridging cap -> dark table merged the blob; minEnclosingCircle
+    # then spanned both (live: a standard crown read 40mm -> large-38)
+    img, h = _frame(cap_mm=26.0)
+    scale = 4.0
+    cx = int(L.CIRCLE_CX_MM * scale + 60)
+    cy = int(L.CIRCLE_CY_MM * scale + 60)
+    img[:, 380:] = 25                                       # dark table
+    cv2.line(img, (cx, cy), (420, cy - 80), (40, 40, 40),   # 3mm-wide shadow bridge
+             int(3 * scale))
+    d = measure_cap_diameter_mm(img, h)
+    assert d is not None and abs(d - 26.0) < 3.0, d
+
+
+def test_white_logo_does_not_shrink_measurement():
+    # a big white logo/text is a HOLE in the not-card-white mask; the inscribed
+    # circle must be taken on the hole-filled blob or a 38mm cap reads ~26
+    img, h = _frame(cap_mm=38.0)
+    scale = 4.0
+    cx = int(L.CIRCLE_CX_MM * scale + 60)
+    cy = int(L.CIRCLE_CY_MM * scale + 60)
+    cv2.circle(img, (cx, cy), int(11 * scale), (245, 245, 245), -1)  # near-white logo
+    d = measure_cap_diameter_mm(img, h)
+    assert d is not None and abs(d - 38.0) < 1.5, d
+
+
+def test_white_text_ring_does_not_split_measurement():
+    # a white text ring (e.g. 'OVER WORKS' band) splits the mask into inner
+    # disc + rim ring; sizing the nearest component alone reads a 38mm cap ~27
+    img, h = _frame(cap_mm=38.0)
+    scale = 4.0
+    cx = int(L.CIRCLE_CX_MM * scale + 60)
+    cy = int(L.CIRCLE_CY_MM * scale + 60)
+    cv2.circle(img, (cx, cy), int(15 * scale), (245, 245, 245), int(4 * scale))
+    d = measure_cap_diameter_mm(img, h)
+    assert d is not None and abs(d - 38.0) < 1.5, d
+
+
+def test_shadow_lobe_does_not_inflate():
+    # a soft cast shadow forms a wide dark lobe attached to one side of the
+    # cap (live: made a standard crown read large even without a bridge);
+    # the symmetric fold must replace it with the true edge opposite
+    img, h = _frame(cap_mm=26.0)
+    scale = 4.0
+    cx = int(L.CIRCLE_CX_MM * scale + 60)
+    cy = int(L.CIRCLE_CY_MM * scale + 60)
+    cv2.ellipse(img, (cx + int(8 * scale), cy + int(8 * scale)),
+                (int(12 * scale), int(9 * scale)), 45, 0, 360, (140, 140, 140), -1)
+    d = measure_cap_diameter_mm(img, h)
+    assert d is not None and abs(d - 26.0) < 2.0, d
+
+
 def test_crop_cap_default_span_unchanged():
     from cap_mosaic.vision.card_reader import crop_cap
 
