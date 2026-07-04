@@ -165,6 +165,70 @@ def caps_count() -> dict:
     return {"count": len(load_inventory(str(_DB)))}
 
 
+# ── inventory browser: view the cap DB, delete mis-scans with the mouse ──────
+
+
+@app.get("/inventory")
+def inventory_page() -> FileResponse:
+    return FileResponse(_STATIC / "inventory.html")
+
+
+@app.get("/inventory/caps")
+def inventory_caps() -> list[dict]:
+    """Every cap in the DB, newest first, with what the browser grid shows."""
+    if not _DB.exists():
+        return []
+    from ...data.store import CapDataset
+
+    with CapDataset(_DB) as db:
+        caps = db.caps(with_frames=True)
+    return [{
+        "id": c.id, "field": list(c.rgb),
+        "mosaic": list(c.mosaic_rgb) if c.mosaic_rgb else None,
+        "diameter_mm": c.diameter_mm, "size_class": c.size_class,
+        "captured_at": c.captured_at, "notes": c.notes,
+        "has_crop": bool(c.frames),
+    } for c in reversed(caps)]
+
+
+@app.get("/inventory/crop/{cap_id}")
+def inventory_crop(cap_id: int) -> FileResponse:
+    """First stored crop image of a cap (the grid thumbnail)."""
+    if not _DB.exists():
+        raise HTTPException(404, "no cap database")
+    from ...data.store import CapDataset
+
+    with CapDataset(_DB) as db:
+        for c in db.caps(with_frames=True):
+            if c.id == cap_id:
+                for f in c.frames:
+                    if Path(f.path).exists():
+                        return FileResponse(f.path, media_type="image/png")
+                raise HTTPException(404, "crop file missing")
+    raise HTTPException(404, f"no cap #{cap_id}")
+
+
+@app.delete("/inventory/caps/{cap_id}")
+def inventory_delete(cap_id: int) -> dict:
+    """Delete a cap: its DB row (frames/embeddings cascade) AND its crop files."""
+    if not _DB.exists():
+        raise HTTPException(404, "no cap database")
+    from ...data.store import CapDataset
+
+    with CapDataset(_DB) as db:
+        paths = [f.path for c in db.caps(with_frames=True) if c.id == cap_id
+                 for f in c.frames]
+        ok = db.delete_cap(cap_id)
+    if not ok:
+        raise HTTPException(404, f"no cap #{cap_id}")
+    for p in paths:
+        try:
+            Path(p).unlink()
+        except OSError:
+            pass
+    return {"deleted": cap_id}
+
+
 _CRITIQUE: dict[tuple, dict] = {}
 _LLM_CRITIQUE: dict[str, dict] = {}
 

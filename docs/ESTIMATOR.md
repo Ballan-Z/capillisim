@@ -97,6 +97,12 @@ the target and only reads once you stand far enough that caps blend.
   `llm=true` also the Qwen verdict incl. whitelisted `actions`
 - `GET /simplify?image_id=` -> AI-edited (simplified) copy stored as a new id
 - `GET /palettes?image_id=&size_mm=` -> side-by-side preset comparison sheet
+- `GET /inventory` -> the cap-inventory browser page; `GET /inventory/caps`
+  (JSON, newest first), `GET /inventory/crop/{id}` (thumbnail),
+  `DELETE /inventory/caps/{id}` (removes the row AND its crop files). Linked
+  from the "My scanned caps" group: browse every scanned cap (photo,
+  field|mosaic swatch bar, mm + S/L class, size filters) and delete a mis-scan
+  with the mouse — click ×, then `delete?`; clicking anywhere else cancels.
 
 ## Building from caps (projector)
 

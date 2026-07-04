@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Capillisim — Cap Inventory</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <style>
+    .invhead { display:flex; align-items:baseline; gap:16px; flex-wrap:wrap; padding:0 26px; }
+    .invhead .counts { color:var(--mut); }
+    .invhead .filters { margin-left:auto; display:flex; gap:8px; }
+    .invhead .filters button.on { border-color:var(--acc); color:#ffe9a8; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr));
+            gap:12px; padding:14px 26px 40px; }
+    .cap { position:relative; background:var(--panel); border:2px solid #2a3040;
+           border-radius:12px; padding:8px; text-align:center; transition:border-color .12s, opacity .3s; }
+    .cap:hover { border-color:#5b6785; }
+    .cap img { width:100%; aspect-ratio:1; object-fit:cover; border-radius:8px; display:block; background:#0d0f14; }
+    .cap .noimg { width:100%; aspect-ratio:1; border-radius:8px; background:#0d0f14;
+                  display:flex; align-items:center; justify-content:center; color:#39445a; font-size:12px; }
+    .cap .meta { display:flex; align-items:center; gap:6px; margin-top:6px; font-size:12px; color:var(--mut); }
+    .cap .meta b { color:var(--ink); }
+    .cap .sizecls { margin-left:auto; }
+    .cap .sizecls.L { color:#ffb347; font-weight:700; }
+    .cap .sw2 { display:flex; height:10px; border-radius:5px; overflow:hidden; margin-top:6px; border:1px solid #0006; }
+    .cap .sw2 span { flex:1; }
+    .cap .del { position:absolute; top:12px; right:12px; width:26px; height:26px; border-radius:50%;
+                background:#141a26dd; color:#e07a7a; border:1px solid #5a2833; font-size:14px; line-height:1;
+                padding:0; display:none; align-items:center; justify-content:center; cursor:pointer; }
+    .cap:hover .del { display:flex; }
+    .cap.armed { border-color:#e05a5a; }
+    .cap.armed .del { display:flex; width:auto; border-radius:8px; padding:0 10px;
+                      background:#7a2130; color:#ffdfe4; font-weight:700; }
+    .cap.gone { opacity:0; pointer-events:none; }
+    .backlink { color:#6cf; text-decoration:none; font-size:14px; }
+    .backlink:hover { text-decoration:underline; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Cap inventory <span>· every scanned cap</span></h1>
+    <p class="sub">Click a cap's <b>×</b>, then <b>delete?</b> to remove a mis-scan (the DB row and its
+      crop images). Clicking anywhere else cancels. &nbsp;<a class="backlink" href="/">← back to the estimator</a></p>
+  </header>
+
+  <div class="invhead">
+    <div class="counts" id="counts">loading…</div>
+    <div class="filters" id="filters">
+      <button data-f="all" class="on">All</button>
+      <button data-f="standard-26">Standard</button>
+      <button data-f="large-38">Large</button>
+      <button data-f="none">Unmeasured</button>
+    </div>
+  </div>
+
+  <div class="grid" id="grid"></div>
+  <div id="toast" class="toast" hidden></div>
+
+<script>
+const grid = document.getElementById('grid');
+const counts = document.getElementById('counts');
+let caps = [], filter = 'all', armed = null;
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.hidden = false;
+  clearTimeout(t._h); t._h = setTimeout(() => t.hidden = true, 2200);
+}
+
+function disarm() {
+  if (armed) { armed.classList.remove('armed'); armed.querySelector('.del').textContent = '×'; armed = null; }
+}
+document.body.addEventListener('click', e => { if (!e.target.closest('.del')) disarm(); });
+
+function fmt(c) {
+  const mm = c.diameter_mm ? c.diameter_mm.toFixed(0) + 'mm' : '?mm';
+  const cls = c.size_class === 'large-38' ? 'L' : (c.size_class ? 'S' : '·');
+  return {mm, cls};
+}
+
+function render() {
+  disarm();
+  const shown = caps.filter(c => filter === 'all' ? true :
+    (filter === 'none' ? !c.size_class : c.size_class === filter));
+  const nL = caps.filter(c => c.size_class === 'large-38').length;
+  const nS = caps.filter(c => c.size_class === 'standard-26').length;
+  counts.textContent = `${caps.length} caps — ${nS} standard · ${nL} large · ${caps.length - nS - nL} unmeasured` +
+                       (filter === 'all' ? '' : ` — showing ${shown.length}`);
+  grid.innerHTML = '';
+  for (const c of shown) {
+    const el = document.createElement('div');
+    el.className = 'cap'; el.dataset.id = c.id;
+    const {mm, cls} = fmt(c);
+    const f = c.field, m = c.mosaic || c.field;
+    el.innerHTML =
+      (c.has_crop ? `<img loading="lazy" src="/inventory/crop/${c.id}" alt="cap ${c.id}">`
+                  : `<div class="noimg">no crop</div>`) +
+      `<div class="sw2" title="field | mosaic"><span style="background:rgb(${f})"></span>` +
+      `<span style="background:rgb(${m})"></span></div>` +
+      `<div class="meta"><b>#${c.id}</b> ${mm}<span class="sizecls ${cls}">${cls}</span></div>` +
+      `<button class="del" title="delete this cap">×</button>`;
+    el.querySelector('.del').addEventListener('click', async e => {
+      e.stopPropagation();
+      if (armed !== el) {                    // first click: arm
+        disarm(); armed = el; el.classList.add('armed');
+        e.target.textContent = 'delete?';
+        return;
+      }
+      // second click: really delete
+      try {
+        const r = await fetch(`/inventory/caps/${c.id}`, {method: 'DELETE'});
+        if (!r.ok) throw new Error(await r.text());
+        el.classList.add('gone'); armed = null;
+        caps = caps.filter(x => x.id !== c.id);
+        toast(`deleted cap #${c.id}`);
+        setTimeout(render, 320);
+      } catch (err) { toast('delete failed: ' + err.message); disarm(); }
+    });
+    grid.appendChild(el);
+  }
+}
+
+document.getElementById('filters').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  filter = b.dataset.f;
+  for (const x of document.querySelectorAll('.filters button')) x.classList.toggle('on', x === b);
+  render();
+});
+
+fetch('/inventory/caps').then(r => r.json()).then(d => { caps = d; render(); })
+  .catch(() => counts.textContent = 'no cap database found (scan some caps first)');
+</script>
+</body>
+</html>
