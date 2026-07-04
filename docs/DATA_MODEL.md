@@ -107,9 +107,12 @@ meta           dataset-level key/value (name, calibration ref, …)
   recomputes field + mosaic from the agreeing ones; truly corrupt captures get
   `notes='corrupt-capture'` and keep their colours as best-effort.
 - **Cap size, measured not assumed (v4).** The card homography is mm-true, so
-  the scanner measures each cap's diameter as it saves (`measure_cap_diameter_mm`,
-  validated live at ±1 mm) and picks a wider crop window for large caps so they
-  aren't clipped. `size_class` gives `standard-26` (< 35 mm: a *used* nominal-26
+  the scanner measures each cap's diameter as it saves (`measure_cap_diameter_mm`)
+  and picks a wider crop window for large caps so they aren't clipped. The
+  measurement is a guarded radial pipeline (`cap_diameter_from_patch`) hardened
+  against every observed live failure: shadow bridges to dark table, table
+  strips in view, white logos/text rings splitting the blob, printed card text,
+  and one-sided shadow lobes (symmetric fold) — each with a regression test. `size_class` gives `standard-26` (< 35 mm: a *used* nominal-26
   crown flares to ~29–31 mm across the pried-open skirt, and a dark cap measures
   up to ~34 mm because its shadow joins the blob) or `large-38` (≥ 35 mm: real
   larges measure 37–42 mm, so the 35 mm cut splits the population cleanly);
