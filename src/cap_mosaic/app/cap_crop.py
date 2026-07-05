@@ -121,6 +121,7 @@ def _edge_circle_search(
     prior_sigma: float = 0.20,
     centre_frac: float = 0.20,
     k_angles: int = 180,
+    seeds: list[tuple[float, float]] | None = None,
 ) -> tuple[int, int, int]:
     """Best circle by CIRCULAR-EDGE RESPONSE: the (cx, cy, r) maximizing the mean
     radial brightness step |g(r+2) − g(r−2)| sampled along the circle.
@@ -154,12 +155,15 @@ def _edge_circle_search(
 
         # signed, brighter-outside step (caps sit on a white card): a TRUE rim
         # has it along (almost) the whole circle, while a mixed impostor (rim on
-        # one arc, shadow outline on another) collapses at a low percentile
+        # one arc, shadow outline on another) collapses at a low percentile.
+        # Out-of-frame samples are NaN so a cap near the border isn't punished
+        # by phantom zero-edges; heavily out-of-frame circles are down-weighted.
         diff = np.clip(samp(xo, yo) - samp(xi, yi), 0, None)
-        diff = np.where(inb, diff, 0.0)
-        mean = diff.sum(1) / np.maximum(inb.sum(1), 1)
-        floor = np.percentile(diff, 30, axis=1)
-        s = (0.5 * mean + 0.5 * floor) * np.where(inb.mean(1) > 0.75, 1.0, 0.2) * prior
+        diff = np.where(inb, diff, np.nan)
+        with np.errstate(invalid="ignore"):
+            mean = np.nan_to_num(np.nanmean(diff, axis=1))
+            floor = np.nan_to_num(np.nanpercentile(diff, 30, axis=1))
+        s = (0.5 * mean + 0.5 * floor) * np.where(inb.mean(1) > 0.55, 1.0, 0.35) * prior
         i = int(s.argmax())
         return float(s[i]), float(radii[i])
 
@@ -173,9 +177,13 @@ def _edge_circle_search(
         return best
 
     span = centre_frac * min(w, h)
-    coarse = sweep(np.arange(w / 2 - span, w / 2 + span + 1, 3.0),
-                   np.arange(h / 2 - span, h / 2 + span + 1, 3.0))
-    _, cx0, cy0, _ = coarse
+    best = (-1.0, w / 2, h / 2, float(radii[len(radii) // 2]))
+    for sx, sy in (seeds or [(w / 2, h / 2)]):
+        cand = sweep(np.arange(sx - span, sx + span + 1, 3.0),
+                     np.arange(sy - span, sy + span + 1, 3.0))
+        if cand[0] > best[0]:
+            best = cand
+    _, cx0, cy0, _ = best
     _, cx, cy, r = sweep(np.arange(cx0 - 3, cx0 + 3.5, 1.0),
                          np.arange(cy0 - 3, cy0 + 3.5, 1.0))
     return int(round(cx)), int(round(cy)), max(4, int(round(r)))
@@ -206,13 +214,17 @@ def cap_circle(bgr: np.ndarray, radius_frac: float | None = None) -> tuple[int, 
     h, w = bgr.shape[:2]
     if radius_frac is not None:
         return _refine_known_circle(bgr, radius_frac * w)
-    # blind: same circular-edge search, constrained to the PHYSICAL band a cap
-    # can occupy in a card crop (26-38 mm cap in a ~37.8-48 mm window). This
-    # replaces trusting locate_cap's blob, which can return an insane circle
-    # (e.g. centre at a corner) when the mask merges cap, shadow and card marks.
+    # blind: the same circular-edge search decides, seeded by the classic
+    # detectors (their circles position centre windows but are never trusted —
+    # locate_cap can return an insane blob when cap, shadow and card marks
+    # merge). Radius band = anything physically plausible for a cap in a crop.
     g = cv2.medianBlur(cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY), 3)
-    return _edge_circle_search(g, 0.30 * w, 0.50 * w,
-                               r_prior=0.40 * w, prior_sigma=0.35)
+    seeds = [(w / 2, h / 2)]
+    for cand in (locate_cap(bgr), detect_cap_circle(bgr)):
+        if cand is not None and 0 <= cand[0] <= w and 0 <= cand[1] <= h:
+            seeds.append((float(cand[0]), float(cand[1])))
+    return _edge_circle_search(g, 0.15 * w, 0.51 * w, centre_frac=0.14,
+                               seeds=seeds)
 
 
 def cap_cutout(bgr: np.ndarray, size: int = 64,

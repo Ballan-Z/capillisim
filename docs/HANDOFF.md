@@ -54,6 +54,11 @@ into `caps.db` with median-colour + busy-ness.
   pooled by ring signature (`app/cap_stock.py`), greedy global dE00 assignment
   (`core/assign.py`), inventory patterns (`core/pattern.py`, /pattern) and a
   palette-constrained AI prompt (/palette_prompt).
-- Data quality: a few caps' crop photos disagree with their measured mosaic
-  colour (visible as off-looking tiles in inventory patterns) — prune with the
-  /inventory browser or rescan.
+- Data quality: cutout audit (2026-07-05) fixed 54 wrong crops via the
+  circular-edge search cropper (`cap_crop._edge_circle_search`); 8 residual
+  flags remain, none crop errors: #34 #47 #88 #98 #170 #223 have clean cuts
+  but their MEASURED colour disagrees with the photo (glare during scan —
+  rescan or prune via /inventory), #410 #415 are white caps the white-fringe
+  metric can't distinguish from card (likely fine). Cutout regen: ~0.8 s/cap
+  (robust nanpercentile floor dominates; optimize if it ever matters), cached
+  in dataset/cutouts so it runs once.
