@@ -50,4 +50,10 @@ into `caps.db` with median-colour + busy-ness.
   to grow `caps.db` so `real_only` and the inventory report have real coverage.
   Kaggle needs `KAGGLE_USERNAME` in `.env` (key already present).
 - Consider an Atkinson dither kernel option for very small palettes.
-- Later: hard inventory-constrained plans (decrement stock as cells fill).
+- DONE: hard inventory-constrained plans (`Design from my caps`): duplicates
+  pooled by ring signature (`app/cap_stock.py`), greedy global dE00 assignment
+  (`core/assign.py`), inventory patterns (`core/pattern.py`, /pattern) and a
+  palette-constrained AI prompt (/palette_prompt).
+- Data quality: a few caps' crop photos disagree with their measured mosaic
+  colour (visible as off-looking tiles in inventory patterns) — prune with the
+  /inventory browser or rescan.

@@ -138,6 +138,20 @@ In the estimator's **My scanned caps (N)** group:
   in *your* caps.
 - Click any BOM colour to **isolate** it: every other cap ghosts out so you
   see exactly where that colour goes.
+- **Design from my caps (stock-limited)**: plan the whole mosaic from the caps
+  you actually own. Duplicate designs (found by the scanner's ring signature)
+  are pooled as interchangeable stock; a greedy global ΔE00 assignment spends
+  duplicates where they fit best and sends scarce colours to their
+  best-matching cells. Every cap is usable (no reject); when there are more
+  cells than caps, the worst matches stay bare board. The readout shows
+  "placing X of the N you own". If the subject needs more caps than you own,
+  the result is honest about it: scan more caps or pick a bolder subject.
+- **Patterns from my caps** (▤ Gradient / 🌀 Spiral / ☀ Sunburst): lay out the
+  inventory ITSELF: every owned cap exactly once, zero colour error, always
+  buildable. The result lands in the version strip like any image.
+- **📋 AI prompt for my palette**: copies a generation prompt constrained to
+  your dominant cap colours and total count; paste it into any image
+  generator, then paste the result back into the app.
 
 ---
 

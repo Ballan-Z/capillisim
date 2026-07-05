@@ -97,6 +97,13 @@ the target and only reads once you stand far enough that caps blend.
   `llm=true` also the Qwen verdict incl. whitelisted `actions`
 - `GET /simplify?image_id=` -> AI-edited (simplified) copy stored as a new id
 - `GET /palettes?image_id=&size_mm=` -> side-by-side preset comparison sheet
+- `&from_my_caps=true` on /estimate + /simulate -> plan against the OWNED stock
+  (duplicates pooled by ring signature, greedy global dE00 assignment, counts
+  respected, no reject); /estimate adds `stock_used {used, owned}`
+- `GET /pattern?kind=gradient|spiral|sunburst` -> the whole inventory laid out
+  as a pattern (every cap exactly once), stored as a new image id
+- `GET /palette_prompt` -> a paste-anywhere AI prompt constrained to the owned
+  palette + cap count
 - `GET /inventory` -> the cap-inventory browser page; `GET /inventory/caps`
   (JSON, newest first), `GET /inventory/crop/{id}` (thumbnail),
   `DELETE /inventory/caps/{id}` (removes the row AND its crop files). Linked
