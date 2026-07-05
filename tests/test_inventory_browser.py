@@ -112,11 +112,18 @@ def test_split_patch_hex_packs_caps_close():
     ImageDraw.Draw(disc).ellipse([0, 0, tile - 1, tile - 1], fill=(40, 90, 40, 255))
     patch = _split_test_patch(disc, tile, 12, (255, 0, 255), (10, 10, 10))
     px = np.asarray(patch)
-    half = 6 * tile
-    left = px[:, :half]
-    board_frac = ((left == [255, 0, 255]).all(axis=2)).mean()
-    assert board_frac < 0.17, board_frac          # hex-close, not sparse grid
-    right = px[:, half:]
+    from cap_mosaic.app.webapp.server import _PACK
+
+    pitch = round(tile * _PACK)
+    half = 6 * pitch
+    # measure the interior only (offset rows leave ragged half-cap edges)
+    rh = round(pitch * 0.8660254)
+    interior = px[tile:5 * rh, pitch:half - pitch]
+    board_frac = ((interior == [255, 0, 255]).all(axis=2)).mean()
+    # caps nested edge to edge: only thin grout, well under the ~0.09 that
+    # pitch==diameter circles leave, and nowhere near a sparse grid
+    assert board_frac < 0.05, board_frac
+    right = px[:, half + tile:]
     assert ((right == [10, 10, 10]).all(axis=2)).mean() > 0.99  # clean solid half
 
 

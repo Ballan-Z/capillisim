@@ -208,23 +208,31 @@ def inventory_crop(cap_id: int) -> FileResponse:
     raise HTTPException(404, f"no cap #{cap_id}")
 
 
+# Each cutout carries a few px of soft shadow/rim beyond the cap's colour, so
+# packing circles at pitch == diameter leaves those pale rims meeting and reads
+# as a gap. Nesting the pitch in slightly overlaps the rims into thin grout
+# lines — the caps read as touching, like a real tight-glued wall.
+_PACK = 0.92
+
+
 def _split_test_patch(cut: Image.Image, tile: int, across: int,
                       board: tuple[int, int, int],
                       mosaic: tuple[int, int, int]) -> Image.Image:
     """LEFT half: the cap HEX-PACKED as it would really be glued — circles
-    touching, board showing only in the small curved gaps between them.
-    RIGHT half: a solid block of the planner's mosaic colour."""
-    row_h = max(1, int(round(tile * 0.8660254)))  # touching rows: pitch·√3/2
-    rows = max(4, (across * 2) // 3)
-    W, H = across * tile, (rows - 1) * row_h + tile
-    half = (across // 2) * tile
+    nested edge to edge, board showing only in the small curved gaps between
+    them. RIGHT half: a solid block of the planner's mosaic colour."""
+    pitch = max(1, int(round(tile * _PACK)))
+    row_h = max(1, int(round(pitch * 0.8660254)))  # touching rows: pitch·√3/2
+    rows = max(4, int((across * 2) / (3 * _PACK)))
+    W, H = across * pitch, (rows - 1) * row_h + tile
+    half = (across // 2) * pitch
     patch = Image.new("RGB", (W, H), board)
     for iy in range(rows):
-        xoff = tile // 2 if iy % 2 else 0
+        xoff = pitch // 2 if iy % 2 else 0
         x = xoff
-        while x + tile <= half + tile // 2:  # seam overlap is painted over below
+        while x < half:  # overlap past the seam is painted over by the block
             patch.paste(cut, (x, iy * row_h), cut)
-            x += tile
+            x += pitch
     patch.paste(Image.new("RGB", (W - half, H), tuple(mosaic)), (half, 0))
     return patch
 
