@@ -45,7 +45,7 @@ function toast(msg) {
 }
 
 // disable the AI buttons while one of them is talking to the API (they cost money)
-const AI_BTNS = ["askLLM", "aiFix", "aiSimplify", "applyRec"];
+const AI_BTNS = ["askLLM", "aiSimplify", "applyAI"];
 function aiBusy(on, activeId, workingText) {
   for (const id of AI_BTNS) {
     const b = $(id);
@@ -143,6 +143,28 @@ function renderVersions() {
 }
 
 let lastRec = null;
+let lastAIActions = [];
+
+// the AI-verdict box: text + the apply button that appears when the judge
+// recommended concrete settings
+function showAI(text, actions) {
+  $("cllm").hidden = false;
+  $("cllmText").textContent = text;
+  lastAIActions = actions || [];
+  $("applyAI").hidden = lastAIActions.length === 0;
+}
+
+// the instant heuristic check's own apply, offered inline with its tips
+function applyHeuristic() {
+  if (!lastRec) return;
+  $("dither").checked = !!lastRec.dither;
+  $("thicken").checked = !!lastRec.thicken;
+  $("preset").value = lastRec.preset || "";
+  const w = Math.round((lastRec.min_size_m || 1) * 1000);
+  $("size").value = w; $("sizeVal").textContent = (w / 1000).toFixed(2) + " m";
+  refresh();
+}
+
 async function loadCritique() {
   if (!imageId) return;
   const r = await fetch("/critique?" + new URLSearchParams({ image_id: imageId, mode: mode() }));
@@ -150,7 +172,8 @@ async function loadCritique() {
   const c = await r.json();
   lastRec = c.recommend;
   $("cllm").hidden = true;       // stale AI verdict belongs to the previous image
-  $("beforewrap").hidden = true;  // ...as does the before-AI-fix snapshot
+  $("applyAI").hidden = true;
+  $("beforewrap").hidden = true;  // ...as does the before-snapshot
   const box = $("critique"); box.hidden = false;
   const s = $("cscore"); s.textContent = c.score;
   s.className = "cscore " + c.verdict;
@@ -158,23 +181,37 @@ async function loadCritique() {
   $("csig").textContent = `contrast ${c.signals.contrast} · detail ${c.signals.detail_floor} caps · bg ${c.signals.bg_spread}`;
   const ul = $("ctips"); ul.innerHTML = "";
   for (const t of c.tips) { const li = document.createElement("li"); li.textContent = t; ul.appendChild(li); }
+  const li = document.createElement("li");
+  li.className = "applylink";
+  li.innerHTML = `<a data-tip="Apply this check's suggestions: minimum readable size + recommended toggles. Free, no AI call.">✨ apply these suggestions</a>`;
+  li.addEventListener("click", applyHeuristic);
+  ul.appendChild(li);
 }
 
 $("askLLM").addEventListener("click", async () => {
   if (!imageId) return;
-  const box = $("cllm");
-  box.hidden = false; box.textContent = "asking the AI judge…";
+  showAI("asking the AI judge…");
   aiBusy(true, "askLLM", "🧠 judging…");
   try {
     const r = await fetch("/critique?" + new URLSearchParams({ image_id: imageId, mode: mode(), llm: true }));
-    if (!r.ok) { box.textContent = "AI judge failed"; return; }
+    if (!r.ok) { showAI("AI judge failed"); return; }
     const c = await r.json();
     const l = c.llm || {};
-    if (l.error) { box.textContent = "AI judge: " + l.error; return; }
+    if (l.error) { showAI("AI judge: " + l.error); return; }
     const tips = (l.tips || []).map((t) => `• ${t}`).join("\n");
     const alt = l.better_subject ? `\nTry instead: ${l.better_subject}` : "";
-    box.textContent = `🧠 ${l.verdict} (${l.score}/100) — ${l.model}\n${tips}${alt}`;
+    showAI(`🧠 ${l.verdict} (${l.score}/100) — ${l.model}\n${tips}${alt}`, l.actions);
   } finally { aiBusy(false, "askLLM"); }
+});
+
+$("applyAI").addEventListener("click", () => {
+  if (!lastAIActions.length) return;
+  // snapshot the current sim as "before", then apply the judge's settings
+  if (curSimSrc) { $("beforeimg").src = curSimSrc; $("beforewrap").hidden = false; }
+  lastAIActions.forEach(applyAction);
+  const applied = lastAIActions.map((a) => `${a.set} → ${a.value}`).join(" · ");
+  $("cllmText").textContent += `\n🪄 applied: ${applied}`;
+  refresh();
 });
 
 // apply a whitelisted judge action to its control (getElementById — the helper
@@ -191,50 +228,18 @@ function applyAction(a) {
   }
 }
 
-$("aiFix").addEventListener("click", async () => {
-  if (!imageId) return;
-  const box = $("cllm");
-  box.hidden = false; box.textContent = "asking the AI judge…";
-  aiBusy(true, "aiFix", "🪄 fixing…");
-  try {
-    const r = await fetch("/critique?" + new URLSearchParams({ image_id: imageId, mode: mode(), llm: true }));
-    if (!r.ok) { box.textContent = "AI judge failed"; return; }
-    const l = (await r.json()).llm || {};
-    if (l.error) { box.textContent = "AI judge: " + l.error; return; }
-    // snapshot the current sim as "before", then apply the judge's actions
-    if (curSimSrc) { $("beforeimg").src = curSimSrc; $("beforewrap").hidden = false; }
-    const acts = l.actions || [];
-    acts.forEach(applyAction);
-    const applied = acts.map((a) => `${a.set} → ${a.value}`).join(" · ") || "(no setting changes)";
-    const tips = (l.tips || []).map((t) => `• ${t}`).join("\n");
-    box.textContent = `🪄 ${l.verdict} (${l.score}/100) — applied: ${applied}\n${tips}`;
-    refresh();
-  } finally { aiBusy(false, "aiFix"); }
-});
-
 $("beforeClose").addEventListener("click", () => { $("beforewrap").hidden = true; });
 
 $("aiSimplify").addEventListener("click", async () => {
   if (!imageId) return;
-  const box = $("cllm");
-  box.hidden = false; box.textContent = "AI is simplifying the image… (can take ~20s)";
+  showAI("AI is simplifying the image… (can take ~20s)");
   aiBusy(true, "aiSimplify", "🎨 painting…");
   try {
     const r = await fetch("/simplify?" + new URLSearchParams({ image_id: imageId }));
-    if (!r.ok) { box.textContent = "AI simplify failed (" + r.status + ")"; toast("AI simplify failed"); return; }
+    if (!r.ok) { showAI("AI simplify failed (" + r.status + ")"); toast("AI simplify failed"); return; }
     // becomes a new version; every earlier version stays one click away in the strip
     addVersion(await r.json(), "AI simplified");
   } finally { aiBusy(false, "aiSimplify"); }
-});
-
-$("applyRec").addEventListener("click", () => {
-  if (!lastRec) return;
-  $("dither").checked = !!lastRec.dither;
-  $("thicken").checked = !!lastRec.thicken;
-  $("preset").value = lastRec.preset || "";
-  const w = Math.round((lastRec.min_size_m || 1) * 1000);
-  $("size").value = w; $("sizeVal").textContent = (w / 1000).toFixed(2) + " m";
-  refresh();
 });
 
 // --- controls ---

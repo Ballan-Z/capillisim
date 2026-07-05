@@ -122,7 +122,12 @@ main { display:grid; grid-template-columns:340px 1fr; gap:20px; padding:18px 26p
 .ctips { margin:10px 0 0; padding-left:18px; color:#cdd6e4; font-size:13px; }
 .ctips li { margin:3px 0; }
 .cllm { margin-top:10px; padding:10px 12px; background:#141a26; border:1px solid #2b3550;
-  border-radius:10px; color:#cdd6e4; font-size:13px; white-space:pre-wrap; }
+  border-radius:10px; color:#cdd6e4; font-size:13px; }
+#cllmText { white-space:pre-wrap; }
+#applyAI { margin-top:10px; }
+.ctips .applylink { list-style:none; margin-top:6px; }
+.ctips .applylink a { color:var(--acc); cursor:pointer; font-weight:600; }
+.ctips .applylink a:hover { text-decoration:underline; }
 .beforewrap { margin-top:10px; }
 .beforewrap .beforelabel { color:var(--mut); font-size:12px; margin-bottom:4px; display:flex; align-items:center; gap:8px; }
 .beforewrap .beforelabel button { margin-left:auto; padding:0 8px; cursor:pointer; }

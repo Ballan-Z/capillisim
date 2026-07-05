@@ -113,13 +113,14 @@
             <b id="cverdict">Cap-art check</b>
             <div id="csig" class="csig"></div>
           </div>
-          <button id="askLLM" class="btn-ai" data-tip="Ask the AI (Qwen vision) for a verdict on this image: score, what works, what to fix. Read-only — changes nothing.">🧠 AI judge</button>
-          <button id="aiFix" class="btn-ai" data-tip="Ask the AI judge AND apply its recommended settings (colours, thicken, dither, size, palette). Keeps a 'before' snapshot so you can compare. Does not touch the image itself.">🪄 AI fix</button>
+          <button id="askLLM" class="btn-ai" data-tip="Ask the AI (Qwen vision) to judge this image: score, what works, what to fix. If it recommends settings, an apply button appears with its verdict.">🧠 AI judge</button>
           <button id="aiSimplify" class="btn-ai" data-tip="The AI redraws the image itself into cap-friendly art: flat colours, thick outlines, clean background — keeping the original colours. Lands as a new version in the strip; the original stays.">🎨 AI simplify</button>
-          <button id="applyRec" class="btn-gold" data-tip="Apply the instant cap-art check's suggestions: minimum readable size + recommended toggles. No AI call, free.">✨ Apply suggestions</button>
         </div>
         <ul id="ctips" class="ctips"></ul>
-        <div id="cllm" class="cllm" hidden></div>
+        <div id="cllm" class="cllm" hidden>
+          <div id="cllmText"></div>
+          <button id="applyAI" class="btn-gold" hidden data-tip="Apply the settings the AI judge just recommended (colours, thicken, dither, size, palette). Keeps a 'before' snapshot next to the new simulation so you can compare.">🪄 Apply the AI's settings</button>
+        </div>
       </div>
 
       <div class="simwrap">
@@ -127,8 +128,8 @@
         <button id="compareBtn" class="compare tip-left" data-tip="Press and hold to see the original image with identical framing; release to go back to the caps.">👁 hold to compare</button>
         <div id="simhint" class="simhint"></div>
         <div id="beforewrap" class="beforewrap" hidden>
-          <div class="beforelabel">before AI fix <button id="beforeClose" title="dismiss">×</button></div>
-          <img id="beforeimg" alt="simulation before AI fix" />
+          <div class="beforelabel">before applying the AI's settings <button id="beforeClose" title="dismiss">×</button></div>
+          <img id="beforeimg" alt="simulation before applying the AI's settings" />
         </div>
       </div>
 
