@@ -21,7 +21,9 @@ function dither() { return $("dither").checked; }
 function bgColor() { return $("bgColor").value; }
 function realOnly() { return $("realOnly").checked; }
 function useInv() { return $("useInv").checked; }
-function fromMyCaps() { return $("fromMyCaps").checked; }
+function fromMyCaps() {
+  return document.querySelector('input[name=planFrom]:checked').value === "mine";
+}
 function colorsN() { return Math.max(4, Math.min(24, Number($("colorsN").value) || 12)); }
 function extraParams() {
   const p = { bg_color: bgColor(), dither: dither(), colors: colorsN() };
@@ -245,7 +247,25 @@ $("realOnly").addEventListener("change", refresh);
 $("dither").addEventListener("change", refresh);
 $("useInv").addEventListener("change", refresh);
 $("colorsN").addEventListener("change", refresh);
-$("fromMyCaps").addEventListener("change", refresh);
+
+// caps-I-own mode implies photo rendering (the plan IS your caps); the preview
+// checkbox locks on there and restores the user's choice back in ideal mode
+let realOnlyBeforeLock = null;
+function syncCapsMode() {
+  const mine = fromMyCaps();
+  const ro = $("realOnly");
+  if (mine) {
+    if (realOnlyBeforeLock === null) realOnlyBeforeLock = ro.checked;
+    ro.checked = true; ro.disabled = true;
+    $("realOnlyNote").hidden = false;
+  } else {
+    ro.disabled = false;
+    if (realOnlyBeforeLock !== null) { ro.checked = realOnlyBeforeLock; realOnlyBeforeLock = null; }
+    $("realOnlyNote").hidden = true;
+  }
+}
+document.querySelectorAll('input[name=planFrom]').forEach((r) =>
+  r.addEventListener("change", () => { syncCapsMode(); refresh(); }));
 
 // patterns from the owned inventory: land as new versions in the strip
 for (const [btn, kind] of [["patGradient", "gradient"], ["patSpiral", "spiral"], ["patSunburst", "sunburst"]]) {

@@ -82,10 +82,14 @@
             <button id="scanBtn" class="btn-gold gbtn" data-tip="Open the cap-scanning camera window on this computer. Place caps on the printed reading card; it auto-saves each one. Press Q in that window to finish.">📷 Scan caps</button>
             <a class="capmaplink gbtn" href="/inventory" target="_blank" rel="noopener" style="float:none" data-tip="Browse every scanned cap, check its colours and size, and delete mis-scans.">🗂 Browse</a>
           </div>
+          <div class="planfrom">
+            <span class="planlabel">Plan the mosaic from:</span>
+            <label data-tip="The plan picks whatever colours suit the image best. Use the shopping list below to see how far your collection covers it."><input type="radio" name="planFrom" value="ideal" checked /> Best-fit colours (ideal palette)</label>
+            <label data-tip="The plan uses ONLY caps you own: duplicates pooled as stock, each physical cap placed at most once, rare colours spent where they matter most. If the caps run out, the leftover cells stay bare board."><input type="radio" name="planFrom" value="mine" /> Only caps I own — each cap used once</label>
+          </div>
           <div class="palette">
-            <label class="chk" title="add have/short columns to the caps-by-colour list: how many of each colour you already own"><input type="checkbox" id="useInv" /> Shopping list (have / short per colour)</label>
-            <label class="chk" title="draw the simulation using photos of your scanned caps instead of generated ones"><input type="checkbox" id="realOnly" /> Render using my caps' photos</label>
-            <label class="chk" title="plan the whole mosaic from the caps you own: duplicates pooled as stock, every cap usable, scarce colours spent where they matter; runs out of caps = bare board"><input type="checkbox" id="fromMyCaps" /> Design from my caps (stock-limited)</label>
+            <label class="chk" data-tip="Cosmetic only: draws the simulation tiles with photos of YOUR scanned caps instead of generated look-alikes. Changes nothing about the plan or the counts."><input type="checkbox" id="realOnly" /> Show photos of my caps in the preview <span id="realOnlyNote" class="mutnote" hidden>(always on in caps-I-own mode)</span></label>
+            <label class="chk" data-tip="Adds have / short columns to the caps-by-colour list below: how many of each colour you already own vs still need."><input type="checkbox" id="useInv" /> Shopping list (have / short per colour)</label>
           </div>
           <div class="palette" style="margin-top:8px">
             <button id="patGradient" data-tip="Lay out every cap you own as a light-to-dark gradient. Every cap used exactly once, zero colour error — always buildable.">▤ Gradient</button>

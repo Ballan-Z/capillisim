@@ -85,6 +85,10 @@ main { display:grid; grid-template-columns:340px 1fr; gap:20px; padding:18px 26p
 .ghead span { color:var(--acc); text-transform:none; }
 .ghint { display:block; color:var(--mut); font-size:12px; margin-top:6px; }
 .gheadrow { display:flex; align-items:center; gap:10px; }
+.planfrom { display:flex; flex-direction:column; gap:5px; color:var(--mut); margin-bottom:10px; }
+.planfrom .planlabel { font-size:12px; color:var(--ink); font-weight:600; }
+.planfrom label { display:flex; align-items:center; gap:6px; cursor:pointer; }
+.mutnote { color:var(--mut); font-size:11px; }
 .gheadrow .gbtn { margin-left:auto; text-transform:none; letter-spacing:0; font-size:12px; padding:4px 10px; }
 .gheadrow .gbtn + .gbtn, .gheadrow button.gbtn ~ a.gbtn { margin-left:0; }
 .mode { display:flex; gap:16px; margin-bottom:12px; color:var(--mut); }
