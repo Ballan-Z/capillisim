@@ -84,6 +84,9 @@ main { display:grid; grid-template-columns:340px 1fr; gap:20px; padding:18px 26p
   color:var(--mut); margin-bottom:10px; }
 .ghead span { color:var(--acc); text-transform:none; }
 .ghint { display:block; color:var(--mut); font-size:12px; margin-top:6px; }
+.gheadrow { display:flex; align-items:center; gap:10px; }
+.gheadrow .gbtn { margin-left:auto; text-transform:none; letter-spacing:0; font-size:12px; padding:4px 10px; }
+.gheadrow .gbtn + .gbtn, .gheadrow button.gbtn ~ a.gbtn { margin-left:0; }
 .mode { display:flex; gap:16px; margin-bottom:12px; color:var(--mut); }
 .slider { display:block; margin:14px 0; color:var(--mut); }
 .slider b { color:var(--ink); }

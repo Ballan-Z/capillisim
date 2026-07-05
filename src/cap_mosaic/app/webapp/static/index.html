@@ -78,7 +78,10 @@
         </div>
 
         <div class="group">
-          <div class="ghead">My scanned caps <span id="capsCount"></span></div>
+          <div class="ghead gheadrow">My scanned caps <span id="capsCount"></span>
+            <button id="scanBtn" class="btn-gold gbtn" data-tip="Open the cap-scanning camera window on this computer. Place caps on the printed reading card; it auto-saves each one. Press Q in that window to finish.">📷 Scan caps</button>
+            <a class="capmaplink gbtn" href="/inventory" target="_blank" rel="noopener" style="float:none" data-tip="Browse every scanned cap, check its colours and size, and delete mis-scans.">🗂 Browse</a>
+          </div>
           <div class="palette">
             <label class="chk" title="add have/short columns to the caps-by-colour list: how many of each colour you already own"><input type="checkbox" id="useInv" /> Shopping list (have / short per colour)</label>
             <label class="chk" title="draw the simulation using photos of your scanned caps instead of generated ones"><input type="checkbox" id="realOnly" /> Render using my caps' photos</label>
@@ -90,8 +93,7 @@
             <button id="patSunburst" data-tip="Every cap you own in concentric rings, bright core fading to a dark rim.">☀ Sunburst</button>
             <button id="copyPrompt" data-tip="Copy an AI-image prompt constrained to your caps' colours and count — paste it into any image generator, then drop the result back here.">📋 AI prompt for my palette</button>
           </div>
-          <small class="ghint">Scan caps with the reading card to grow this inventory.
-            <a class="capmaplink" href="/inventory" target="_blank" rel="noopener" style="float:none">🗂 Browse / delete caps</a></small>
+          <small class="ghint">Scanned caps feed everything here: the shopping list, the photo preview, stock-limited plans and the patterns.</small>
         </div>
       </div>
     </section>

@@ -9,6 +9,7 @@ Endpoints:
 from __future__ import annotations
 
 import io
+import os
 from collections import Counter
 from pathlib import Path
 
@@ -222,6 +223,27 @@ def caps_count() -> dict:
     from ..planner_designer import load_inventory
 
     return {"count": len(load_inventory(str(_DB)))}
+
+
+@app.post("/scanner/launch")
+def scanner_launch() -> dict:
+    """Open the cap-scanning camera app on this computer.
+
+    The server runs on the user's own machine, so spawning the OpenCV capture
+    window locally is exactly what "scan more caps" means here. Detached: the
+    scanner outlives web requests and closes from its own window (Q).
+    """
+    import subprocess
+    import sys
+
+    args = [sys.executable, "-m", "cap_mosaic.app.cap_capture",
+            "--out", "dataset", "--auto"]
+    kw = {"cwd": str(Path.cwd()),
+          "env": {**os.environ, "PYTHONPATH": "src"}}
+    if sys.platform == "win32":
+        kw["creationflags"] = subprocess.CREATE_NEW_CONSOLE
+    p = subprocess.Popen(args, **kw)  # noqa: S603 - fixed local command
+    return {"launched": True, "pid": p.pid}
 
 
 # ── inventory browser: view the cap DB, delete mis-scans with the mouse ──────

@@ -266,6 +266,12 @@ for (const [btn, kind] of [["patGradient", "gradient"], ["patSpiral", "spiral"],
   });
 }
 
+$("scanBtn").addEventListener("click", async () => {
+  const r = await fetch("/scanner/launch", { method: "POST" });
+  if (!r.ok) { toast("Could not start the scanner"); return; }
+  toast("Scanner opening in its own window on this computer — place a cap on the card; Q there to finish.");
+});
+
 $("copyPrompt").addEventListener("click", async () => {
   const r = await fetch("/palette_prompt");
   if (!r.ok) { toast("Scan some caps first — the inventory is empty."); return; }

@@ -168,6 +168,25 @@ def test_simulate_accepts_board_colour_and_real_only():
     assert r.status_code == 200 and r.headers["content-type"] == "image/png"
 
 
+def test_scanner_launch_spawns_the_capture_app(monkeypatch):
+    import subprocess
+
+    spawned = {}
+
+    def fake_popen(args, **kw):
+        spawned["args"] = args
+        spawned["kw"] = kw
+        class P:  # noqa: N801 - minimal stand-in
+            pid = 4242
+        return P()
+
+    monkeypatch.setattr(subprocess, "Popen", fake_popen)
+    r = client.post("/scanner/launch")
+    assert r.status_code == 200 and r.json()["launched"] is True
+    joined = " ".join(spawned["args"])
+    assert "cap_mosaic.app.cap_capture" in joined and "--auto" in joined
+
+
 def test_pattern_and_palette_prompt_from_stock(tmp_path, monkeypatch):
     from cap_mosaic.app.webapp import server
     from cap_mosaic.data.store import CapDataset
