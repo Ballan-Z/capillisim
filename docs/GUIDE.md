@@ -51,12 +51,15 @@ judges tell you where you stand the moment an image loads:
 | **Cap-art check** (instant) | deterministic heuristics: contrast, detail floor (min caps-across for the subject to read at all), background busyness | the *numbers*: "this needs ≥3.2 m", "61 thin outline caps will vanish" |
 | **🧠 AI judge** (one click) | Qwen vision model (`qwen3-vl-plus`) with a cap-art rubric | *taste*: knows a bold halftone poster is great even when the heuristic frets |
 
-Then the two buttons that act on the verdict:
+Applying the advice happens where the advice appears:
 
-- **🪄 AI fix**: the AI judge returns machine-applicable settings (palette
-  size, thicken, dither, physical size, palette preset; a fixed whitelist, it
-  can't touch anything else). One click applies them and keeps a **before**
-  snapshot next to the new simulation so you can compare.
+- The instant check's tips end with an inline **✨ apply these suggestions**
+  link (minimum readable size + recommended toggles; free, no AI call).
+- When the **🧠 AI judge**'s verdict includes machine-applicable settings
+  (palette size, thicken, dither, physical size, palette preset; a fixed
+  whitelist, it can't touch anything else), a **🪄 Apply the AI's settings**
+  button appears with the verdict. One click applies them and keeps a
+  **before** snapshot next to the new simulation so you can compare.
 - **🎨 AI simplify**: the AI edits *the image itself* (qwen-image-edit):
   flattens it to ≤6 poster colours, thickens hairlines, cleans the background:
   same subject, cap-friendly. The result lands as a new entry in the version
@@ -128,24 +131,30 @@ dataset --auto`; see the README animation): each cap gets colour-corrected
 crops, a field colour, a mosaic-at-distance colour, and a similarity signature
 in `dataset/caps.db`.
 
-In the estimator's **My scanned caps (N)** group:
+In the estimator's **My scanned caps (N)** group (the **📷 Scan caps** button
+there opens the camera scanner on this computer; **🗂 Browse** opens the
+inventory to inspect or delete scans):
 
+- **Plan the mosaic from:** the one choice that matters.
+  - *Best-fit colours (ideal palette)*: the plan picks whatever colours suit
+    the image; your collection is just a report.
+  - *Only caps I own — each cap used once*: the plan is built FROM your stock.
+    Duplicate designs (found by the scanner's ring signature) are pooled as
+    interchangeable stock; a greedy global ΔE00 assignment spends duplicates
+    where they fit best and sends scarce colours to their best-matching cells.
+    Every cap is usable (no reject); when there are more cells than caps, the
+    worst matches stay bare board. The readout shows "placing X of the N you
+    own". If the subject needs more caps than you own, the result is honest
+    about it: scan more caps or pick a bolder subject.
+- **Show photos of my caps in the preview**: cosmetic only — draws the
+  simulation tiles with photos of your scanned caps (auto-cropped to uniform
+  discs) instead of generated look-alikes. Changes nothing about the plan or
+  the counts. Always on in caps-I-own mode, since that plan IS your caps.
 - **Shopping list (have / short per colour)**: the BOM gains *have / short*
-  per colour plus a total ("you own 218 of 4,367 needed"), your shopping list.
+  per colour plus a total ("you own 416 of 4,367 needed"), your shopping list.
   Report only; the plan is never silently constrained.
-- **Render using my caps' photos**: draw the simulation from your photographed
-  caps (auto-cropped to uniform discs) instead of generated ones, for a preview
-  in *your* caps.
 - Click any BOM colour to **isolate** it: every other cap ghosts out so you
   see exactly where that colour goes.
-- **Design from my caps (stock-limited)**: plan the whole mosaic from the caps
-  you actually own. Duplicate designs (found by the scanner's ring signature)
-  are pooled as interchangeable stock; a greedy global ΔE00 assignment spends
-  duplicates where they fit best and sends scarce colours to their
-  best-matching cells. Every cap is usable (no reject); when there are more
-  cells than caps, the worst matches stay bare board. The readout shows
-  "placing X of the N you own". If the subject needs more caps than you own,
-  the result is honest about it: scan more caps or pick a bolder subject.
 - **Patterns from my caps** (▤ Gradient / 🌀 Spiral / ☀ Sunburst): lay out the
   inventory ITSELF: every owned cap exactly once, zero colour error, always
   buildable. The result lands in the version strip like any image. A real

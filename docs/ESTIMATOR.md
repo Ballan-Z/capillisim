@@ -68,12 +68,12 @@ the target and only reads once you stand far enough that caps blend.
   BOM (greedy nearest, CIEDE2000 ≤ 12) and shows *have · short* per colour plus
   *you own X of Y needed*. Report only; the plan is not constrained by stock.
 - **Cap-art check + AI judge**: every upload gets a heuristic score (contrast,
-  detail floor, background simplicity) with tips and `✨ Apply suggestions`.
-  `🧠 AI judge` (Qwen `qwen3-vl-plus`, needs `QWEEN_KEY`) adds an AI verdict.
-  `🪄 AI fix` goes further: the judge returns **whitelisted actions** (colors
-  4–24, thicken, dither, size_m, preset; nothing else is accepted) which are
-  auto-applied to the controls, with a *before* snapshot kept next to the new
-  simulation for comparison.
+  detail floor, background simplicity) whose tips end with an inline
+  `✨ apply these suggestions` link. `🧠 AI judge` (Qwen `qwen3-vl-plus`, needs
+  `QWEEN_KEY`) adds an AI verdict; when it recommends **whitelisted actions**
+  (colors 4–24, thicken, dither, size_m, preset; nothing else is accepted) a
+  `🪄 Apply the AI's settings` button appears with the verdict and applies
+  them, with a *before* snapshot kept next to the new simulation.
 - **AI simplify**: `🎨 AI simplify` (qwen-image-edit-plus) edits the image
   itself into a cap-friendly version (≤6 flat colours, thickened lines, clutter
   removed, same subject) using the judge's own tips as the edit instruction.
@@ -97,6 +97,8 @@ the target and only reads once you stand far enough that caps blend.
   `llm=true` also the Qwen verdict incl. whitelisted `actions`
 - `GET /simplify?image_id=` -> AI-edited (simplified) copy stored as a new id
 - `GET /palettes?image_id=&size_mm=` -> side-by-side preset comparison sheet
+- `POST /scanner/launch` -> opens the cap-scanning camera window on the machine
+  running the server (the 📷 Scan caps button)
 - `&from_my_caps=true` on /estimate + /simulate -> plan against the OWNED stock
   (duplicates pooled by ring signature, greedy global dE00 assignment, counts
   respected, no reject); /estimate adds `stock_used {used, owned}`
