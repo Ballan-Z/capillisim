@@ -103,25 +103,26 @@ the target and only reads once you stand far enough that caps blend.
   from the "My scanned caps" group: browse every scanned cap (photo,
   field|mosaic swatch bar, mm + S/L class, size filters) and delete a mis-scan
   with the mouse — click ×, then `delete?`; clicking anywhere else cancels.
-- `GET /inventory/test/{id}?distance_m=&across=&bg=` -> the believe-your-eyes
-  colour test (click any cap in the browser): LEFT half of a patch is the
-  cap's real photo tiled, RIGHT half is the solid mosaic colour the planner
-  stores for it. The patch stays FULL-SIZE on screen; as `distance_m` grows,
-  each cap's logo/text washes out in linear light (a 3 cm cap stays resolved
-  as a disc until absurd distances — what actually merges at a few metres is
-  its internal detail), so the cap reads as its flat average. If the tiled
-  half melts into the solid block, the stored mosaic colour is what the eye
-  gets from that cap in a wall. Cap tiles are cut GEOMETRY-DRIVEN
+- `GET /inventory/test/{id}?distance_m=&bg=` -> the believe-your-eyes colour
+  test (click any cap in the browser): a CONSTANT-size frame, LEFT half the
+  cap's real photo tiled, RIGHT half the solid mosaic colour the planner
+  stores for it. The coloured area never shrinks into bare board; a larger
+  `distance_m` fits MORE, SMALLER caps into the same window (`caps_across ∝
+  distance`), a real zoom-out — so far away the tiled half is fine cap texture
+  that reads as the swatch colour, not a magnified blob. The distance is
+  labelled on the frame. If the two halves match, the stored mosaic colour is
+  what the eye gets from that cap in a wall. Cap tiles are cut GEOMETRY-DRIVEN
   (`cap_crop.cap_circle` with the cap's known class size over the crop span):
   centre from the distance-transform peak or narrow-band Hough (white caps are
   invisible to thresholds), radius from the steepest radial-brightness step
   under a size prior — so tiles meet at the metal edge like really glued caps.
 
-The inventory browser and the colour test:
+The inventory browser and the colour test (a constant-frame zoom-out: more,
+smaller caps fit the window as you step back, until they read as the swatch):
 
 ![the cap inventory browser: hundreds of scanned caps in a grid](images/inventory-browser.png)
 
-![colour test: a navy cap tiled beside its grey-blue at-distance colour, blending as they shrink](images/colour-test.png)
+![colour test: navy caps zooming out to a grey-blue texture that matches the planner's swatch](images/colour-test.gif)
 
 ## Building from caps (projector)
 

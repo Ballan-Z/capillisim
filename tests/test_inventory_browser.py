@@ -71,25 +71,28 @@ def test_inventory_delete_removes_row_and_files(inv_db):
     assert client.delete(f"/inventory/caps/{inv_db['a']}").status_code == 404
 
 
-def _left_half_std(png_bytes):
-    import io as _io
-
-    a = np.asarray(Image.open(_io.BytesIO(png_bytes)).convert("RGB")).astype(float)
-    left = a[:, : a.shape[1] // 2]  # the tiled-caps half
-    return float(left.reshape(-1, 3).std(axis=0).mean())
-
-
-def test_inventory_distance_test_renders(inv_db):
+def test_inventory_distance_test_constant_frame(inv_db):
     import io as _io
 
     near = client.get(f"/inventory/test/{inv_db['a']}?distance_m=0.5")
-    assert near.status_code == 200
-    img = Image.open(_io.BytesIO(near.content))
-    assert img.width == 560 and img.height > 0  # full-size, not shrunk to a dot
-    # the patch stays full-size; the tiled half loses internal detail with
-    # distance (logo washes out -> flat average), so its variance drops
     far = client.get(f"/inventory/test/{inv_db['a']}?distance_m=12.0")
-    assert _left_half_std(far.content) < _left_half_std(near.content) - 1.0
+    assert near.status_code == 200 and far.status_code == 200
+    ni = Image.open(_io.BytesIO(near.content))
+    fi = Image.open(_io.BytesIO(far.content))
+    # the coloured area never shrinks into board: the frame size is constant
+    assert ni.size == fi.size == (640, 420)
+    # ...but the renders differ (more, smaller caps far away) — a real zoom-out
+    assert near.content != far.content
+
+
+def test_caps_get_smaller_and_more_with_distance():
+    # stepping back fits more caps into the same window (caps_across ∝ distance)
+    from cap_mosaic.app.webapp.server import _caps_across_for, _BASE_CAPS, _MAX_CAPS
+
+    assert _caps_across_for(0.5) == _BASE_CAPS          # reference distance
+    assert _caps_across_for(4.0) > _caps_across_for(1.0)  # monotone increasing
+    assert _caps_across_for(1.0) > _caps_across_for(0.5)
+    assert _caps_across_for(999.0) == _MAX_CAPS         # clamped (stays cap texture)
 
 
 def test_inventory_distance_test_selectable_background(inv_db):
@@ -105,30 +108,25 @@ def test_inventory_distance_test_404s(inv_db):
     assert client.get("/inventory/test/99999").status_code == 404
 
 
-def test_split_patch_hex_packs_caps_close():
+def test_wall_hex_packs_caps_close():
     # glued caps touch: board must show ONLY in the small curved gaps between
-    # circles (~9% hex interstices + edges), never as full margins
-    from cap_mosaic.app.webapp.server import _split_test_patch
+    # circles (thin grout), never as full margins
+    from cap_mosaic.app.webapp.server import _render_wall
 
     tile = 48
     disc = Image.new("RGBA", (tile, tile), (0, 0, 0, 0))
     from PIL import ImageDraw
 
     ImageDraw.Draw(disc).ellipse([0, 0, tile - 1, tile - 1], fill=(40, 90, 40, 255))
-    patch = _split_test_patch(disc, tile, 12, (255, 0, 255), (10, 10, 10))
-    px = np.asarray(patch)
-    from cap_mosaic.app.webapp.server import _PACK
-
-    pitch = round(tile * _PACK)
-    half = 6 * pitch
-    # measure the interior only (offset rows leave ragged half-cap edges)
-    rh = round(pitch * 0.8660254)
-    interior = px[tile:5 * rh, pitch:half - pitch]
+    frame = (640, 420)
+    wall = _render_wall(disc, caps_left=frame[0] // 2 // tile, frame=frame,
+                        board=(255, 0, 255), mosaic=(10, 10, 10))
+    px = np.asarray(wall)
+    half = frame[0] // 2
+    interior = px[40:frame[1] - 40, 40:half - 40]  # skip ragged top/edges
     board_frac = ((interior == [255, 0, 255]).all(axis=2)).mean()
-    # caps nested edge to edge: only thin grout, well under the ~0.09 that
-    # pitch==diameter circles leave, and nowhere near a sparse grid
-    assert board_frac < 0.05, board_frac
-    right = px[:, half + tile:]
+    assert board_frac < 0.06, board_frac                      # thin grout only
+    right = px[:, half + 4:]
     assert ((right == [10, 10, 10]).all(axis=2)).mean() > 0.99  # clean solid half
 
 
