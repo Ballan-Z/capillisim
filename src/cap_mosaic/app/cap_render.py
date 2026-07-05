@@ -18,19 +18,46 @@ from ..core.plan import GridPlan
 from .fake_caps import CapImage, fake_cap_library, render_fake_cap
 
 
-def _load_circular(path: str, size: int) -> Image.Image | None:
+def _load_circular(path: str, size: int,
+                   radius_frac: float | None = None) -> Image.Image | None:
     """A real cap crop auto-cropped to its disc and masked to a circle (RGBA).
 
     Captured crops frame the cap inconsistently (off-centre, with background), so
-    a plain resize makes cap sizes look uneven. Detect the cap disc and cut it out
-    tightly so every real cap ends up the same size, like the procedural ones.
+    a plain resize makes cap sizes look uneven. With ``radius_frac`` (the cap's
+    known radius as a fraction of the crop width, from the card's mm-true
+    geometry) the cut is exact; without it the disc is detected from pixels.
     """
     from .cap_crop import cap_cutout_from_path
 
     try:
-        return cap_cutout_from_path(path, size)
+        return cap_cutout_from_path(path, size, radius_frac=radius_frac)
     except Exception:  # noqa: BLE001 - a bad crop just drops that one cap
         return None
+
+
+_LEGACY_SPAN_MM = 37.8  # crop window width implied for rows without crop_span_mm
+
+
+def _cutout_cached(cutout_dir: Path, cap_id: int, path: str, size: int,
+                   radius_frac: float | None) -> Image.Image | None:
+    """The cap's normalized cutout, served from ``dataset/cutouts/`` when fresh.
+
+    Cropping 400+ caps live (imread + circle refinement each) is the slow part;
+    the cutout is deterministic per (crop file, size), so it is computed once and
+    persisted next to the db. Stale (source newer) or missing -> recomputed.
+    """
+    out = cutout_dir / f"cap{cap_id:04d}_{size}.png"
+    src = Path(path)
+    if out.exists() and src.exists() and out.stat().st_mtime >= src.stat().st_mtime:
+        try:
+            return Image.open(out).convert("RGBA")
+        except OSError:
+            pass
+    im = _load_circular(str(src), size, radius_frac)
+    if im is not None:
+        cutout_dir.mkdir(parents=True, exist_ok=True)
+        im.save(out)
+    return im
 
 
 @lru_cache(maxsize=8)
@@ -38,12 +65,16 @@ def _real_caps(db_path: str, size: int, mtime: float) -> tuple[CapImage, ...]:
     """Real caps from the dataset as circular tiles, cached (mtime busts it)."""
     from ..data.store import CapDataset
 
+    cutout_dir = Path(db_path).parent / "cutouts"
     caps: list[CapImage] = []
     with CapDataset(db_path) as db:
         for c in db.caps(with_frames=True):
             if not c.frames:
                 continue
-            im = _load_circular(c.frames[0].path, size)
+            # the card geometry gives the cap's exact radius inside the crop
+            span = c.crop_span_mm or _LEGACY_SPAN_MM
+            rf = (c.diameter_mm / span) / 2.0 if c.diameter_mm else None
+            im = _cutout_cached(cutout_dir, c.id, c.frames[0].path, size, rf)
             if im is not None:
                 # match by the at-distance (mosaic) colour so a busy cap lands
                 # where its MIX belongs, not where its field colour belongs

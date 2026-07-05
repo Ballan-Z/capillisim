@@ -600,7 +600,9 @@ def simulate(
     palette = list({tuple(c.rgb) for c in plan.cells if not c.is_hole})
     # Real caps are auto-cropped to their disc (see cap_crop) so every cap is the
     # same size; blend them in for photographic realism. Set real_caps=false for
-    # clean procedural caps only.
+    # clean procedural caps only. A plan designed FROM the owned stock must show
+    # the owned caps — procedural stand-ins there would be lying.
+    real_only = real_only or from_my_caps
     db = str(_DB) if ((real_caps or real_only) and _DB.exists()) else None
     lib = build_library(palette, db_path=db, size=64)
     # The gaps between round glued caps and the holes show the physical backing

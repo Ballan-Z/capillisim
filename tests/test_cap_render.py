@@ -64,6 +64,50 @@ def test_real_only_uses_photographed_caps_when_available():
     assert out.size[0] > 0
 
 
+def _cap_crop_file(path, cx=70, cy=60, r=34, color=(40, 60, 200), n=128):
+    """A synthetic dataset crop: off-centre cap disc (BGR-ish colours via PIL RGB)."""
+    import numpy as np
+    from PIL import Image as PILImage, ImageDraw
+
+    img = PILImage.new("RGB", (n, n), (250, 250, 250))
+    d = ImageDraw.Draw(img)
+    d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=color)
+    d.ellipse([cx - r, cy - r, cx + r, cy + r], outline=(30, 30, 30), width=3)
+    img.save(path)
+    return path
+
+
+def test_real_caps_use_geometry_and_disk_cache(tmp_path):
+    import numpy as np
+    from cap_mosaic.data.store import CapDataset
+
+    crop = _cap_crop_file(str(tmp_path / "cap_0000_f0.png"))
+    dbp = tmp_path / "caps.db"
+    with CapDataset(dbp) as db:
+        from cap_mosaic.data.store import FrameRecord
+        # geometry: 30mm cap in a 56.25mm crop -> radius_frac (30/56.25)/2 ~ 0.267 -> r ~34px
+        db.add_cap((200, 40, 40), captured_at="t",
+                   frames=[FrameRecord(frame_index=0, path=crop, rgb=(200, 40, 40))],
+                   diameter_mm=30.0, crop_span_mm=56.25)
+
+    caps = cap_render._real_caps(str(dbp), 64, dbp.stat().st_mtime)
+    assert len(caps) == 1
+    a = np.asarray(caps[0].image)
+    # centred + tight: middle is the cap colour (opaque blue), corners transparent
+    assert a[32, 32, 3] == 255 and a[32, 32, 2] > 150 and a[32, 32, 0] < 120
+    assert a[1, 1, 3] == 0 and a[62, 62, 3] == 0
+    # a ring just inside the edge must be CAP, not white card padding
+    edge = a[32, 6]
+    assert edge[3] == 255 and not (edge[:3] > 235).all()
+
+    # a persistent cutout landed on disk next to the db
+    cache = list((tmp_path / "cutouts").glob("*.png"))
+    assert len(cache) == 1
+    cap_render._real_caps.cache_clear()
+    caps2 = cap_render._real_caps(str(dbp), 64, dbp.stat().st_mtime)  # served from disk
+    assert np.array_equal(np.asarray(caps2[0].image), a)
+
+
 def test_close_up_has_cap_texture_that_distance_blurs_away():
     plan = _plan()
     colors = list({tuple(c.rgb) for c in plan.cells if not c.is_hole})
