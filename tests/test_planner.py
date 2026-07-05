@@ -197,6 +197,29 @@ def test_dither_mixes_colours_where_nearest_picks_one():
     assert dith_colours == {"black", "white"}      # dither interleaves both
 
 
+def test_plan_from_inventory_respects_stock_counts():
+    from cap_mosaic.app.cap_stock import Group
+
+    img = _three_color_image()  # red / green / blue thirds
+    grid = grid_for_caps_across(9, aspect_ratio=1.0, cap=Cap())
+    n_cells = len(grid.cells)
+    # stock: plenty of red + blue, NO green, and fewer caps than cells overall
+    budget = n_cells - 5
+    groups = [
+        Group("gred", (200, 30, 30), budget // 2, []),
+        Group("gblue", (40, 70, 190), budget - budget // 2, []),
+    ]
+    plan = designer.plan_from_inventory(img, grid, groups)
+    used = sum(1 for c in plan.cells if not c.is_hole)
+    assert used == budget                        # every owned cap placed, none invented
+    assert plan.hole_count == n_cells - budget   # stock exhausted -> holes
+    names = {c.color_name for c in plan.cells if not c.is_hole}
+    assert names <= {"gred", "gblue"}            # cells carry GROUP labels
+    # green cells got SOMETHING (no reject) or ended as the sacrificed holes
+    per = {n: sum(1 for c in plan.cells if c.color_name == n) for n in names}
+    assert per["gred"] == budget // 2            # counts exactly respected
+
+
 def test_holes_roundtrip_and_are_skipped_by_matcher():
     from cap_mosaic.core.matcher import Matcher
 

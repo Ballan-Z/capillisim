@@ -288,6 +288,76 @@ def plan_from_image(
     )
 
 
+def plan_from_inventory(
+    image: Image.Image,
+    grid: Grid,
+    groups,
+    title: str = "untitled",
+    bare_white: bool = True,
+    white_level: int = 238,
+) -> GridPlan:
+    """Plan `image` against interchangeable cap stock — every owned cap usable.
+
+    Each cell is assigned a stock GROUP (``cap_stock.Group``) by greedy global
+    ΔE00 (``core.assign``): duplicates are spent where they fit best, scarce
+    colours go to their best-matching cells, and there is NO reject gate — a cap
+    lands even if the match is loose. When there are more cells than caps, the
+    worst-matching cells are left as holes. Cells carry the group label in
+    ``color_name`` and the group colour in ``rgb``. Near-white cells stay bare
+    board and consume no stock.
+    """
+    from ..core.assign import assign_stock
+
+    img = image.convert("RGB")
+    arr = np.asarray(img)
+    img_h, img_w = arr.shape[:2]
+    radius_px_x = max(1, int((grid.cap.radius_mm / grid.width_mm) * img_w))
+    radius_px_y = max(1, int((grid.cap.radius_mm / grid.height_mm) * img_h))
+
+    means: list[tuple[int, int, int]] = []
+    fill_cells = []   # grid cells that want a cap
+    hole_cells = []   # near-white background cells
+    for cell in grid.cells:
+        cx = int((cell.x_mm / grid.width_mm) * img_w)
+        cy = int((cell.y_mm / grid.height_mm) * img_h)
+        x0, x1 = max(0, cx - radius_px_x), min(img_w, cx + radius_px_x + 1)
+        y0, y1 = max(0, cy - radius_px_y), min(img_h, cy + radius_px_y + 1)
+        patch = arr[y0:y1, x0:x1].reshape(-1, 3)
+        mean = tuple(int(v) for v in patch.mean(axis=0)) if patch.size else (0, 0, 0)
+        if bare_white and min(mean) >= white_level:
+            hole_cells.append((cell, mean))
+        else:
+            fill_cells.append(cell)
+            means.append(mean)
+
+    cell_labs = _rgb_to_lab_np(np.array(means, dtype=float)) if means else np.zeros((0, 3))
+    group_labs = _rgb_to_lab_np(np.array([g.rgb for g in groups], dtype=float))
+    counts = np.array([g.count for g in groups], dtype=int)
+    picks = assign_stock(cell_labs, group_labs, counts)
+
+    cells: list[PlannedCell] = []
+    for cell, mean in hole_cells:
+        cells.append(PlannedCell(row=cell.row, col=cell.col, x_mm=cell.x_mm,
+                                 y_mm=cell.y_mm, color_name="", rgb=mean, is_hole=True))
+    for cell, mean, pick in zip(fill_cells, means, picks):
+        if pick < 0:  # stock exhausted — the worst matches end as bare board
+            cells.append(PlannedCell(row=cell.row, col=cell.col, x_mm=cell.x_mm,
+                                     y_mm=cell.y_mm, color_name="", rgb=mean, is_hole=True))
+        else:
+            g = groups[int(pick)]
+            cells.append(PlannedCell(row=cell.row, col=cell.col, x_mm=cell.x_mm,
+                                     y_mm=cell.y_mm, color_name=g.label, rgb=tuple(g.rgb)))
+    cells.sort(key=lambda c: (c.row, c.col))
+
+    return GridPlan(
+        cap_diameter_mm=grid.cap.diameter_mm,
+        width_mm=grid.width_mm,
+        height_mm=grid.height_mm,
+        cells=cells,
+        title=title,
+    )
+
+
 def _dither_cell_colors(
     cells: list[PlannedCell],
     palette: tuple[CapColor, ...],

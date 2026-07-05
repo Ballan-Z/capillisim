@@ -21,6 +21,7 @@ function dither() { return $("dither").checked; }
 function bgColor() { return $("bgColor").value; }
 function realOnly() { return $("realOnly").checked; }
 function useInv() { return $("useInv").checked; }
+function fromMyCaps() { return $("fromMyCaps").checked; }
 function colorsN() { return Math.max(4, Math.min(24, Number($("colorsN").value) || 12)); }
 function extraParams() {
   const p = { bg_color: bgColor(), dither: dither(), colors: colorsN() };
@@ -28,6 +29,7 @@ function extraParams() {
   if (thicken()) p.thicken = true;
   if (realOnly()) p.real_only = true;
   if (useInv()) p.inventory = true;
+  if (fromMyCaps()) p.from_my_caps = true;
   return p;
 }
 
@@ -243,6 +245,7 @@ $("realOnly").addEventListener("change", refresh);
 $("dither").addEventListener("change", refresh);
 $("useInv").addEventListener("change", refresh);
 $("colorsN").addEventListener("change", refresh);
+$("fromMyCaps").addEventListener("change", refresh);
 
 // dim the sim while a new render is on its way; the load event clears it
 ["load", "error"].forEach((ev) =>
@@ -355,14 +358,18 @@ async function refresh() {
   note.hidden = !b.thin_hint;
   if (b.thin_hint) note.textContent = "💡 " + b.thin_hint;
 
-  // inventory gap (have/need/short), when "Use my caps" is on
+  // inventory gap (have/short) and/or stock spend, shown above the BOM
   const inv = b.inventory || null;
   const it = $("invtotals");
+  const lines = [];
+  if (b.stock_used)
+    lines.push(`designed from your caps: placing ${b.stock_used.used} of the ${b.stock_used.owned} you own`);
   if (b.inventory_totals) {
     const t = b.inventory_totals;
-    it.hidden = false;
-    it.textContent = `you own ${t.owned} caps — ${t.have} of ${t.need} needed (${(100 * t.have / Math.max(1, t.need)).toFixed(1)}%)`;
-  } else { it.hidden = true; }
+    lines.push(`you own ${t.owned} caps — ${t.have} of ${t.need} needed (${(100 * t.have / Math.max(1, t.need)).toFixed(1)}%)`);
+  }
+  it.hidden = lines.length === 0;
+  it.textContent = lines.join(" · ");
 
   // BOM — click a colour to isolate where those caps go (others ghosted)
   const ul = $("bom"); ul.innerHTML = "";

@@ -127,11 +127,21 @@ def _floor(image_id: str, img: Image.Image, mode: str) -> int:
 
 def _plan(image_id: str, img: Image.Image, caps_across: int, colors: int,
           bare_white: bool = True, preset: str | None = None, thicken: bool = False,
-          dither: bool = False):
+          dither: bool = False, from_my_caps: bool = False):
     caps_across = max(1, min(caps_across, _MAX_CAPS_ACROSS))
-    key = (image_id, caps_across, colors, bare_white, preset, thicken, dither)
+    key = (image_id, caps_across, colors, bare_white, preset, thicken, dither,
+           from_my_caps)
     if key not in _PLANS:
         grid = grid_for_caps_across(caps_across, img.width / img.height, Cap())
+        if from_my_caps and _DB.exists():
+            # plan against the OWNED interchangeable stock: every cap usable,
+            # counts respected, worst matches become holes when stock runs out
+            from ..cap_stock import load_stock
+            from ..planner_designer import plan_from_inventory
+
+            _PLANS[key] = plan_from_inventory(img, grid, load_stock(str(_DB)),
+                                              bare_white=bare_white)
+            return _PLANS[key]
         pal = preset_palette(preset) if preset else None
         if pal is not None:  # a curated palette overrides k-means colour derivation
             _PLANS[key] = plan_from_image(img, grid, palette=pal, bare_white=bare_white,
@@ -425,6 +435,7 @@ def estimate(
     thicken: bool = False,
     dither: bool = False,
     inventory: bool = False,
+    from_my_caps: bool = False,
 ) -> dict:
     """Solve one axis from the other in a single call. When both size_mm and
     distance_m are given, size drives the geometry and distance drives the
@@ -438,10 +449,17 @@ def estimate(
         res["read_quality"] = estimator.read_quality(pitch_mm, distance_m)
 
     plan = _plan(image_id, img, res["caps_across"], colors, bare_white=bare_white,
-                 preset=preset, thicken=thicken, dither=dither)
+                 preset=preset, thicken=thicken, dither=dither,
+                 from_my_caps=from_my_caps)
     counts = Counter(tuple(c.rgb) for c in plan.cells if not c.is_hole)
     palette = list(counts.keys())
     view_d = res.get("distance_m") or res.get("recommended_distance_m") or 5.0
+
+    if from_my_caps and _DB.exists():
+        # how much of the owned stock this plan spends
+        used = sum(1 for c in plan.cells if not c.is_hole)
+        from ..planner_designer import load_inventory
+        res["stock_used"] = {"used": used, "owned": len(load_inventory(str(_DB)))}
 
     # Report caps you actually buy: the area estimate counts the whole panel, but
     # a removed/bare-white background leaves holes with no cap. total_caps is the
@@ -519,11 +537,13 @@ def simulate(
     dither: bool = False,
     bg_color: str = "#3c2d23",
     highlight: str | None = None,
+    from_my_caps: bool = False,
 ) -> Response:
     img = _get(image_id)
     res = _solve(img, image_id, mode, pitch_mm, size_mm, distance_m)
     plan = _plan(image_id, img, res["caps_across"], colors, bare_white=bare_white,
-                 preset=preset, thicken=thicken, dither=dither)
+                 preset=preset, thicken=thicken, dither=dither,
+                 from_my_caps=from_my_caps)
     # adapt tile pixels to how many caps there are, so a bigger piece shows more
     # detail while the output stays a bounded size.
     capped_across = max(1, min(res["caps_across"], _MAX_CAPS_ACROSS))

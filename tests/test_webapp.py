@@ -168,6 +168,34 @@ def test_simulate_accepts_board_colour_and_real_only():
     assert r.status_code == 200 and r.headers["content-type"] == "image/png"
 
 
+def test_from_my_caps_plans_within_stock(tmp_path, monkeypatch):
+    from cap_mosaic.app.webapp import server
+    from cap_mosaic.data.store import CapDataset
+
+    dbp = tmp_path / "caps.db"
+    with CapDataset(dbp) as db:
+        for _ in range(10):
+            db.add_cap((200, 30, 30), captured_at="t")   # 10 red caps
+        for _ in range(10):
+            db.add_cap((40, 70, 190), captured_at="t")   # 10 blue caps
+    monkeypatch.setattr(server, "_DB", dbp)
+
+    buf = io.BytesIO()
+    Image.new("RGB", (200, 200), (150, 40, 60)).save(buf, format="PNG")
+    buf.seek(0)
+    iid = client.post("/upload", files={"file": ("s.png", buf, "image/png")}).json()["id"]
+    b = client.get("/estimate", params={"image_id": iid, "size_mm": 2000,
+                                        "from_my_caps": True}).json()
+    # the plan can never place more caps than owned; readout reports the spend
+    assert b["total_caps"] <= 20
+    assert b["stock_used"]["owned"] == 20
+    assert b["stock_used"]["used"] == b["total_caps"]
+    # simulate accepts the same flag
+    r = client.get("/simulate", params={"image_id": iid, "size_mm": 2000,
+                                        "from_my_caps": True})
+    assert r.status_code == 200 and r.headers["content-type"] == "image/png"
+
+
 def test_caps_count_reports_inventory_size(tmp_path, monkeypatch):
     from cap_mosaic.app.webapp import server
     from cap_mosaic.data.store import CapDataset
