@@ -84,6 +84,12 @@
             <label class="chk" title="draw the simulation using photos of your scanned caps instead of generated ones"><input type="checkbox" id="realOnly" /> Render using my caps' photos</label>
             <label class="chk" title="plan the whole mosaic from the caps you own: duplicates pooled as stock, every cap usable, scarce colours spent where they matter; runs out of caps = bare board"><input type="checkbox" id="fromMyCaps" /> Design from my caps (stock-limited)</label>
           </div>
+          <div class="palette" style="margin-top:8px">
+            <button id="patGradient" data-tip="Lay out every cap you own as a light-to-dark gradient. Every cap used exactly once, zero colour error — always buildable.">▤ Gradient</button>
+            <button id="patSpiral" data-tip="Every cap you own, sorted by hue and swept around concentric rings — a colour-wheel spiral of your inventory.">🌀 Spiral</button>
+            <button id="patSunburst" data-tip="Every cap you own in concentric rings, bright core fading to a dark rim.">☀ Sunburst</button>
+            <button id="copyPrompt" data-tip="Copy an AI-image prompt constrained to your caps' colours and count — paste it into any image generator, then drop the result back here.">📋 AI prompt for my palette</button>
+          </div>
           <small class="ghint">Scan caps with the reading card to grow this inventory.
             <a class="capmaplink" href="/inventory" target="_blank" rel="noopener" style="float:none">🗂 Browse / delete caps</a></small>
         </div>

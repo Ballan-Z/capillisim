@@ -165,6 +165,53 @@ def _solve(img: Image.Image, image_id: str, mode: str, pitch: float,
     raise HTTPException(400, "provide either size_mm or distance_m")
 
 
+@app.get("/pattern")
+def pattern(kind: str = "gradient") -> dict:
+    """A pattern laid out from the OWNED caps (every cap exactly once, zero
+    colour error), rendered sharp and stored as a new image — so it drops
+    straight into the version strip / simulate / cap-map flow."""
+    if not _DB.exists():
+        raise HTTPException(404, "no cap inventory (scan caps first)")
+    from ...core.pattern import KINDS, pattern_plan
+    from ..cap_stock import load_stock
+
+    if kind not in KINDS:
+        raise HTTPException(400, f"kind must be one of {sorted(KINDS)}")
+    stock = [(g.rgb, g.count) for g in load_stock(str(_DB))]
+    plan = pattern_plan(kind, stock)
+    palette = list({tuple(c.rgb) for c in plan.cells if not c.is_hole})
+    lib = build_library(palette, db_path=str(_DB), size=64)
+    img = render_mosaic_caps(plan, lib, px_per_cap=22)
+    _COUNTER["n"] += 1
+    iid = str(_COUNTER["n"])
+    _IMAGES[iid] = img
+    return {"id": iid, "width": img.width, "height": img.height,
+            "aspect": img.width / img.height, "kind": kind,
+            "caps": sum(1 for c in plan.cells if not c.is_hole)}
+
+
+@app.get("/palette_prompt")
+def palette_prompt() -> dict:
+    """A ready-to-paste AI-image prompt constrained to the owned palette."""
+    if not _DB.exists():
+        raise HTTPException(404, "no cap inventory (scan caps first)")
+    from ..cap_stock import load_stock
+
+    groups = sorted(load_stock(str(_DB)), key=lambda g: -g.count)
+    total = sum(g.count for g in groups)
+    top = groups[:8]
+    hexes = ", ".join(f"#{g.rgb[0]:02x}{g.rgb[1]:02x}{g.rgb[2]:02x} (~{g.count} caps)"
+                      for g in top)
+    prompt = (
+        f"Bold flat poster artwork for a bottle-cap mosaic of about {total} tiles "
+        f"(~{int(total ** 0.5)} across). Use ONLY these colours, roughly in these "
+        f"proportions: {hexes}. Thick outlines, simple bold shapes, high contrast, "
+        f"no fine detail, no text, plain background in the most plentiful colour. "
+        f"The subject must stay recognizable at very low resolution."
+    )
+    return {"prompt": prompt, "colors": len(top), "caps": total}
+
+
 @app.get("/caps_count")
 def caps_count() -> dict:
     """How many caps are in the scanned inventory (0 when caps.db is absent)."""

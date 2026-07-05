@@ -247,6 +247,33 @@ $("useInv").addEventListener("change", refresh);
 $("colorsN").addEventListener("change", refresh);
 $("fromMyCaps").addEventListener("change", refresh);
 
+// patterns from the owned inventory: land as new versions in the strip
+for (const [btn, kind] of [["patGradient", "gradient"], ["patSpiral", "spiral"], ["patSunburst", "sunburst"]]) {
+  $(btn).addEventListener("click", async () => {
+    const b0 = $(btn); b0.disabled = true;
+    try {
+      const r = await fetch("/pattern?" + new URLSearchParams({ kind }));
+      if (!r.ok) { toast(r.status === 404 ? "Scan some caps first — the inventory is empty." : "Pattern failed"); return; }
+      const b = await r.json();
+      if (!versions.length) {  // patterns can be the very first "image"
+        $("origwrap").hidden = false; $("croptools").hidden = false;
+        $("versionswrap").hidden = false; $("controls").hidden = false;
+        $("stats").hidden = false; $("bomwrap").hidden = false;
+      }
+      addVersion(b, `Pattern ${kind}`);
+      toast(`Pattern laid out from ${b.caps} of your caps`);
+    } finally { b0.disabled = false; }
+  });
+}
+
+$("copyPrompt").addEventListener("click", async () => {
+  const r = await fetch("/palette_prompt");
+  if (!r.ok) { toast("Scan some caps first — the inventory is empty."); return; }
+  const b = await r.json();
+  try { await navigator.clipboard.writeText(b.prompt); toast(`AI prompt copied (${b.colors} colours, ${b.caps} caps) — paste it into any image generator.`); }
+  catch (_) { toast("Clipboard blocked — prompt logged to console."); console.log(b.prompt); }
+});
+
 // dim the sim while a new render is on its way; the load event clears it
 ["load", "error"].forEach((ev) =>
   $("sim").addEventListener(ev, () => document.querySelector(".simwrap").classList.remove("loading")));

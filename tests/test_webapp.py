@@ -168,6 +168,32 @@ def test_simulate_accepts_board_colour_and_real_only():
     assert r.status_code == 200 and r.headers["content-type"] == "image/png"
 
 
+def test_pattern_and_palette_prompt_from_stock(tmp_path, monkeypatch):
+    from cap_mosaic.app.webapp import server
+    from cap_mosaic.data.store import CapDataset
+
+    dbp = tmp_path / "caps.db"
+    with CapDataset(dbp) as db:
+        for _ in range(9):
+            db.add_cap((200, 30, 30), captured_at="t")
+        for _ in range(7):
+            db.add_cap((40, 70, 190), captured_at="t")
+    monkeypatch.setattr(server, "_DB", dbp)
+
+    ids = set()
+    for kind in ("gradient", "spiral", "sunburst"):
+        b = client.get("/pattern", params={"kind": kind}).json()
+        assert b["caps"] == 16                       # every owned cap exactly once
+        assert b["id"] not in ids                    # each pattern is a new image
+        ids.add(b["id"])
+        img = client.get("/image", params={"image_id": b["id"]})
+        assert img.status_code == 200
+    assert client.get("/pattern", params={"kind": "plaid"}).status_code == 400
+
+    p = client.get("/palette_prompt").json()
+    assert p["prompt"].count("#") >= 2 and "16 tiles" in p["prompt"]
+
+
 def test_from_my_caps_plans_within_stock(tmp_path, monkeypatch):
     from cap_mosaic.app.webapp import server
     from cap_mosaic.data.store import CapDataset
