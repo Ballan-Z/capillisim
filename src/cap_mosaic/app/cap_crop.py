@@ -113,57 +113,86 @@ def _shrink_to_cap_edge(bgr: np.ndarray, cx: int, cy: int, r: int) -> int:
     return max(4, int(rr))
 
 
-def _refine_known_circle(bgr: np.ndarray, r_px: float) -> tuple[int, int, int]:
-    """Centre (and slightly refined radius) of a cap of KNOWN size.
+def _edge_circle_search(
+    gray: np.ndarray,
+    r_lo: float,
+    r_hi: float,
+    r_prior: float | None = None,
+    prior_sigma: float = 0.20,
+    centre_frac: float = 0.20,
+    k_angles: int = 180,
+) -> tuple[int, int, int]:
+    """Best circle by CIRCULAR-EDGE RESPONSE: the (cx, cy, r) maximizing the mean
+    radial brightness step |g(r+2) − g(r−2)| sampled along the circle.
 
-    Dataset crops carry their geometry (crop span in mm + the cap's class
-    size), which beats any blind detection — especially for a white cap on
-    the white card, invisible to thresholds. Hough restricted to a narrow
-    radius band around the known r can only lock onto the cap (the printed
-    circle has a different radius); if it finds nothing, the cap was placed
-    on the crop centre by construction.
+    Why this replaces blob/Hough trust: a cap+shadow blob shifts a centroid or
+    distance-transform peak toward the shadow, and Hough constrained to a wrong
+    recorded radius shifts the circle off the cap to keep edge overlap. Scoring
+    the actual circular edge over a centre grid × radius band is immune to both;
+    a MILD radius prior breaks ties without overruling a strong true edge (so an
+    over-measured diameter or a wrong crop-span assumption still snaps to the
+    real rim). Two-stage grid (coarse then ±3 px fine) keeps it fast.
+    """
+    h, w = gray.shape
+    g = gray.astype(np.float32)
+    radii = np.arange(max(4.0, r_lo), max(5.0, r_hi) + 1, 1.0)
+    ang = np.linspace(0, 2 * np.pi, k_angles, endpoint=False)
+    ca, sa = np.cos(ang), np.sin(ang)
+    prior = (np.exp(-0.5 * ((radii - r_prior) / (prior_sigma * max(r_prior, 1.0))) ** 2)
+             if r_prior else np.ones_like(radii))
+
+    def score_at(cx: float, cy: float) -> tuple[float, float]:
+        xo = cx + np.outer(radii + 2, ca)
+        yo = cy + np.outer(radii + 2, sa)
+        xi = cx + np.outer(np.maximum(radii - 2, 1), ca)
+        yi = cy + np.outer(np.maximum(radii - 2, 1), sa)
+        inb = (xo >= 0) & (xo <= w - 1) & (yo >= 0) & (yo <= h - 1)
+
+        def samp(x, y):
+            return g[np.clip(np.rint(y).astype(int), 0, h - 1),
+                     np.clip(np.rint(x).astype(int), 0, w - 1)]
+
+        # signed, brighter-outside step (caps sit on a white card): a TRUE rim
+        # has it along (almost) the whole circle, while a mixed impostor (rim on
+        # one arc, shadow outline on another) collapses at a low percentile
+        diff = np.clip(samp(xo, yo) - samp(xi, yi), 0, None)
+        diff = np.where(inb, diff, 0.0)
+        mean = diff.sum(1) / np.maximum(inb.sum(1), 1)
+        floor = np.percentile(diff, 30, axis=1)
+        s = (0.5 * mean + 0.5 * floor) * np.where(inb.mean(1) > 0.75, 1.0, 0.2) * prior
+        i = int(s.argmax())
+        return float(s[i]), float(radii[i])
+
+    def sweep(cxs, cys):
+        best = (-1.0, w / 2, h / 2, float(radii[len(radii) // 2]))
+        for cy in cys:
+            for cx in cxs:
+                s, r = score_at(cx, cy)
+                if s > best[0]:
+                    best = (s, cx, cy, r)
+        return best
+
+    span = centre_frac * min(w, h)
+    coarse = sweep(np.arange(w / 2 - span, w / 2 + span + 1, 3.0),
+                   np.arange(h / 2 - span, h / 2 + span + 1, 3.0))
+    _, cx0, cy0, _ = coarse
+    _, cx, cy, r = sweep(np.arange(cx0 - 3, cx0 + 3.5, 1.0),
+                         np.arange(cy0 - 3, cy0 + 3.5, 1.0))
+    return int(round(cx)), int(round(cy)), max(4, int(round(r)))
+
+
+def _refine_known_circle(bgr: np.ndarray, r_px: float) -> tuple[int, int, int]:
+    """Centre + radius of a cap of KNOWN (but possibly mis-recorded) size.
+
+    The recorded geometry is a PRIOR, not the truth: legacy rows can carry the
+    wrong crop-span assumption (radius up to ~27% overstated) and some measured
+    diameters are off. The circular-edge search over a generous band around the
+    prior finds the physical rim in all those cases — including white caps on
+    the white card, where the rim's faint edge is still the strongest circle.
     """
     g = cv2.medianBlur(cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY), 3)
-    h, w = g.shape
-    cx, cy = w / 2, h / 2
-
-    def _sane(px: float, py: float) -> bool:
-        return abs(px - w / 2) < 0.25 * w and abs(py - h / 2) < 0.25 * h
-
-    # centre: the pixel pipeline's distance-transform peak is the most precise
-    # for dark caps; a white cap is invisible to it (it then grabs a shadow
-    # blob), so only trust it when its own radius agrees with the known size
-    located = locate_cap(bgr)
-    if (located is not None and _sane(located[0], located[1])
-            and 0.75 * r_px <= located[2] <= 1.2 * r_px):
-        cx, cy = float(located[0]), float(located[1])
-    else:
-        circles = cv2.HoughCircles(
-            g, cv2.HOUGH_GRADIENT, dp=1, minDist=w,
-            param1=80, param2=25,
-            minRadius=int(0.85 * r_px), maxRadius=int(1.12 * r_px))
-        if circles is not None and _sane(*circles[0][0][:2]):
-            cx, cy = float(circles[0][0][0]), float(circles[0][0][1])
-    # radius = the steepest step in the radial brightness profile around the
-    # known size: the cap edge. (Hough's own radius often lands on the soft
-    # shadow halo outside a dark cap.)
-    yy, xx = np.ogrid[:h, :w]
-    rmap = np.hypot(xx - cx, yy - cy).astype(int)
-    lo, hi = int(0.80 * r_px), min(int(1.15 * r_px), rmap.max() - 1)
-    prof = np.array([g[rmap == radius].mean() if (rmap == radius).any() else np.nan
-                     for radius in range(lo, hi + 1)])
-    grad = np.abs(np.diff(prof))
-    if grad.size and np.isfinite(grad).any():
-        # strongest step WEIGHTED by closeness to the expected size: a printed
-        # label ring inside the cap and the soft shadow halo outside it can
-        # both out-gradient the physical edge, but neither sits at ~r_px
-        radii = np.arange(lo, lo + grad.size)
-        prior = np.exp(-0.5 * ((radii - r_px) / (0.08 * r_px)) ** 2)
-        score = np.where(np.isfinite(grad), grad, 0.0) * prior
-        r = lo + int(np.argmax(score))
-    else:
-        r = int(round(r_px))
-    return int(round(cx)), int(round(cy)), max(4, r)
+    return _edge_circle_search(g, 0.62 * r_px, 1.12 * r_px,
+                               r_prior=r_px, prior_sigma=0.20)
 
 
 def cap_circle(bgr: np.ndarray, radius_frac: float | None = None) -> tuple[int, int, int]:
@@ -177,12 +206,13 @@ def cap_circle(bgr: np.ndarray, radius_frac: float | None = None) -> tuple[int, 
     h, w = bgr.shape[:2]
     if radius_frac is not None:
         return _refine_known_circle(bgr, radius_frac * w)
-    c = locate_cap(bgr)
-    if c is not None:
-        return c
-    c = detect_cap_circle(bgr)  # e.g. non-card photos the mask pipeline can't parse
-    cx, cy, r = c if c is not None else (w // 2, h // 2, min(w, h) // 2 - 1)
-    return cx, cy, _shrink_to_cap_edge(bgr, cx, cy, max(4, r))
+    # blind: same circular-edge search, constrained to the PHYSICAL band a cap
+    # can occupy in a card crop (26-38 mm cap in a ~37.8-48 mm window). This
+    # replaces trusting locate_cap's blob, which can return an insane circle
+    # (e.g. centre at a corner) when the mask merges cap, shadow and card marks.
+    g = cv2.medianBlur(cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY), 3)
+    return _edge_circle_search(g, 0.30 * w, 0.50 * w,
+                               r_prior=0.40 * w, prior_sigma=0.35)
 
 
 def cap_cutout(bgr: np.ndarray, size: int = 64,
