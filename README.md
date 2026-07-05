@@ -47,11 +47,32 @@ in linear light, no fake blur).
 
 ## 2. Scan your caps
 
-Place a cap on the printed reading card. The scanner locates the card,
-colour-corrects, reads the cap, measures its true size in mm, and auto-saves
-when the reading is stable; a hand in frame or glare gets rejected and retried.
-Here a 37 mm large cap (note the LARGE CAP badge and size line) followed by a
-standard crown, with the last-scans strip updating below:
+First, print the **Cap Reading Card** — download
+**[docs/cap_reading_card.pdf](docs/cap_reading_card.pdf)** and print it at
+**100% / actual size** on matte paper (it is 120 × 90 mm; the footer states the
+scale so you can check the print with a ruler). You can also regenerate it with
+`python -m cap_mosaic.app.make_card`.
+
+![the printable cap reading card: ArUco corner markers, gray white-balance strip, placement circle](docs/images/cap-reading-card.png)
+
+The card does three jobs, which is why the scanner needs it:
+
+- **Four ArUco corner markers** locate and rectify the card, giving a
+  millimetre-true frame — that is how cap **size** is measured (no ruler needed).
+- **The gray strip** does the colour correction, in two passes. First a
+  white-balance fit maps the printed patches to neutral, removing the light's
+  colour cast across the whole frame. Then the *residual* warm cast still left on
+  the strip is read off and subtracted from each cap — this is what stops shiny
+  **silver and black** caps from reading tan/brown (a metallic cap mirrors the
+  warm light, so the same correction that neutralises the strip neutralises the
+  cap).
+- **The placement circle** is where you set one cap, top up.
+
+Then place a cap on the circle. The scanner locates the card, colour-corrects,
+reads the cap, measures its true size in mm, and auto-saves when the reading is
+stable; a hand in frame or glare gets rejected and retried. Here a 37 mm large
+cap (note the LARGE CAP badge and size line) followed by a standard crown, with
+the last-scans strip updating below:
 
 ![live cap scanning: a large cap and a standard cap recognised, sized and saved](docs/images/cap-scan-demo.gif)
 
