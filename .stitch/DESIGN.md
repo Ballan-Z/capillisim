@@ -44,3 +44,33 @@ strict UI rubric; baseline score **78/100**.
 9. **Header spends 60px on a tagline** that matters only on first visit.
 10. **Judge round-2 asks:** vertical rhythm grid, 3-weight type system, accent
     discipline — systemic, not cosmetic.
+
+## Direction
+
+Tonal direction: **technical & dense workshop** — a precision instrument for a
+physical craft. The memorable moves: a real typographic identity (no more
+system-ui) and the simulation canvas staged as the hero.
+
+- **Type** (via Google Fonts, graceful fallback):
+  - Display `Space Grotesk` — h1, group headings, stat values.
+  - Body `IBM Plex Sans` — everything else.
+  - Numerals `IBM Plex Mono` — stats, BOM counts, slider values (tabular).
+  - Scale + roles: 12 meta(mut) · 13.5 body(400) · 15 value(600) · 20 stat(700
+    display) · 26 h1(700 display). Weight semantics: 400 body, 600 value/label
+    emphasis, 700 display only.
+- **Spacing rhythm:** `--s1..--s6` = 4/8/12/16/24/32; components pick from the
+  ladder, nothing else.
+- **Radii, 3 tiers:** `--r-ctl` 8 (buttons/inputs) · `--r-card` 12 (cards) ·
+  `--r-hero` 16 (dropzone + sim stage).
+- **Surfaces/borders as tokens:** `--surface-0` page · `--surface-1` card ·
+  `--surface-2` inset wells · `--border-1` rest · `--border-2` hover/active.
+  Cool darks kept deliberately: complementary tension against the warm amber
+  accent and the warm cap imagery.
+- **Accent discipline:** gold = primary action + active selection ONLY; indigo
+  `--ai` = AI capabilities; `--link` blue = navigation/downloads; amber/red
+  banners = notices. Data stays neutral; the caps-count badge and inline apply
+  link stop borrowing gold.
+- **Atmosphere:** hero-only — the sim stage gets a faint radial vignette and
+  the one dramatic shadow; every other card stays flat and clean.
+- **Motion:** one staggered load-in (columns fade+rise 300ms, 60ms apart);
+  existing hover/press polish retained; transform/opacity only.
