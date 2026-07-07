@@ -468,6 +468,20 @@ async function refresh() {
   } catch (_) { /* leave blank */ }
 })();
 
+// Toolbar dropdown menus (Image / Size / Caps): one open at a time, and close
+// when clicking outside. The left palette panel is a plain <details> — no JS.
+(function toolbarMenus() {
+  const drops = () => [...document.querySelectorAll("details.menu.drop")];
+  for (const d of drops()) {
+    d.addEventListener("toggle", () => {
+      if (d.open) for (const o of drops()) if (o !== d) o.open = false;  // one at a time
+    });
+  }
+  document.addEventListener("click", (e) => {
+    for (const d of drops()) if (d.open && !d.contains(e.target)) d.open = false;
+  });
+})();
+
 // Load a sample image on first open so creators see the app working immediately.
 (async function loadSample() {
   try {
