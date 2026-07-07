@@ -98,3 +98,38 @@ The `:root` block in `static/style.css` is the source of truth: surfaces
 (--r-ctl 8 / --r-card 12 / --r-hero 16), fonts (Space Grotesk display, IBM Plex
 Sans body, IBM Plex Mono numerals). New CSS must pick from these; adding a raw
 hex is a design-system regression.
+
+## Layout revision — single-page "dark space" (2026-07-07)
+
+Merged the DESIGN-1c (Studio) / DESIGN-1d (Workbench) proposals into a
+**one-screen, no-scroll** layout at 1920×1080, keeping the dark token system and
+leaning into a **space** theme (fixed starfield backdrop + faint twinkle, radial
+glow reserved to the hero). Design tokens unchanged except the canvas deepened to
+space-navy (`--surface-0 #080b12`, `--surface-1 #141826`, `--surface-2 #0d1019`,
+`--border-1 #2b3245`); gold/indigo/blue accents and the type system are retained.
+
+Structure (single CSS grid on `.app`):
+
+- **Row 1 — brand + top toolbar:** three collapsible `<details>` menus (Image ·
+  Size & distance · Caps). Toolbar menus open as *absolute dropdowns* (`.menu.drop`)
+  so opening never grows the page; JS keeps one open at a time and closes on
+  outside click. Image menu is open by default.
+- **Left — palette panel:** `.palette-panel` holds the Palette & rendering menu
+  as an in-flow `<details open>` (`.menu.panel`) — visible by default, collapsible.
+- **Center — hero:** the simulation stage fills the freed space; `#sim` scales to
+  `max-width/height:100%` (object-contain) so the big rectangle is actually used.
+  Critique/AI bar + warning/notice sit above it; compare button, sim-hint and the
+  AI before-snapshot are overlaid on the stage.
+- **Bottom — rail:** horizontal stats strip + the BOM rendered as a **horizontal
+  wrapping chip strip** (swatch + hex + count), replacing the old vertical column.
+
+Reveal-on-load is unchanged: `app.js` still sets `#controls.hidden=false`; the
+wrapper uses `display:contents` so Size/Caps/Palette flow into their grid areas
+without any JS change. This is a **pure re-skin** — all 62 `app.js` element-id
+hooks + the `mode`/`planFrom` radio groups + `.simwrap` are preserved.
+
+Graceful fallback: below 1000px tall or 1100px wide the page is allowed to scroll;
+under 900px wide it stacks single-column and toolbar dropdowns render in-flow.
+
+Reversible: pre-change state is tagged `pre-redesign-20260707`; work lives on
+branch `redesign/single-page-space`.
