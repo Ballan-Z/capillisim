@@ -40,6 +40,11 @@
     radial-gradient(2px 2px at 62% 84%, #ffffffaa 50%, transparent),
     var(--surface-0);
 }
+/* faint twinkle — space atmosphere, disabled when reduced motion is preferred */
+@media (prefers-reduced-motion: no-preference) {
+  .stars { animation:twinkle 7s ease-in-out infinite alternate; }
+  @keyframes twinkle { from { opacity:.82; } to { opacity:1; } }
+}
 
 /* ── buttons: base + .btn-ai (AI) + .btn-gold (primary action) ─────────── */
 button {
