@@ -321,7 +321,7 @@ input[type=checkbox], input[type=radio] { accent-color:var(--acc); width:15px; h
 .bom .inv { color:var(--mut); font-size:11px; margin-left:4px; }
 
 /* ── graceful fallback: shorter screens & narrow widths may scroll ─────── */
-@media (max-height:1000px), (max-width:1100px) {
+@media (max-height:620px), (max-width:1100px) {
   .app { height:auto; overflow:visible; }
 }
 @media (max-width:900px){
