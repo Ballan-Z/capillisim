@@ -7,102 +7,125 @@
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
-  <header>
-    <h1>Capillisim <span>· mosaic estimator</span></h1>
-    <p class="sub">Drop an image, then trade off <b>size</b> and <b>viewing distance</b>. See how it reads as caps, and how many caps of each colour you need.</p>
-  </header>
+  <div class="stars" aria-hidden="true"></div>
 
-  <main>
-    <section class="left">
-      <div id="dropzone" class="dropzone">
-        <input id="fileInput" type="file" accept="image/*" hidden />
-        <p>Drag &amp; drop an image here<br /><small>or click to choose · or paste (Ctrl/Cmd+V)</small></p>
-      </div>
+  <div class="app">
+    <!-- ── brand ──────────────────────────────────────────────────────── -->
+    <header class="brand-area">
+      <h1>Capillisim <span>· mosaic estimator</span></h1>
+      <p class="sub">Drop an image, trade off <b>size</b> vs <b>viewing distance</b>, see how it reads as caps.</p>
+    </header>
 
-      <div id="origwrap" class="origwrap" hidden>
-        <img id="orig" class="orig" alt="your image" draggable="false" />
-        <div id="sel" class="sel" hidden></div>
-      </div>
-      <div id="croptools" class="croptools" hidden>
-        <small>Drag on the image to select a region.</small>
-        <button id="cropBtn" class="btn-gold" data-tip="Build the mosaic from only the selected rectangle. Becomes a new version; the full image stays in the strip." disabled>✂ Crop to selection</button>
-      </div>
+    <!-- ── top toolbar: Image (open) · Size · Caps ────────────────────── -->
+    <div class="toolbar" role="toolbar" aria-label="setup controls">
 
-      <div id="versionswrap" class="versionswrap" hidden>
-        <div class="vhead">Versions <small>— click to switch · ⬇ saves the file</small></div>
-        <div id="versions" class="versions"></div>
-      </div>
-
-      <div class="controls" id="controls" hidden>
-
-        <div class="group">
-          <div class="ghead">Piece — how big, seen from where</div>
-          <div class="mode">
-            <label><input type="radio" name="mode" value="picture" checked /> Picture</label>
-            <label><input type="radio" name="mode" value="pattern" /> Pattern</label>
+      <details class="menu drop" id="menu-image" open>
+        <summary aria-label="Image intake"><span class="mi">🖼</span> Image</summary>
+        <div class="menu-panel">
+          <div id="dropzone" class="dropzone">
+            <input id="fileInput" type="file" accept="image/*" hidden />
+            <p>Drag &amp; drop an image here<br /><small>or click to choose · or paste (Ctrl/Cmd+V)</small></p>
           </div>
-          <label class="slider">Size (width): <b id="sizeVal">2.5 m</b>
-            <input id="size" type="range" min="200" max="12000" step="50" value="2500" />
-          </label>
-          <label class="slider">Viewing distance: <b id="distVal">6.0 m</b>
-            <input id="dist" type="range" min="0.5" max="40" step="0.5" value="6" />
-          </label>
-          <div class="solvers">
-            <button id="fitSize" data-tip="Keep the current viewing distance and set the size so the piece comfortably fills your view from there.">↳ size for this distance</button>
-            <button id="fitDist" data-tip="Keep the current size and set the recommended viewing distance for it.">↳ distance for this size</button>
-            <button id="fitMin" data-tip="Jump to the smallest size that can still represent this image, plus the closest distance it reads from. Any smaller and no distance saves it.">↳ minimal size</button>
+
+          <div id="origwrap" class="origwrap" hidden>
+            <img id="orig" class="orig" alt="your image" draggable="false" />
+            <div id="sel" class="sel" hidden></div>
+          </div>
+          <div id="croptools" class="croptools" hidden>
+            <small>Drag on the image to select a region.</small>
+            <button id="cropBtn" class="btn-gold" data-tip="Build the mosaic from only the selected rectangle. Becomes a new version; the full image stays in the strip." disabled>✂ Crop to selection</button>
+          </div>
+
+          <div id="versionswrap" class="versionswrap" hidden>
+            <div class="vhead">Versions <small>— click to switch · ⬇ saves the file</small></div>
+            <div id="versions" class="versions"></div>
           </div>
         </div>
+      </details>
 
-        <div class="group">
-          <div class="ghead">Style — palette &amp; rendering</div>
-          <div class="palette">
-            <label>Palette:
-              <select id="preset">
-                <option value="">Auto (from image)</option>
-                <option value="portrait">Portrait (6 tones)</option>
-                <option value="sunset">Sunset</option>
-                <option value="space">Space</option>
-              </select>
-            </label>
-            <label>Colours:
-              <input type="number" id="colorsN" min="4" max="24" step="1" value="12" title="palette size — fewer colours read bolder" />
-            </label>
-            <label class="chk" title="blend gradients from few colours by mixing adjacent caps"><input type="checkbox" id="dither" checked /> Dither</label>
-            <label class="chk" title="widen 1-cap-thin lines (eyes, whiskers) so they survive at distance"><input type="checkbox" id="thicken" /> Thicken outlines</label>
-            <label>Board:
-              <input type="color" id="bgColor" value="#3c2d23" title="backing board colour (wood / paper / paint) — shows in the gaps between caps" />
-            </label>
-            <a id="palcmp" class="capmaplink" target="_blank" rel="noopener" style="float:none" data-tip="Open a sheet showing this image rendered under all four palettes (Auto / Portrait / Sunset / Space) side by side.">⇆ Compare palettes</a>
-          </div>
-        </div>
+      <!-- everything below is revealed together on image load -->
+      <div id="controls" hidden>
 
-        <div class="group">
-          <div class="ghead gheadrow">My scanned caps <span id="capsCount"></span>
-            <button id="scanBtn" class="btn-gold gbtn" data-tip="Open the cap-scanning camera window on this computer. Place caps on the printed reading card; it auto-saves each one. Press Q in that window to finish.">📷 Scan caps</button>
-            <a class="capmaplink gbtn" href="/inventory" target="_blank" rel="noopener" style="float:none" data-tip="Browse every scanned cap, check its colours and size, and delete mis-scans.">🗂 Browse</a>
+        <details class="menu drop" id="menu-size">
+          <summary aria-label="Size and viewing distance"><span class="mi">📐</span> Size &amp; distance</summary>
+          <div class="menu-panel">
+            <div class="mode">
+              <label><input type="radio" name="mode" value="picture" checked /> Picture</label>
+              <label><input type="radio" name="mode" value="pattern" /> Pattern</label>
+            </div>
+            <label class="slider">Size (width): <b id="sizeVal">2.5 m</b>
+              <input id="size" type="range" min="200" max="12000" step="50" value="2500" />
+            </label>
+            <label class="slider">Viewing distance: <b id="distVal">6.0 m</b>
+              <input id="dist" type="range" min="0.5" max="40" step="0.5" value="6" />
+            </label>
+            <div class="solvers">
+              <button id="fitSize" data-tip="Keep the current viewing distance and set the size so the piece comfortably fills your view from there.">↳ size for this distance</button>
+              <button id="fitDist" data-tip="Keep the current size and set the recommended viewing distance for it.">↳ distance for this size</button>
+              <button id="fitMin" data-tip="Jump to the smallest size that can still represent this image, plus the closest distance it reads from. Any smaller and no distance saves it.">↳ minimal size</button>
+            </div>
           </div>
-          <div class="planfrom">
-            <span class="planlabel">Plan the mosaic from:</span>
-            <label data-tip="The plan picks whatever colours suit the image best. Use the shopping list below to see how far your collection covers it."><input type="radio" name="planFrom" value="ideal" checked /> Best-fit colours (ideal palette)</label>
-            <label data-tip="The plan uses ONLY caps you own: duplicates pooled as stock, each physical cap placed at most once, rare colours spent where they matter most. If the caps run out, the leftover cells stay bare board."><input type="radio" name="planFrom" value="mine" /> Only caps I own — each cap used once</label>
+        </details>
+
+        <details class="menu drop" id="menu-caps">
+          <summary aria-label="Scanned caps and patterns"><span class="mi">📷</span> Caps</summary>
+          <div class="menu-panel">
+            <div class="gheadrow">My scanned caps <span id="capsCount"></span>
+              <button id="scanBtn" class="btn-gold gbtn" data-tip="Open the cap-scanning camera window on this computer. Place caps on the printed reading card; it auto-saves each one. Press Q in that window to finish.">📷 Scan caps</button>
+              <a class="capmaplink gbtn" href="/inventory" target="_blank" rel="noopener" data-tip="Browse every scanned cap, check its colours and size, and delete mis-scans.">🗂 Browse</a>
+            </div>
+            <div class="planfrom">
+              <span class="planlabel">Plan the mosaic from:</span>
+              <label data-tip="The plan picks whatever colours suit the image best. Use the shopping list below to see how far your collection covers it."><input type="radio" name="planFrom" value="ideal" checked /> Best-fit colours (ideal palette)</label>
+              <label data-tip="The plan uses ONLY caps you own: duplicates pooled as stock, each physical cap placed at most once, rare colours spent where they matter most. If the caps run out, the leftover cells stay bare board."><input type="radio" name="planFrom" value="mine" /> Only caps I own — each cap used once</label>
+            </div>
+            <div class="palette">
+              <label class="chk" data-tip="Cosmetic only: draws the simulation tiles with photos of YOUR scanned caps instead of generated look-alikes. Changes nothing about the plan or the counts."><input type="checkbox" id="realOnly" /> Show photos of my caps in the preview <span id="realOnlyNote" class="mutnote" hidden>(always on in caps-I-own mode)</span></label>
+              <label class="chk" data-tip="Adds have / short columns to the caps-by-colour list below: how many of each colour you already own vs still need."><input type="checkbox" id="useInv" /> Shopping list (have / short per colour)</label>
+            </div>
+            <div class="palette" style="margin-top:8px">
+              <button id="patGradient" data-tip="Lay out every cap you own as a light-to-dark gradient. Every cap used exactly once, zero colour error — always buildable.">▤ Gradient</button>
+              <button id="patSpiral" data-tip="Every cap you own, sorted by hue and swept around concentric rings — a colour-wheel spiral of your inventory.">🌀 Spiral</button>
+              <button id="patSunburst" data-tip="Every cap you own in concentric rings, bright core fading to a dark rim.">☀ Sunburst</button>
+              <button id="copyPrompt" data-tip="Copy an AI-image prompt constrained to your caps' colours and count — paste it into any image generator, then drop the result back here.">📋 AI prompt for my palette</button>
+            </div>
+            <small class="ghint">Scanned caps feed everything here: the shopping list, the photo preview, stock-limited plans and the patterns.</small>
           </div>
-          <div class="palette">
-            <label class="chk" data-tip="Cosmetic only: draws the simulation tiles with photos of YOUR scanned caps instead of generated look-alikes. Changes nothing about the plan or the counts."><input type="checkbox" id="realOnly" /> Show photos of my caps in the preview <span id="realOnlyNote" class="mutnote" hidden>(always on in caps-I-own mode)</span></label>
-            <label class="chk" data-tip="Adds have / short columns to the caps-by-colour list below: how many of each colour you already own vs still need."><input type="checkbox" id="useInv" /> Shopping list (have / short per colour)</label>
-          </div>
-          <div class="palette" style="margin-top:8px">
-            <button id="patGradient" data-tip="Lay out every cap you own as a light-to-dark gradient. Every cap used exactly once, zero colour error — always buildable.">▤ Gradient</button>
-            <button id="patSpiral" data-tip="Every cap you own, sorted by hue and swept around concentric rings — a colour-wheel spiral of your inventory.">🌀 Spiral</button>
-            <button id="patSunburst" data-tip="Every cap you own in concentric rings, bright core fading to a dark rim.">☀ Sunburst</button>
-            <button id="copyPrompt" data-tip="Copy an AI-image prompt constrained to your caps' colours and count — paste it into any image generator, then drop the result back here.">📋 AI prompt for my palette</button>
-          </div>
-          <small class="ghint">Scanned caps feed everything here: the shopping list, the photo preview, stock-limited plans and the patterns.</small>
-        </div>
+        </details>
+
+        <!-- palette panel: lives in the left of the stage, open by default, collapsible -->
+        <aside class="palette-panel">
+          <details class="menu panel" id="menu-palette" open>
+            <summary aria-label="Palette and rendering"><span class="mi">🎨</span> Palette &amp; rendering</summary>
+            <div class="menu-panel">
+              <div class="palette">
+                <label>Palette:
+                  <select id="preset">
+                    <option value="">Auto (from image)</option>
+                    <option value="portrait">Portrait (6 tones)</option>
+                    <option value="sunset">Sunset</option>
+                    <option value="space">Space</option>
+                  </select>
+                </label>
+                <label>Colours:
+                  <input type="number" id="colorsN" min="4" max="24" step="1" value="12" title="palette size — fewer colours read bolder" />
+                </label>
+                <label class="chk" title="blend gradients from few colours by mixing adjacent caps"><input type="checkbox" id="dither" checked /> Dither</label>
+                <label class="chk" title="widen 1-cap-thin lines (eyes, whiskers) so they survive at distance"><input type="checkbox" id="thicken" /> Thicken outlines</label>
+                <label>Board:
+                  <input type="color" id="bgColor" value="#3c2d23" title="backing board colour (wood / paper / paint) — shows in the gaps between caps" />
+                </label>
+                <a id="palcmp" class="capmaplink" target="_blank" rel="noopener" data-tip="Open a sheet showing this image rendered under all four palettes (Auto / Portrait / Sunset / Space) side by side.">⇆ Compare palettes</a>
+              </div>
+            </div>
+          </details>
+        </aside>
+
       </div>
-    </section>
+    </div>
 
-    <section class="right">
+    <!-- ── hero: the simulation stage ─────────────────────────────────── -->
+    <section class="hero">
       <div id="warning" class="warning" hidden></div>
       <div id="notice" class="notice" hidden></div>
 
@@ -132,7 +155,10 @@
           <img id="beforeimg" alt="simulation before applying the AI's settings" />
         </div>
       </div>
+    </section>
 
+    <!-- ── bottom rail: stats + horizontal BOM colour strip ───────────── -->
+    <div class="rail">
       <div class="stats" id="stats" hidden>
         <div><span>caps across</span><b id="across">–</b></div>
         <div><span>total caps</span><b id="total">–</b></div>
@@ -150,8 +176,8 @@
         <div id="invtotals" class="invtotals" hidden></div>
         <ul id="bom"></ul>
       </div>
-    </section>
-  </main>
+    </div>
+  </div>
 
   <div id="toast" class="toast" hidden></div>
   <script src="/static/app.js"></script>
