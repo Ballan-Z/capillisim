@@ -117,7 +117,8 @@ h1 span { color:var(--mut); font:400 13px/1 var(--font-body); }
 #menu-image { grid-area:img; }
 #menu-size  { grid-area:size; }
 #menu-caps  { grid-area:caps; }
-.palette-panel { grid-area:palette; min-height:0; overflow:auto; }
+.palette-panel { grid-area:palette; min-height:0; overflow:auto;
+  display:flex; flex-direction:column; gap:var(--s3); }
 .hero { grid-area:hero; min-height:0; display:flex; flex-direction:column; gap:var(--s2); }
 .rail { grid-area:rail; }
 
@@ -152,8 +153,20 @@ h1 span { color:var(--mut); font:400 13px/1 var(--font-body); }
 }
 #menu-caps.drop .menu-panel { left:auto; right:0; }
 
-/* palette menu (left column): open panel in flow, not a dropdown */
-.palette-panel .menu.panel { display:flex; flex-direction:column; height:100%; }
+/* palette menu (left column): open panel in flow, not a dropdown. Natural
+   height so the docked image panel can sit beneath it; the column scrolls. */
+.palette-panel .menu.panel { display:flex; flex-direction:column; }
+
+/* docked image panel: the loaded image + crop tools + versions, always visible */
+.imagepanel { background:var(--surface-1); border:1px solid var(--border-1);
+  border-radius:var(--r-card); padding:var(--s3) var(--s4); }
+.imagepanel .ip-head { display:flex; align-items:center; gap:6px; margin-bottom:var(--s2);
+  font:700 12px/1 var(--font-display); letter-spacing:.5px; text-transform:uppercase; color:var(--ink); }
+.imagepanel .ip-head small { color:var(--mut); text-transform:none; letter-spacing:0;
+  font:400 11px/1 var(--font-body); }
+/* image fills the panel width so crop-selection pixels stay aligned to it;
+   a tall image just makes the left column scroll (overflow:auto above) */
+.imagepanel .origwrap { margin-top:0; }
 .menu.panel > summary { border-radius:var(--r-card) var(--r-card) 0 0; }
 .menu.panel .menu-panel {
   background:var(--surface-1); border:1px solid var(--border-1); border-top:0;

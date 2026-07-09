@@ -26,20 +26,7 @@
             <input id="fileInput" type="file" accept="image/*" hidden />
             <p>Drag &amp; drop an image here<br /><small>or click to choose · or paste (Ctrl/Cmd+V)</small></p>
           </div>
-
-          <div id="origwrap" class="origwrap" hidden>
-            <img id="orig" class="orig" alt="your image" draggable="false" />
-            <div id="sel" class="sel" hidden></div>
-          </div>
-          <div id="croptools" class="croptools" hidden>
-            <small>Drag on the image to select a region.</small>
-            <button id="cropBtn" class="btn-gold" data-tip="Build the mosaic from only the selected rectangle. Becomes a new version; the full image stays in the strip." disabled>✂ Crop to selection</button>
-          </div>
-
-          <div id="versionswrap" class="versionswrap" hidden>
-            <div class="vhead">Versions <small>— click to switch · ⬇ saves the file</small></div>
-            <div id="versions" class="versions"></div>
-          </div>
+          <small class="ghint" id="imageWhere" hidden>Your image &amp; crop tools appear on the left, under Palette &amp; rendering.</small>
         </div>
       </details>
 
@@ -119,6 +106,23 @@
               </div>
             </div>
           </details>
+
+          <!-- the loaded image lives here (docked, always visible), not in a floating menu -->
+          <div id="imagepanel" class="imagepanel" hidden>
+            <div class="ip-head"><span class="mi">🖼</span> Your image <small>drag on it to crop a region</small></div>
+            <div id="origwrap" class="origwrap" hidden>
+              <img id="orig" class="orig" alt="your image" draggable="false" />
+              <div id="sel" class="sel" hidden></div>
+            </div>
+            <div id="croptools" class="croptools" hidden>
+              <small>Drag on the image to select a region.</small>
+              <button id="cropBtn" class="btn-gold" data-tip="Build the mosaic from only the selected rectangle. Becomes a new version; the full image stays in the strip." disabled>✂ Crop to selection</button>
+            </div>
+            <div id="versionswrap" class="versionswrap" hidden>
+              <div class="vhead">Versions <small>— click to switch · ⬇ saves the file</small></div>
+              <div id="versions" class="versions"></div>
+            </div>
+          </div>
         </aside>
 
       </div>

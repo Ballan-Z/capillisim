@@ -96,12 +96,15 @@ async function upload(file) {
   dz.classList.add("slim");
   versions = [];  // a fresh upload starts a fresh version history
   addVersion(b, "Original");
+  $("imagepanel").hidden = false;
   $("origwrap").hidden = false;
   $("croptools").hidden = false;
   $("versionswrap").hidden = false;
+  $("imageWhere").hidden = false;
   $("controls").hidden = false;
   $("stats").hidden = false;
   $("bomwrap").hidden = false;
+  document.getElementById("menu-image").open = false;  // no floating panel over the stage
 }
 
 function setPreview(id) { $("orig").src = "/image?image_id=" + id + "&_=" + Date.now(); }
@@ -281,7 +284,7 @@ for (const [btn, kind] of [["patGradient", "gradient"], ["patSpiral", "spiral"],
       if (!r.ok) { toast(r.status === 404 ? "Scan some caps first — the inventory is empty." : "Pattern failed"); return; }
       const b = await r.json();
       if (!versions.length) {  // patterns can be the very first "image"
-        $("origwrap").hidden = false; $("croptools").hidden = false;
+        $("imagepanel").hidden = false; $("origwrap").hidden = false; $("croptools").hidden = false;
         $("versionswrap").hidden = false; $("controls").hidden = false;
         $("stats").hidden = false; $("bomwrap").hidden = false;
       }
