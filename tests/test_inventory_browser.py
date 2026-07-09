@@ -241,3 +241,18 @@ def test_own_threshold_simulate_renders(own_db):
     r = client.get("/simulate", params={"image_id": iid, "size_mm": 1500,
                                         "from_my_caps": True, "own_threshold": 12})
     assert r.status_code == 200 and r.headers["content-type"] == "image/png"
+
+
+def test_own_simulate_shows_sharp_piece_not_distance_speck(own_db):
+    # regression: the fitted caps-I-own piece is small (few owned caps), so
+    # shrinking it into the fixed FOV frame at the slider distance made it a
+    # speck / blank stage. Caps-I-own must render the SHARP fitted mosaic instead.
+    import io as _io
+    iid = _upload_rgb_blocks()
+    p = {"image_id": iid, "size_mm": 2000, "distance_m": 6.0}
+    ideal = client.get("/simulate", params=p)
+    own = client.get("/simulate", params={**p, "from_my_caps": True, "own_threshold": 20})
+    ideal_sz = Image.open(_io.BytesIO(ideal.content)).size
+    own_sz = Image.open(_io.BytesIO(own.content)).size
+    assert ideal_sz == server._FRAME_PX          # ideal path: shrunk into the FOV frame
+    assert own_sz != server._FRAME_PX            # caps-I-own: sharp fitted mosaic, no shrink

@@ -651,7 +651,8 @@ def simulate(
     plan = _plan(image_id, img, res["caps_across"], colors, bare_white=bare_white,
                  preset=preset, thicken=thicken, dither=dither,
                  from_my_caps=from_my_caps, own_threshold=own_threshold)
-    if from_my_caps and _DB.exists():
+    own_mode = from_my_caps and _DB.exists()
+    if own_mode:
         # the fitted piece drives tile sizing + physical width, not the slider
         _own_geometry(res, plan)
     # adapt tile pixels to how many caps there are, so a bigger piece shows more
@@ -672,9 +673,12 @@ def simulate(
     hi = _hex_rgb(highlight, None) if highlight else None
     mosaic = render_mosaic_caps(plan, lib, px_per_cap=px_per_cap, background=board,
                                 real_only=real_only, highlight=hi)
-    if distance_m is not None:
+    if distance_m is not None and not own_mode:
         # Shrink the sharp mosaic into a fixed FOV frame; caps merge via the
-        # linear-light resample rather than a growing blur.
+        # linear-light resample rather than a growing blur. Skipped in caps-I-own
+        # mode: the piece is sized by how many caps you own (often small, e.g. a
+        # few hundred caps ~ 0.4 m), so a distant view would shrink it to a speck.
+        # Showing the sharp fitted mosaic is what the builder actually needs.
         mosaic = view_at_distance(mosaic, res["width_mm"], distance_m, _FRAME_PX,
                                   board=_STAGE_BG)
     buf = io.BytesIO()

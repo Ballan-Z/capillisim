@@ -469,9 +469,17 @@ async function refresh() {
   const mq = new URLSearchParams({ image_id: imageId, mode: mode(), pitch_mm: PITCH, size_mm: sizeMm(), ...extraParams(), format: "pdf" });
   $("capmap").href = "/capmap?" + mq.toString();
   $("palcmp").href = "/palettes?" + new URLSearchParams({ image_id: imageId, mode: mode(), pitch_mm: PITCH, size_mm: sizeMm(), dither: dither() }).toString();
-  const pct = b.apparent_pct != null ? `fills ~${b.apparent_pct}% of your view` : "";
-  $("simhint").textContent =
-    `${(sizeMm() / 1000).toFixed(2)} m wide, seen from ${distM().toFixed(1)} m — ${pct} · ${readQuality(distM())}`;
+  if (fromMyCaps()) {
+    // the piece is sized by how many caps you own, not the slider — show the
+    // real fitted mosaic (no distance shrink), so report the derived piece
+    const w = (b.width_mm / 1000).toFixed(2);
+    $("simhint").textContent =
+      `your caps make a ${w} m piece — ${b.caps_across} across · ${b.total_caps.toLocaleString()} caps · ${b.colors_used} colours`;
+  } else {
+    const pct = b.apparent_pct != null ? `fills ~${b.apparent_pct}% of your view` : "";
+    $("simhint").textContent =
+      `${(sizeMm() / 1000).toFixed(2)} m wide, seen from ${distM().toFixed(1)} m — ${pct} · ${readQuality(distM())}`;
+  }
 }
 
 // Show how many caps the scanned inventory holds (feeds the "My scanned caps" group).
