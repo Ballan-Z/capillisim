@@ -181,3 +181,63 @@ def test_inventory_empty_without_db(tmp_path, monkeypatch):
     monkeypatch.setattr(server, "_DB", tmp_path / "absent.db")
     assert client.get("/inventory/caps").json() == []
     assert client.delete("/inventory/caps/1").status_code == 404
+
+
+# --- caps-I-own fit: own_threshold filters colours, grid sized to usable caps ---
+
+@pytest.fixture()
+def own_db(tmp_path, monkeypatch):
+    """A DB with 3 image-matching colours (8 caps each) plus 6 off-colour caps
+    the image never needs (all ΔE00 13..37 from any image colour)."""
+    db = CapDataset(tmp_path / "caps.db")
+    near = [(200, 60, 60), (60, 160, 80), (70, 90, 180)]   # the image's 3 colours
+    far = [(150, 120, 90), (120, 90, 150), (40, 60, 40),
+           (230, 220, 40), (10, 10, 10), (200, 40, 200)]   # never needed at thr=12
+    for rgb in near:
+        for _ in range(8):  # 8 identical -> pooled into one group of count 8
+            db.add_cap(rgb, captured_at="2026-07-04T00:00:00", source="test",
+                       mosaic_rgb=rgb, diameter_mm=30.2)
+    for rgb in far:
+        db.add_cap(rgb, captured_at="2026-07-04T00:00:00", source="test",
+                   mosaic_rgb=rgb, diameter_mm=30.2)
+    db.close()
+    monkeypatch.setattr(server, "_DB", tmp_path / "caps.db")
+    return {"near": near, "far": far}
+
+
+def _upload_rgb_blocks() -> str:
+    import io as _io
+    img = Image.new("RGB", (150, 100), (200, 60, 60))
+    img.paste((60, 160, 80), (50, 0, 100, 100))
+    img.paste((70, 90, 180), (100, 0, 150, 100))
+    buf = _io.BytesIO(); img.save(buf, "PNG"); buf.seek(0)
+    return client.post("/upload", files={"file": ("rgb.png", buf, "image/png")}).json()["id"]
+
+
+def test_own_threshold_filters_colours_and_fits_grid(own_db):
+    iid = _upload_rgb_blocks()
+
+    def est(thr):
+        return client.get("/estimate", params={
+            "image_id": iid, "size_mm": 1500, "from_my_caps": True,
+            "own_threshold": thr}).json()
+
+    e12 = est(12)
+    # Only the 3 image colours qualify at the default threshold — not all 9 groups.
+    assert e12["colors_used"] <= 3
+    # Grid is sized to the usable-cap count (3 x 8 = 24), not thousands of cells.
+    assert e12["stock_used"]["usable"] <= 30
+    assert 18 <= e12["total_caps"] <= 24
+    assert e12["panel_caps"] <= 30            # panel = fitted grid, not slider area
+
+    # Relaxing the threshold pulls in off-colour caps -> more colours used.
+    assert est(40)["colors_used"] > e12["colors_used"]
+    # Tightening it can only use as few or fewer colours (monotone).
+    assert est(2)["colors_used"] <= e12["colors_used"]
+
+
+def test_own_threshold_simulate_renders(own_db):
+    iid = _upload_rgb_blocks()
+    r = client.get("/simulate", params={"image_id": iid, "size_mm": 1500,
+                                        "from_my_caps": True, "own_threshold": 12})
+    assert r.status_code == 200 and r.headers["content-type"] == "image/png"

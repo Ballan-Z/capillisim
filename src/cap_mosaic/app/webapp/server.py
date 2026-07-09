@@ -129,19 +129,34 @@ def _floor(image_id: str, img: Image.Image, mode: str) -> int:
 
 def _plan(image_id: str, img: Image.Image, caps_across: int, colors: int,
           bare_white: bool = True, preset: str | None = None, thicken: bool = False,
-          dither: bool = False, from_my_caps: bool = False):
+          dither: bool = False, from_my_caps: bool = False,
+          own_threshold: float = 12.0):
     caps_across = max(1, min(caps_across, _MAX_CAPS_ACROSS))
     key = (image_id, caps_across, colors, bare_white, preset, thicken, dither,
-           from_my_caps)
+           from_my_caps, own_threshold)
     if key not in _PLANS:
         grid = grid_for_caps_across(caps_across, img.width / img.height, Cap())
         if from_my_caps and _DB.exists():
-            # plan against the OWNED interchangeable stock: every cap usable,
-            # counts respected, worst matches become holes when stock runs out
+            # "Only caps I own": keep the owned caps within own_threshold ΔE00 of
+            # a colour the image needs, then SHRINK the grid so its cell count ~
+            # the usable-cap count, so each owned cap fills one cell and the image
+            # reads instead of drowning in holes. The size slider's resolution is
+            # overridden by this derived piece (see caps-own-fit-plan.md).
             from ..cap_stock import load_stock
-            from ..planner_designer import plan_from_inventory
+            from ..planner_designer import (
+                fit_caps_across, plan_from_inventory, usable_groups,
+            )
 
-            _PLANS[key] = plan_from_inventory(img, grid, load_stock(str(_DB)),
+            groups = load_stock(str(_DB))
+            usable = usable_groups(groups, img, own_threshold,
+                                   filter_k=max(colors, 16))
+            if not usable:  # threshold excludes every cap — fall back to full stock
+                usable = groups
+            x = sum(g.count for g in usable)  # usable cap count = target cells
+            aspect = img.width / img.height
+            fit_across = min(fit_caps_across(x, aspect), _MAX_CAPS_ACROSS)
+            fit_grid = grid_for_caps_across(fit_across, aspect, Cap())
+            _PLANS[key] = plan_from_inventory(img, fit_grid, usable,
                                               bare_white=bare_white)
             return _PLANS[key]
         pal = preset_palette(preset) if preset else None
@@ -152,6 +167,17 @@ def _plan(image_id: str, img: Image.Image, caps_across: int, colors: int,
             _PLANS[key] = plan_from_image(img, grid, colors=colors, bare_white=bare_white,
                                           thicken_outlines=thicken, dither=dither)
     return _PLANS[key]
+
+
+def _own_geometry(res: dict, plan) -> int:
+    """In caps-I-own mode the fitted plan (sized to the usable-cap count) drives
+    the geometry, not the size slider. Patch the solve result to the plan's real
+    piece and return its caps-across."""
+    across = max(1, round(plan.width_mm / plan.cap_diameter_mm))
+    res["caps_across"] = across
+    res["width_mm"] = plan.width_mm
+    res["height_mm"] = plan.height_mm
+    return across
 
 
 def _solve(img: Image.Image, image_id: str, mode: str, pitch: float,
@@ -508,6 +534,7 @@ def estimate(
     dither: bool = False,
     inventory: bool = False,
     from_my_caps: bool = False,
+    own_threshold: float = 12.0,
 ) -> dict:
     """Solve one axis from the other in a single call. When both size_mm and
     distance_m are given, size drives the geometry and distance drives the
@@ -522,21 +549,28 @@ def estimate(
 
     plan = _plan(image_id, img, res["caps_across"], colors, bare_white=bare_white,
                  preset=preset, thicken=thicken, dither=dither,
-                 from_my_caps=from_my_caps)
+                 from_my_caps=from_my_caps, own_threshold=own_threshold)
     counts = Counter(tuple(c.rgb) for c in plan.cells if not c.is_hole)
     palette = list(counts.keys())
+
+    own_mode = from_my_caps and _DB.exists()
+    if own_mode:
+        # the fitted piece (grid sized to usable caps) overrides the slider size
+        _own_geometry(res, plan)
     view_d = res.get("distance_m") or res.get("recommended_distance_m") or 5.0
 
-    if from_my_caps and _DB.exists():
-        # how much of the owned stock this plan spends
+    if own_mode:
+        # how much of the owned stock this plan spends, and how many qualified
         used = sum(1 for c in plan.cells if not c.is_hole)
         from ..planner_designer import load_inventory
-        res["stock_used"] = {"used": used, "owned": len(load_inventory(str(_DB)))}
+        res["stock_used"] = {"used": used, "owned": len(load_inventory(str(_DB))),
+                             "usable": plan.count}
 
     # Report caps you actually buy: the area estimate counts the whole panel, but
     # a removed/bare-white background leaves holes with no cap. total_caps is the
     # real (background-excluded) count; panel_caps keeps the full-panel figure.
-    res["panel_caps"] = res["total_caps"]
+    # In caps-I-own mode the panel IS the fitted grid, so use its cell count.
+    res["panel_caps"] = plan.count if own_mode else res["total_caps"]
     res["total_caps"] = sum(counts.values())
     res["holes"] = plan.hole_count
 
@@ -610,12 +644,16 @@ def simulate(
     bg_color: str = "#3c2d23",
     highlight: str | None = None,
     from_my_caps: bool = False,
+    own_threshold: float = 12.0,
 ) -> Response:
     img = _get(image_id)
     res = _solve(img, image_id, mode, pitch_mm, size_mm, distance_m)
     plan = _plan(image_id, img, res["caps_across"], colors, bare_white=bare_white,
                  preset=preset, thicken=thicken, dither=dither,
-                 from_my_caps=from_my_caps)
+                 from_my_caps=from_my_caps, own_threshold=own_threshold)
+    if from_my_caps and _DB.exists():
+        # the fitted piece drives tile sizing + physical width, not the slider
+        _own_geometry(res, plan)
     # adapt tile pixels to how many caps there are, so a bigger piece shows more
     # detail while the output stays a bounded size.
     capped_across = max(1, min(res["caps_across"], _MAX_CAPS_ACROSS))

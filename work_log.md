@@ -47,3 +47,21 @@ File: src/cap_mosaic/app/planner_designer.py
 Imports: added HEX_CELL_AREA_FACTOR, Cap, grid_for_caps_across.
 Validation: test_owned_fit 4/4 pass; full suite 281 passed, 0 failed.
 Commit: feat: Step 3 - usable_groups + fit_caps_across (green)
+
+## Step 4 — Wire into the server — DONE
+Files: src/cap_mosaic/app/webapp/server.py, tests/test_inventory_browser.py
+- _plan(from_my_caps): now usable_groups(groups, img, own_threshold, filter_k=
+  max(colors,16)) -> fit_caps_across(X, aspect) -> grid shrunk to usable-cap count
+  -> plan_from_inventory over kept groups. Fallback to full stock if threshold
+  excludes everything. own_threshold added to cache key.
+- _own_geometry(res, plan): fitted piece overrides slider size (caps_across,
+  width_mm, height_mm); panel_caps = plan.count; stock_used gains "usable".
+- /estimate + /simulate gain own_threshold (ΔE00, default 12), passed through.
+Validation (real caps.db, 2-tone image, size 3000):
+  thr=6  colors_used=3  caps_across=2  panel=3   total=3   holes=0  (was 214/thousands/77-97% holes)
+  thr=12 colors_used=15 caps_across=5  panel=23  total=21  holes=2
+  thr=20 colors_used=75 caps_across=10 panel=105 total=103 holes=2
+  Colours/size now scale with the slider; holes ~0; image reads.
+Tests: test_own_threshold_filters_colours_and_fits_grid,
+  test_own_threshold_simulate_renders. Full suite 283 passed, 0 failed.
+Commit: feat: Step 4 - server: own_threshold + fit resolution for caps-I-own
