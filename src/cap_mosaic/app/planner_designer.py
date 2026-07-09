@@ -14,7 +14,7 @@ from PIL import Image, ImageDraw, ImageFilter
 
 from ..core import features
 from ..core.dither import dither_grid
-from ..core.geometry import Grid
+from ..core.geometry import HEX_CELL_AREA_FACTOR, Cap, Grid, grid_for_caps_across
 from ..core.palette import DEFAULT_PALETTE, CapColor, distance, nearest, rgb_to_lab
 from ..core.plan import GridPlan, PlannedCell
 from ..core.sizing import apparent_fraction
@@ -356,6 +356,54 @@ def plan_from_inventory(
         cells=cells,
         title=title,
     )
+
+
+def usable_groups(groups, image: Image.Image, threshold_de: float, filter_k: int):
+    """Owned cap groups worth using for `image`: those within `threshold_de`
+    (ΔE00) of a colour the image actually needs.
+
+    "Colours the image needs" are the `filter_k` CIELAB k-means centroids of the
+    image. A group whose mean colour is farther than `threshold_de` from EVERY
+    centroid is dropped (that cap stays in the box). Raising the threshold can
+    only add groups, never remove them — so ``|usable(thr)|`` is monotone. Order
+    is preserved. See plans/caps-own-fit-plan.md.
+    """
+    from ..core.assign import ciede2000_matrix
+
+    if not groups:
+        return []
+    arr = np.asarray(image.convert("RGB"))
+    centroids = kmeans_palette_lab(_sample_pixels(arr), k=filter_k)
+    if not centroids:  # degenerate image (empty) — nothing to match against
+        return list(groups)
+    cent_lab = _rgb_to_lab_np(np.array(centroids, dtype=float))
+    grp_lab = _rgb_to_lab_np(np.array([g.rgb for g in groups], dtype=float))
+    min_de = ciede2000_matrix(grp_lab, cent_lab).min(axis=1)   # nearest needed colour
+    return [g for g, de in zip(groups, min_de) if de <= threshold_de]
+
+
+def fit_caps_across(n_caps: int, aspect: float) -> int:
+    """Caps-across for a grid that totals about `n_caps` cells at width/height =
+    `aspect`.
+
+    Inverts the hex-packing count (``count ≈ caps_across² / (aspect ·
+    HEX_CELL_AREA_FACTOR)``) for a first estimate, then searches a small window
+    of caps-across values for the one whose ACTUAL laid-out grid totals closest
+    to `n_caps` — the closed form ignores the frame's edge losses and so
+    consistently undershoots. Returns a caps-across >= 1. Cell count is
+    independent of cap diameter, so a default cap is used.
+    """
+    if n_caps < 1:
+        raise ValueError("n_caps must be >= 1")
+    if aspect <= 0:
+        raise ValueError("aspect must be positive")
+    est = max(1, round(math.sqrt(n_caps * aspect * HEX_CELL_AREA_FACTOR)))
+    best, best_err = est, None
+    for ca in range(max(1, est - 4), est + 8):
+        err = abs(grid_for_caps_across(ca, aspect, Cap()).count - n_caps)
+        if best_err is None or err < best_err:
+            best, best_err = ca, err
+    return best
 
 
 def _dither_cell_colors(

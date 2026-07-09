@@ -35,3 +35,15 @@ Validation: RED — ImportError (fit_caps_across / usable_groups absent). Expect
 Note: naive analytic fit undershoots for small n; Step 3 uses a small search
 around the analytic estimate (within 12% for realistic X ≥ ~120).
 Commit: test: Step 2 - red tests for caps-I-own fit algorithm
+
+## Step 3 — GREEN: usable_groups + fit_caps_across — DONE
+File: src/cap_mosaic/app/planner_designer.py
+- usable_groups(groups, image, threshold_de, filter_k): filter_k CIELAB k-means
+  centroids = colours the image needs; keep groups whose min ΔE00 (ciede2000_matrix)
+  to any centroid <= threshold_de. Monotone, order-preserving.
+- fit_caps_across(n_caps, aspect): analytic inverse of hex count, then small
+  search window (est-4..est+7) for the caps-across whose real grid.count is
+  closest to n_caps (closed form undershoots at edges).
+Imports: added HEX_CELL_AREA_FACTOR, Cap, grid_for_caps_across.
+Validation: test_owned_fit 4/4 pass; full suite 281 passed, 0 failed.
+Commit: feat: Step 3 - usable_groups + fit_caps_across (green)
