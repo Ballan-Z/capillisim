@@ -101,7 +101,12 @@ the target and only reads once you stand far enough that caps blend.
   running the server (the 📷 Scan caps button)
 - `&from_my_caps=true` on /estimate + /simulate -> plan against the OWNED stock
   (duplicates pooled by ring signature, greedy global dE00 assignment, counts
-  respected, no reject); /estimate adds `stock_used {used, owned}`
+  respected, no reject). The grid is **fitted to the usable-cap count**, not the
+  size slider: only caps within `&own_threshold=` (dE00, default 12) of a colour
+  the image needs are kept, and the grid shrinks so its cell count ~ that count,
+  so each owned cap fills a cell instead of drowning in holes (see below).
+  /estimate adds `stock_used {used, owned, usable}` and reports the fitted piece's
+  `caps_across` / `width_mm`.
 - `GET /pattern?kind=gradient|spiral|sunburst` -> the whole inventory laid out
   as a pattern (every cap exactly once), stored as a new image id
 - `GET /palette_prompt` -> a paste-anywhere AI prompt constrained to the owned
@@ -132,6 +137,34 @@ smaller caps fit the window as you step back, until they read as the swatch):
 ![the cap inventory browser: hundreds of scanned caps in a grid](images/inventory-browser.png)
 
 ![colour test: navy caps zooming out to a grey-blue texture that matches the planner's swatch](images/colour-test.gif)
+
+## Only caps I own (fit to inventory)
+
+"Only caps I own" builds the mosaic from the caps you actually have. The trap it
+avoids: the size slider sets a grid of thousands of cells, but you own only a few
+hundred caps, so the stock assignment fills a sprinkle of cells and leaves the
+rest as holes — noise, not a picture (left below: 416 caps lost in a 7314-cell
+grid, all 214 colours firing at random).
+
+The fix has three parts, all in the caps-I-own path of `webapp/server.py::_plan`:
+
+1. **k-means the image** for the colours it needs (`filter_k = max(colours, 16)`
+   CIELAB centroids).
+2. **Keep only usable caps** — `usable_groups(groups, image, own_threshold,
+   filter_k)` drops any owned group whose mean colour is farther than
+   `own_threshold` (dE00, default 12) from every needed colour. Off-colour caps
+   stay in the box. The **Match tolerance (dE)** slider (2..30) drives this live:
+   lower = only near-perfect matches qualify (a smaller, truer piece); higher =
+   looser matches join in (bigger, muddier). `|usable|` is monotone in the
+   threshold.
+3. **Fit the grid to that count** — `fit_caps_across(X, aspect)` sizes the grid so
+   its cell count ~ the usable-cap count `X`, overriding the size slider's
+   resolution. Each owned cap gets a cell; the BOM shows only the colours used.
+
+The readout under the mode ("using X of Y caps · N colours") and the piece size
+both move as you drag the slider.
+
+![before: 416 caps scattered as noise in a 7314-cell grid; after: the grid fitted to 150 usable caps so the image reads](images/caps-own-fit.png)
 
 ## Building from caps (projector)
 

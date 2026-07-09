@@ -65,3 +65,20 @@ Validation (real caps.db, 2-tone image, size 3000):
 Tests: test_own_threshold_filters_colours_and_fits_grid,
   test_own_threshold_simulate_renders. Full suite 283 passed, 0 failed.
 Commit: feat: Step 4 - server: own_threshold + fit resolution for caps-I-own
+
+## Step 6 — Docs + final green — DONE
+Files: docs/ESTIMATOR.md, docs/images/caps-own-fit.png (new)
+- Revised the &from_my_caps endpoint bullet: fitted-to-usable-caps + own_threshold,
+  stock_used now {used, owned, usable}.
+- New "Only caps I own (fit to inventory)" section: the 3-part fix (k-means needed
+  colours, usable_groups dE gate + Match-tolerance slider, fit_caps_across grid).
+- Before/after figure (real DB, sample photo): before 7314 cells/416 caps/214
+  colours (noise) vs after 150 cells/150 caps/72 colours (reads).
+Validation: grep own_threshold in ESTIMATOR.md = 3; full suite 283 passed, 0 failed.
+Commit: docs: Step 6 - caps-I-own fit + threshold
+Scratch deleted.
+
+## PLAN COMPLETE
+All 6 steps done, suite green (283). "Only caps I own" now fits the grid to the
+usable-cap count with a live Match-tolerance (dE) slider (default 12); BOM/colours
+scale with the slider instead of drowning 416 caps in a multi-thousand-cell grid.
