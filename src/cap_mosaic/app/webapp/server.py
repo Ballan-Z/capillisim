@@ -9,8 +9,10 @@ Endpoints:
 from __future__ import annotations
 
 import io
+import math
 import os
 from collections import Counter
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
@@ -21,12 +23,15 @@ from PIL import Image, ImageDraw, ImageFont
 
 from ...core import critique as critique_mod
 from ...core import estimator
-from ...core.geometry import Cap, grid_for_caps_across
+from ...core.geometry import Cap, grid_for_caps_across, hex_neighbors
+from ...core.plan import GridPlan, PlannedCell
 from ...core.sizing import apparent_fraction
 from ...core.palette import preset_palette
 from ..cap_map import render_cap_map
 from ..cap_render import build_library, render_mosaic_caps
-from ..planner_designer import count_thin_outlines, plan_from_image, view_at_distance
+from ..planner_designer import (
+    count_thin_outlines, framed_box, plan_from_image, view_at_distance,
+)
 
 app = FastAPI(title="Capillisim Mosaic Estimator")
 
@@ -205,6 +210,142 @@ def _solve(img: Image.Image, image_id: str, mode: str, pitch: float,
         return estimator.solve_from_distance(arr, distance_m, mode=mode,
                                              pitch_mm=pitch, min_caps=floor)
     raise HTTPException(400, "provide either size_mm or distance_m")
+
+
+# --- click-a-colour-to-background: parsing, pick geometry, hole overlay ---
+
+def _parse_bg_colors(s: str | None) -> frozenset[str]:
+    """'aabbcc,112233' (hash optional) -> {'#aabbcc', '#112233'}."""
+    if not s:
+        return frozenset()
+    out = set()
+    for tok in s.split(","):
+        tok = tok.strip().lstrip("#").lower()
+        if len(tok) != 6 or any(ch not in "0123456789abcdef" for ch in tok):
+            raise HTTPException(400, f"bad bg_colors token: {tok!r}")
+        out.add("#" + tok)
+    return frozenset(out)
+
+
+def _parse_bg_seeds(s: str | None) -> tuple[tuple[float, float, str], ...]:
+    """'fx:fy:aabbcc,...' -> ((fx, fy, '#aabbcc'), ...); fractions clamped 0..1."""
+    if not s:
+        return ()
+    seeds = []
+    for tok in s.split(","):
+        parts = tok.strip().split(":")
+        hexpart = parts[2].lstrip("#").lower() if len(parts) == 3 else ""
+        try:
+            fx, fy = float(parts[0]), float(parts[1])
+        except (ValueError, IndexError) as exc:
+            raise HTTPException(400, f"bad bg_seeds token: {tok!r}") from exc
+        if len(hexpart) != 6 or any(ch not in "0123456789abcdef" for ch in hexpart):
+            raise HTTPException(400, f"bad bg_seeds token: {tok!r}")
+        seeds.append((min(1.0, max(0.0, fx)), min(1.0, max(0.0, fy)), "#" + hexpart))
+    return tuple(seeds)
+
+
+def _hex_of(rgb) -> str:
+    return "#%02x%02x%02x" % tuple(rgb)
+
+
+def _cell_at_fraction(plan: GridPlan, fx: float, fy: float) -> PlannedCell | None:
+    """The cell whose cap owns the point (fx, fy) in plan fractions, else None.
+
+    Nearest cap centre within the hex-cell circumradius d/sqrt(3): every point
+    of the tiling maps to a cap (grout clicks resolve to the nearest cap) while
+    the board margin outside the tiling misses cleanly.
+    """
+    x, y = fx * plan.width_mm, fy * plan.height_mm
+    best, best_d2 = None, (plan.cap_diameter_mm / math.sqrt(3.0)) ** 2
+    for cell in plan.cells:
+        d2 = (cell.x_mm - x) ** 2 + (cell.y_mm - y) ** 2
+        if d2 <= best_d2:
+            best, best_d2 = cell, d2
+    return best
+
+
+def _flood_region(plan: GridPlan, seed: PlannedCell) -> set[tuple[int, int]]:
+    """Connected same-colour region around `seed` (hex adjacency; holes block)."""
+    by_rc = {(c.row, c.col): c for c in plan.cells}
+    want = tuple(seed.rgb)
+    region = {(seed.row, seed.col)}
+    queue = [(seed.row, seed.col)]
+    while queue:
+        rc = queue.pop()
+        for nb in hex_neighbors(*rc):
+            if nb in region:
+                continue
+            cell = by_rc.get(nb)
+            if cell is None or cell.is_hole or tuple(cell.rgb) != want:
+                continue
+            region.add(nb)
+            queue.append(nb)
+    return region
+
+
+def _frame_to_plan_frac(
+    res: dict, plan: GridPlan, fx: float, fy: float,
+    distance_m: float | None, own_fitted: bool,
+) -> tuple[float, float] | None:
+    """Invert /simulate's framing: displayed-PNG fractions -> plan fractions.
+
+    Without a distance (or for the fitted own-caps piece) the PNG IS the sharp
+    mosaic, so fractions pass through. Framed renders reproduce the exact
+    letterbox (framed_box) and the mosaic pixel dims (render_mosaic_caps's
+    rounding); clicks on the letterbox margin return None.
+    """
+    if distance_m is None or own_fitted:
+        return fx, fy
+    capped = max(1, min(res["caps_across"], _MAX_CAPS_ACROSS))
+    px_per_cap = max(6, min(22, _SIM_WIDTH_PX // capped))
+    ppm = px_per_cap / plan.cap_diameter_mm
+    mw = max(1, round(plan.width_mm * ppm))
+    mh = max(1, round(plan.height_mm * ppm))
+    x0, y0, w, h = framed_box((mw, mh), res["width_mm"], distance_m, _FRAME_PX)
+    u = (fx * _FRAME_PX[0] - x0) / w
+    v = (fy * _FRAME_PX[1] - y0) / h
+    if not (0.0 <= u < 1.0 and 0.0 <= v < 1.0):
+        return None
+    return u, v
+
+
+def _apply_background(
+    plan: GridPlan,
+    bg_colors: frozenset[str],
+    bg_seeds: tuple[tuple[float, float, str], ...],
+) -> tuple[GridPlan, dict[tuple[int, int], tuple[str, int | None]]]:
+    """A copy of `plan` with the user's background exclusions holed, plus a
+    cause map (row,col) -> ("color", None) | ("seed", seed_index).
+
+    The plan comes from the _PLANS cache and is shared across requests, so it
+    is NEVER mutated: untouched cells are shared, excluded ones re-created as
+    holes that keep the wanted rgb (the bare-white convention). A stale seed
+    (grid or palette changed under it) silently sits out this render. Returns
+    the original object when there is nothing to exclude.
+    """
+    if not bg_colors and not bg_seeds:
+        return plan, {}
+    cause: dict[tuple[int, int], tuple[str, int | None]] = {}
+    for i, (fx, fy, want_hex) in enumerate(bg_seeds):
+        seed = _cell_at_fraction(plan, fx, fy)
+        if seed is None or seed.is_hole or _hex_of(seed.rgb) != want_hex:
+            continue
+        for rc in _flood_region(plan, seed):
+            cause.setdefault(rc, ("seed", i))
+    for cell in plan.cells:  # colour exclusions win: restoring the colour is broader
+        if not cell.is_hole and _hex_of(cell.rgb) in bg_colors:
+            cause[(cell.row, cell.col)] = ("color", None)
+    if not cause:
+        return plan, {}
+    cells = [
+        replace(c, color_name="", is_hole=True)
+        if (c.row, c.col) in cause and not c.is_hole else c
+        for c in plan.cells
+    ]
+    out = GridPlan(plan.cap_diameter_mm, plan.width_mm, plan.height_mm,
+                   cells, plan.title)
+    return out, cause
 
 
 @app.get("/pattern")
