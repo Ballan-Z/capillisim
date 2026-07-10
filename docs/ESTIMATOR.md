@@ -92,6 +92,16 @@ the target and only reads once you stand far enough that caps blend.
 - `GET /target?image_id=&size_mm=&distance_m=&mode=` -> the ORIGINAL image framed
   exactly like `/simulate` (for hold-to-compare)
 - `GET /capmap?image_id=&...&format=pdf|png` -> printable paint-by-numbers cap map
+- `GET /pick?image_id=&fx=&fy=&...` -> the cap under a click on the displayed
+  /simulate PNG (fractions of the image, letterbox inverted server-side):
+  `{hit, row, col, hex, color_name, fx, fy (cell centre), bare, excluded_by,
+  seed_index}` — the client's basis for click-to-background
+- `&bg_colors=rrggbb,...` and `&bg_seeds=fx:fy:rrggbb,...` on /estimate,
+  /simulate, /capmap and /pick -> user background exclusions: whole colours or
+  flood-filled connected regions become holes (bare board) and drop out of the
+  BOM + shopping list. Applied as a copy-on-write overlay AFTER the cached
+  plan, so the plan cache is untouched; a seed whose cell no longer carries its
+  recorded colour (palette/grid changed) silently sits out that render.
 - `GET /crop?image_id=&x0=&y0=&x1=&y1=` / `GET /image?image_id=` -> region crop + preview
 - `GET /critique?image_id=&llm=` -> heuristic score/tips/recommendations; with
   `llm=true` also the Qwen verdict incl. whitelisted `actions`

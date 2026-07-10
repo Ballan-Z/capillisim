@@ -164,6 +164,16 @@ inventory to inspect or delete scans):
   Report only; the plan is never silently constrained.
 - Click any BOM colour to **isolate** it: every other cap ghosts out so you
   see exactly where that colour goes.
+- **Click a colour on the preview → background.** A click on any cap in the
+  simulation sends its whole colour to bare board: those cells become holes,
+  drop out of the BOM and the shopping list, and the board shows through.
+  **Shift+click** removes only the connected region you clicked (the teal
+  *around* the lion, keeping teal inside it); the ⌫ on a BOM row does the same
+  as a plain click. Removed colours appear as chips above the BOM — click a
+  chip (or the cap again) to restore it, "restore all" resets. Works best on
+  flat areas with dither off (dither speckles a region across two colours).
+
+  ![one click sends the teal background to bare board](images/bg-click.png)
 - **Patterns from my caps** (▤ Gradient / 🌀 Spiral / ☀ Sunburst): lay out the
   inventory ITSELF: every owned cap exactly once, zero colour error, always
   buildable. The result lands in the version strip like any image. A real
@@ -246,6 +256,7 @@ Everything the UI does is a plain HTTP call, scriptable:
 | `GET /target` | the original with identical framing (A/B compare) |
 | `GET /critique` | heuristic judge; `llm=true` adds the Qwen verdict + actions |
 | `GET /simplify` | AI-edit the image into a cap-friendly copy (new id) |
+| `GET /pick` | the cap under a preview click → colour + exclusion state |
 | `GET /capmap` | paint-by-numbers sheet (`format=pdf\|png`) |
 | `GET /palettes` | preset comparison sheet |
 | `GET /crop`, `GET /image` | region crop, stored-image preview |
