@@ -46,6 +46,18 @@
             <label class="slider">Viewing distance: <b id="distVal">6.0 m</b>
               <input id="dist" type="range" min="0.5" max="40" step="0.1" value="6" />
             </label>
+            <label class="shaperow">Shape:
+              <select id="shape">
+                <option value="rect">Rectangle</option>
+                <option value="circle">Circle</option>
+                <option value="ellipse">Ellipse</option>
+                <option value="heart">Heart</option>
+                <option value="hex">Hexagon</option>
+                <option value="diamond">Diamond</option>
+                <option value="poly">Freeform (draw)</option>
+              </select>
+              <button id="drawPoly" hidden data-tip="Click points on YOUR IMAGE (left panel) to draw the outline; double-click or Enter closes it, Esc cancels, Backspace removes the last point.">✏ draw outline</button>
+            </label>
             <div class="solvers">
               <button id="fitSize" data-tip="Keep the current viewing distance and set the size so the piece comfortably fills your view from there.">↳ size for this distance</button>
               <button id="fitDist" data-tip="Keep the current size and set the recommended viewing distance for it.">↳ distance for this size</button>
@@ -204,6 +216,7 @@
   </div>
 
   <div id="toast" class="toast" hidden></div>
+  <script src="/static/overlay.js"></script>
   <script src="/static/app.js"></script>
 </body>
 </html>

@@ -29,6 +29,7 @@ function fromMyCaps() {
 function colorsN() { return Math.max(4, Math.min(24, Number($("colorsN").value) || 12)); }
 function ownThreshold() { return Math.max(2, Math.min(30, Number($("ownThr").value) || 12)); }
 function unlimitedStock() { return $("unlimitedStock").checked; }
+function shape() { return $("shape").value; }
 function extraParams() {
   const p = { bg_color: bgColor(), dither: dither(), colors: colorsN() };
   if (preset()) p.preset = preset();
@@ -43,6 +44,14 @@ function extraParams() {
   if (bgColors.length) p.bg_colors = bgColors.map((h) => h.slice(1)).join(",");
   if (bgSeeds.length) {
     p.bg_seeds = bgSeeds.map((s) => `${s.fx}:${s.fy}:${s.hex.slice(1)}`).join(",");
+  }
+  if (shape() === "poly") {
+    if (polyFrac) {
+      p.poly = polyFrac.map((q) => `${q.x.toFixed(4)},${q.y.toFixed(4)}`).join(";");
+    }
+    // freeform selected but not drawn yet -> plan stays rectangular
+  } else if (shape() !== "rect") {
+    p.shape = shape();
   }
   return p;
 }
@@ -182,6 +191,7 @@ function activateVersion(id) {
   highlight = null;              // isolate/selection state belongs to the old plan
   bgColors = []; bgSeeds = [];   // ...as do the background exclusions
   renderBgChips();
+  clearPoly();                   // outline fractions refer to the old frame
   setPreview(v.id); clearSelection();
   renderVersions();
   refresh(); loadCritique();     // loadCritique also clears the stale AI verdict
@@ -479,6 +489,7 @@ function clearSelection() {
 function imgRect() { return origImg.getBoundingClientRect(); }
 
 origImg.addEventListener("mousedown", (e) => {
+  if (polyDrawing()) return;   // outline clicks must not start a crop drag
   e.preventDefault();
   const r = imgRect();
   drag = { x: e.clientX - r.left, y: e.clientY - r.top };
@@ -509,6 +520,82 @@ $("cropBtn").addEventListener("click", async () => {
   if (!r.ok) { toast("Crop failed — try a larger selection."); return; }
   addVersion(await r.json(), "Crop");
 });
+
+// --- freeform shape: click points on the original image to draw the outline ---
+let polyFrac = null;      // the committed outline, [{x, y}] image fractions
+let polyDraft = null;     // vertices while drawing (null = not drawing)
+const polyLayer = window.CapOverlay.attach($("origwrap"), $("orig"));
+
+function polyDrawing() { return polyDraft !== null; }
+
+function redrawPoly() {
+  polyLayer.clear();
+  const pts = polyDraft || polyFrac;
+  if (!pts || !pts.length) return;
+  polyLayer.sync();
+  const r = polyLayer.rect();
+  const px = pts.map((q) => `${q.x * r.width},${q.y * r.height}`).join(" ");
+  polyLayer.el(polyDraft ? "polyline" : "polygon", {
+    points: px, fill: "rgba(240,200,80,.14)", stroke: "#f0c850",
+    "stroke-width": "2", "stroke-dasharray": polyDraft ? "5 4" : "0",
+  });
+  for (const q of pts) {
+    polyLayer.el("circle", { cx: q.x * r.width, cy: q.y * r.height, r: "4",
+                             fill: "#f0c850", stroke: "#1c2230" });
+  }
+}
+
+function startPolyDraw() {
+  polyDraft = [];
+  $("drawPoly").classList.add("active");
+  origImg.style.cursor = "crosshair";
+  toast("Click points on your image — double-click or Enter closes the outline (min 3), Esc cancels, Backspace undoes a point.");
+  redrawPoly();
+}
+
+function finishPolyDraw(commit) {
+  if (commit) {
+    // double-click also fires two click events: drop near-duplicate vertices
+    const pts = polyDraft.filter((q, i, a) =>
+      i === 0 || Math.hypot(q.x - a[i - 1].x, q.y - a[i - 1].y) > 0.005);
+    if (pts.length < 3) { toast("An outline needs at least 3 points."); return; }
+    polyFrac = pts;
+  }
+  polyDraft = null;
+  $("drawPoly").classList.remove("active");
+  origImg.style.cursor = "";
+  redrawPoly();
+  if (commit) refresh();
+}
+
+function clearPoly() {
+  polyFrac = null;
+  if (polyDrawing()) finishPolyDraw(false);
+  redrawPoly();
+}
+
+$("shape").addEventListener("change", () => {
+  $("drawPoly").hidden = shape() !== "poly";
+  if (shape() !== "poly") clearPoly();
+  refresh();
+});
+$("drawPoly").addEventListener("click", () => { if (!polyDrawing()) startPolyDraw(); });
+origImg.addEventListener("click", (e) => {
+  if (!polyDrawing()) return;
+  polyDraft.push(polyLayer.toFrac(e.clientX, e.clientY));
+  redrawPoly();
+});
+origImg.addEventListener("dblclick", (e) => {
+  if (polyDrawing()) { e.preventDefault(); finishPolyDraw(true); }
+});
+document.addEventListener("keydown", (e) => {
+  if (!polyDrawing()) return;
+  if (e.key === "Enter") finishPolyDraw(true);
+  else if (e.key === "Escape") finishPolyDraw(false);
+  else if (e.key === "Backspace") { e.preventDefault(); polyDraft.pop(); redrawPoly(); }
+});
+origImg.addEventListener("load", redrawPoly);
+window.addEventListener("resize", redrawPoly);
 
 $("fitSize").addEventListener("click", async () => {
   const b = await estimate({ distance_m: distM() });

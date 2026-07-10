@@ -369,6 +369,12 @@ input[type=checkbox], input[type=radio] { accent-color:var(--acc); width:15px; h
   cursor:pointer; visibility:hidden; }
 .bom .bomrow:hover .knock { visibility:visible; }
 .bom .knock:hover { border-color:#d05a5a; color:#e08484; }
+/* shape picker + freeform outline drawing */
+.shaperow { display:flex; align-items:center; gap:var(--s2); font-size:13px; }
+.shaperow select { flex:0 0 auto; }
+#drawPoly { font-size:12px; padding:3px 10px; }
+#drawPoly.active { border-color:var(--acc); color:var(--acc); }
+.capoverlay { z-index:2; }
 
 /* ── graceful fallback: shorter screens & narrow widths may scroll ─────── */
 @media (max-height:620px), (max-width:1100px) {
