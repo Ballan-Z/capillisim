@@ -394,30 +394,102 @@ def _apply_background(
 
 
 @app.get("/pattern")
-def pattern(kind: str = "gradient") -> dict:
-    """A pattern laid out from the OWNED caps (every cap exactly once, zero
-    colour error), rendered sharp and stored as a new image — so it drops
-    straight into the version strip / simulate / cap-map flow."""
-    if not _DB.exists():
-        raise HTTPException(404, "no cap inventory (scan caps first)")
+def pattern(
+    kind: str = "gradient",
+    width_mm: float | None = Query(None, gt=0),
+    height_mm: float | None = Query(None, gt=0),
+    unlimited: bool = False,
+    shape: str = "rect",
+    poly: str | None = None,
+) -> dict:
+    """A pattern laid out from the OWNED caps, rendered sharp and stored as a
+    new image — so it drops straight into the version strip / simulate /
+    cap-map flow. With no dims: every cap exactly once on a near-square grid.
+    With width_mm/height_mm: the pattern fills that frame — `missing` counts
+    the holes your stock can't fill; `unlimited=true` repeats your distinct
+    colours freely (reference palette if the inventory is empty)."""
     from ...core.pattern import KINDS, pattern_plan
     from ..cap_stock import load_stock
 
     if kind not in KINDS:
         raise HTTPException(400, f"kind must be one of {sorted(KINDS)}")
-    stock = [(g.rgb, g.count) for g in load_stock(str(_DB))]
-    plan = pattern_plan(kind, stock)
+    if (width_mm is None) != (height_mm is None):
+        raise HTTPException(400, "give both width_mm and height_mm, or neither")
+    if not _DB.exists() and not unlimited:
+        raise HTTPException(404, "no cap inventory (scan caps first)")
+    stock = [(g.rgb, g.count) for g in load_stock(str(_DB))] if _DB.exists() else []
+    pts = _parse_poly(poly)
+    eff_shape = "poly" if pts else shape
+    keep = None
+    if eff_shape != "rect":
+        if eff_shape not in SHAPES:
+            raise HTTPException(400, f"shape must be one of {SHAPES}")
+        if width_mm is None:
+            raise HTTPException(400, "a shaped pattern needs width_mm and height_mm")
+        keep = shape_mask(eff_shape, width_mm, height_mm, poly=pts)
+    try:
+        plan = pattern_plan(kind, stock, width_mm=width_mm, height_mm=height_mm,
+                            unlimited=unlimited, keep=keep)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
     palette = list({tuple(c.rgb) for c in plan.cells if not c.is_hole})
     # every colour IS a real cap, so render from the photographed caps only —
-    # procedural fillers would muddy the pattern's structure
-    lib = build_library(palette, db_path=str(_DB), size=64)
-    img = render_mosaic_caps(plan, lib, px_per_cap=22, real_only=True)
+    # procedural fillers would muddy the pattern's structure. (The unlimited
+    # no-DB fallback has no photos, so procedural caps stand in there.)
+    lib = build_library(palette, db_path=str(_DB) if _DB.exists() else None, size=64)
+    across = max(1, round(plan.width_mm / plan.cap_diameter_mm))
+    px_per_cap = max(6, min(22, _SIM_WIDTH_PX // across))
+    img = render_mosaic_caps(plan, lib, px_per_cap=px_per_cap,
+                             real_only=_DB.exists())
     _COUNTER["n"] += 1
     iid = str(_COUNTER["n"])
     _IMAGES[iid] = img
     return {"id": iid, "width": img.width, "height": img.height,
             "aspect": img.width / img.height, "kind": kind,
-            "caps": sum(1 for c in plan.cells if not c.is_hole)}
+            "caps": sum(1 for c in plan.cells if not c.is_hole),
+            "cells": plan.count, "missing": plan.hole_count}
+
+
+@app.get("/pattern_kinds")
+def pattern_kinds() -> dict:
+    """The pattern registry, so the gallery can't drift from the core."""
+    from ...core.pattern import KINDS
+
+    return {"kinds": sorted(KINDS),
+            "blurbs": {k: KINDS[k].blurb for k in KINDS}}
+
+
+_THUMBS: dict[tuple, bytes] = {}
+
+
+@app.get("/pattern_thumb")
+def pattern_thumb(kind: str = "gradient") -> Response:
+    """A small procedural preview of a pattern kind for the gallery strip
+    (unlimited colours, flat discs — fast, no cap-photo lookups)."""
+    from ...core.pattern import KINDS, pattern_plan
+    from ..planner_designer import render_mosaic
+
+    if kind not in KINDS:
+        raise HTTPException(400, f"kind must be one of {sorted(KINDS)}")
+    mtime = _DB.stat().st_mtime if _DB.exists() else 0
+    key = (kind, mtime)
+    if key not in _THUMBS:
+        if len(_THUMBS) > 64:  # a re-scanned DB mints new keys; don't grow forever
+            _THUMBS.clear()
+        if _DB.exists():
+            from ..cap_stock import load_stock
+
+            stock = [(g.rgb, g.count) for g in load_stock(str(_DB))]
+        else:
+            stock = []
+        plan = pattern_plan(kind, stock, width_mm=12 * 32.0, height_mm=12 * 32.0,
+                            unlimited=True)
+        img = render_mosaic(plan, px_per_mm=0.35, background=(24, 28, 44))
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        _THUMBS[key] = buf.getvalue()
+    return Response(content=_THUMBS[key], media_type="image/png",
+                    headers={"Cache-Control": "max-age=300"})
 
 
 @app.get("/palette_prompt")

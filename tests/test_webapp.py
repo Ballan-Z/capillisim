@@ -644,3 +644,66 @@ def test_shape_with_own_caps_fits_within_stock(tmp_path, monkeypatch):
                                         "shape": "circle"}).json()
     assert 0 < b["total_caps"] <= 60
     assert b["panel_caps"] == b["total_caps"] + b["holes"]
+
+
+# --- sized/unlimited patterns + gallery endpoints ---
+
+def test_sized_pattern_reports_cells_and_missing(tmp_path, monkeypatch):
+    from cap_mosaic.app.webapp import server
+    from cap_mosaic.data.store import CapDataset
+
+    dbp = tmp_path / "caps.db"
+    with CapDataset(dbp) as db:
+        for _ in range(9):
+            db.add_cap((200, 30, 30), captured_at="t")
+        for _ in range(7):
+            db.add_cap((40, 70, 190), captured_at="t")
+    monkeypatch.setattr(server, "_DB", dbp)
+
+    b = client.get("/pattern", params={"kind": "waves", "width_mm": 640,
+                                       "height_mm": 480}).json()
+    assert b["cells"] > 16                      # frame is bigger than the stock
+    assert b["caps"] == 16                      # every owned cap placed once
+    assert b["missing"] == b["cells"] - b["caps"]
+    # unlimited: same frame, no missing caps
+    u = client.get("/pattern", params={"kind": "waves", "width_mm": 640,
+                                       "height_mm": 480, "unlimited": True}).json()
+    assert u["missing"] == 0 and u["caps"] == u["cells"] == b["cells"]
+    # shaped pattern drops cells
+    c = client.get("/pattern", params={"kind": "waves", "width_mm": 640,
+                                       "height_mm": 480, "unlimited": True,
+                                       "shape": "circle"}).json()
+    assert 0 < c["cells"] < b["cells"]
+    # dims must come in pairs; shape needs dims
+    assert client.get("/pattern", params={"kind": "waves",
+                                          "width_mm": 640}).status_code == 400
+    assert client.get("/pattern", params={"kind": "waves",
+                                          "shape": "circle"}).status_code == 400
+
+
+def test_pattern_unlimited_without_db(monkeypatch, tmp_path):
+    from cap_mosaic.app.webapp import server
+
+    monkeypatch.setattr(server, "_DB", tmp_path / "absent.db")
+    assert client.get("/pattern", params={"kind": "gradient"}).status_code == 404
+    b = client.get("/pattern", params={"kind": "gradient", "width_mm": 480,
+                                       "height_mm": 480, "unlimited": True})
+    assert b.status_code == 200 and b.json()["missing"] == 0
+
+
+def test_pattern_kinds_and_thumbs(monkeypatch, tmp_path):
+    from cap_mosaic.app.webapp import server
+
+    kinds = client.get("/pattern_kinds").json()
+    assert set(kinds["kinds"]) >= {"gradient", "spiral", "sunburst", "waves",
+                                   "diagonal", "stripes", "diamonds",
+                                   "mandala", "checker"}
+    assert kinds["blurbs"]["mandala"]
+    monkeypatch.setattr(server, "_DB", tmp_path / "absent.db")
+    r1 = client.get("/pattern_thumb", params={"kind": "mandala"})
+    assert r1.status_code == 200
+    assert r1.headers["content-type"] == "image/png"
+    assert "max-age" in r1.headers.get("cache-control", "")
+    r2 = client.get("/pattern_thumb", params={"kind": "mandala"})
+    assert r2.content == r1.content             # served from the module cache
+    assert client.get("/pattern_thumb", params={"kind": "plaid"}).status_code == 400
