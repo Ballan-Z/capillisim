@@ -23,8 +23,9 @@ from PIL import Image, ImageDraw, ImageFont
 
 from ...core import critique as critique_mod
 from ...core import estimator
-from ...core.geometry import Cap, grid_for_caps_across, hex_neighbors
+from ...core.geometry import Cap, Grid, grid_for_caps_across, hex_neighbors
 from ...core.plan import GridPlan, PlannedCell
+from ...core.shapes import SHAPES, mask_grid, shape_area_fraction, shape_mask
 from ...core.sizing import apparent_fraction
 from ...core.palette import preset_palette
 from ..cap_map import render_cap_map
@@ -132,15 +133,54 @@ def _floor(image_id: str, img: Image.Image, mode: str) -> int:
     return _FLOORS[key]
 
 
+def _parse_poly(s: str | None) -> list[tuple[float, float]] | None:
+    """'fx,fy;fx,fy;...' (fractions of the frame) -> vertex list, or None."""
+    if not s:
+        return None
+    pts: list[tuple[float, float]] = []
+    for tok in s.split(";"):
+        parts = tok.strip().split(",")
+        try:
+            fx, fy = float(parts[0]), float(parts[1])
+        except (ValueError, IndexError) as exc:
+            raise HTTPException(400, f"bad poly point: {tok!r}") from exc
+        if len(parts) != 2 or not (0.0 <= fx <= 1.0 and 0.0 <= fy <= 1.0):
+            raise HTTPException(400, f"bad poly point: {tok!r}")
+        pts.append((fx, fy))
+    if len(pts) < 3:
+        raise HTTPException(400, "poly needs at least 3 points")
+    return pts
+
+
 def _plan(image_id: str, img: Image.Image, caps_across: int, colors: int,
           bare_white: bool = True, preset: str | None = None, thicken: bool = False,
           dither: bool = False, from_my_caps: bool = False,
-          own_threshold: float = 12.0, unlimited_stock: bool = False):
+          own_threshold: float = 12.0, unlimited_stock: bool = False,
+          shape: str = "rect", poly: str | None = None):
     caps_across = max(1, min(caps_across, _MAX_CAPS_ACROSS))
     key = (image_id, caps_across, colors, bare_white, preset, thicken, dither,
-           from_my_caps, own_threshold, unlimited_stock)
+           from_my_caps, own_threshold, unlimited_stock, shape, poly)
     if key not in _PLANS:
-        grid = grid_for_caps_across(caps_across, img.width / img.height, Cap())
+        pts = _parse_poly(poly)
+        eff_shape = "poly" if pts else shape
+        if eff_shape not in SHAPES:
+            raise HTTPException(400, f"shape must be one of {SHAPES}")
+        shaped = eff_shape != "rect"
+
+        def raw_masked(grid: Grid) -> Grid:  # ValueError on empty (fit search)
+            if not shaped:
+                return grid
+            return mask_grid(grid, shape_mask(eff_shape, grid.width_mm,
+                                              grid.height_mm, poly=pts))
+
+        def masked(grid: Grid) -> Grid:      # HTTP 400 on empty (user-facing)
+            try:
+                return raw_masked(grid)
+            except ValueError as exc:
+                raise HTTPException(400, str(exc)) from exc
+
+        grid = masked(grid_for_caps_across(caps_across, img.width / img.height,
+                                           Cap()))
         if from_my_caps and _DB.exists():
             from ..cap_stock import load_stock
 
@@ -164,7 +204,7 @@ def _plan(image_id: str, img: Image.Image, caps_across: int, colors: int,
             # reads instead of drowning in holes. The size slider's resolution is
             # overridden by this derived piece (see caps-own-fit-plan.md).
             from ..planner_designer import (
-                fit_caps_across, plan_from_inventory, usable_groups,
+                fit_caps_across_masked, plan_from_inventory, usable_groups,
             )
 
             usable = usable_groups(groups, img, own_threshold,
@@ -173,8 +213,13 @@ def _plan(image_id: str, img: Image.Image, caps_across: int, colors: int,
                 usable = groups
             x = sum(g.count for g in usable)  # usable cap count = target cells
             aspect = img.width / img.height
-            fit_across = min(fit_caps_across(x, aspect), _MAX_CAPS_ACROSS)
-            fit_grid = grid_for_caps_across(fit_across, aspect, Cap())
+            frac = shape_area_fraction(eff_shape, poly=pts) if shaped else 1.0
+            fit_across = min(
+                fit_caps_across_masked(x, aspect,
+                                       keep_for=raw_masked if shaped else None,
+                                       area_fraction=frac),
+                _MAX_CAPS_ACROSS)
+            fit_grid = masked(grid_for_caps_across(fit_across, aspect, Cap()))
             _PLANS[key] = plan_from_inventory(img, fit_grid, usable,
                                               bare_white=bare_white)
             return _PLANS[key]
@@ -691,6 +736,8 @@ def estimate(
     from_my_caps: bool = False,
     own_threshold: float = 12.0,
     unlimited_stock: bool = False,
+    shape: str = "rect",
+    poly: str | None = None,
     bg_colors: str | None = None,
     bg_seeds: str | None = None,
 ) -> dict:
@@ -708,7 +755,7 @@ def estimate(
     plan = _plan(image_id, img, res["caps_across"], colors, bare_white=bare_white,
                  preset=preset, thicken=thicken, dither=dither,
                  from_my_caps=from_my_caps, own_threshold=own_threshold,
-                 unlimited_stock=unlimited_stock)
+                 unlimited_stock=unlimited_stock, shape=shape, poly=poly)
     plan, _ = _apply_background(plan, _parse_bg_colors(bg_colors),
                                 _parse_bg_seeds(bg_seeds))
     counts = Counter(tuple(c.rgb) for c in plan.cells if not c.is_hole)
@@ -733,8 +780,10 @@ def estimate(
     # Report caps you actually buy: the area estimate counts the whole panel, but
     # a removed/bare-white background leaves holes with no cap. total_caps is the
     # real (background-excluded) count; panel_caps keeps the full-panel figure.
-    # In caps-I-own mode the panel IS the fitted grid, so use its cell count.
-    res["panel_caps"] = plan.count if own_mode else res["total_caps"]
+    # In caps-I-own mode the panel IS the fitted grid, and a shaped plan's panel
+    # is the masked grid, so use the plan's own cell count in both cases.
+    shaped = shape != "rect" or bool(poly)
+    res["panel_caps"] = plan.count if (own_mode or shaped) else res["total_caps"]
     res["total_caps"] = sum(counts.values())
     res["holes"] = plan.hole_count
 
@@ -808,6 +857,8 @@ def pick(
     from_my_caps: bool = False,
     own_threshold: float = 12.0,
     unlimited_stock: bool = False,
+    shape: str = "rect",
+    poly: str | None = None,
     bg_colors: str | None = None,
     bg_seeds: str | None = None,
 ) -> dict:
@@ -820,7 +871,7 @@ def pick(
     plan = _plan(image_id, img, res["caps_across"], colors, bare_white=bare_white,
                  preset=preset, thicken=thicken, dither=dither,
                  from_my_caps=from_my_caps, own_threshold=own_threshold,
-                 unlimited_stock=unlimited_stock)
+                 unlimited_stock=unlimited_stock, shape=shape, poly=poly)
     own_fitted = from_my_caps and _DB.exists() and not unlimited_stock
     if own_fitted:
         _own_geometry(res, plan)
@@ -862,6 +913,8 @@ def simulate(
     from_my_caps: bool = False,
     own_threshold: float = 12.0,
     unlimited_stock: bool = False,
+    shape: str = "rect",
+    poly: str | None = None,
     bg_colors: str | None = None,
     bg_seeds: str | None = None,
 ) -> Response:
@@ -870,7 +923,7 @@ def simulate(
     plan = _plan(image_id, img, res["caps_across"], colors, bare_white=bare_white,
                  preset=preset, thicken=thicken, dither=dither,
                  from_my_caps=from_my_caps, own_threshold=own_threshold,
-                 unlimited_stock=unlimited_stock)
+                 unlimited_stock=unlimited_stock, shape=shape, poly=poly)
     plan, _ = _apply_background(plan, _parse_bg_colors(bg_colors),
                                 _parse_bg_seeds(bg_seeds))
     own_mode = from_my_caps and _DB.exists()
@@ -991,6 +1044,8 @@ def capmap(
     preset: str | None = None,
     thicken: bool = False,
     dither: bool = False,
+    shape: str = "rect",
+    poly: str | None = None,
     bg_colors: str | None = None,
     bg_seeds: str | None = None,
     format: str = "png",
@@ -999,7 +1054,8 @@ def capmap(
     img = _get(image_id)
     res = _solve(img, image_id, mode, pitch_mm, size_mm, distance_m)
     plan = _plan(image_id, img, res["caps_across"], colors, bare_white=bare_white,
-                 preset=preset, thicken=thicken, dither=dither)
+                 preset=preset, thicken=thicken, dither=dither,
+                 shape=shape, poly=poly)
     plan, _ = _apply_background(plan, _parse_bg_colors(bg_colors),
                                 _parse_bg_seeds(bg_seeds))
     sheet = render_cap_map(plan)

@@ -571,3 +571,76 @@ def test_pick_reports_exclusion_cause():
     border = client.get("/pick", params={"image_id": wid, "size_mm": 2000,
                                          "fx": 0.05, "fy": 0.05}).json()
     assert border["hit"] and border["bare"] is True
+
+
+# --- non-rectangular shapes: shape= / poly= on the plan pipeline ---
+
+def test_shape_circle_reduces_caps_and_bom_stays_consistent():
+    iid = _upload()
+    rect = client.get("/estimate", params={"image_id": iid, "size_mm": 2000}).json()
+    circ = client.get("/estimate", params={"image_id": iid, "size_mm": 2000,
+                                           "shape": "circle"}).json()
+    assert circ["panel_caps"] < rect["panel_caps"]
+    assert circ["total_caps"] < rect["total_caps"]
+    assert circ["total_caps"] == sum(circ["bom"].values())
+    assert circ["panel_caps"] == circ["total_caps"] + circ["holes"]
+    # cache distinctness: rect numbers unchanged after the circle request
+    rect2 = client.get("/estimate", params={"image_id": iid, "size_mm": 2000}).json()
+    assert rect2["total_caps"] == rect["total_caps"]
+
+
+def test_poly_triangle_works_and_bad_polys_400():
+    iid = _upload()
+    rect = client.get("/estimate", params={"image_id": iid, "size_mm": 2000}).json()
+    tri = client.get("/estimate", params={"image_id": iid, "size_mm": 2000,
+                                          "poly": "0.1,0.9;0.5,0.1;0.9,0.9"}).json()
+    assert 0 < tri["total_caps"] < rect["total_caps"]
+    assert client.get("/estimate", params={"image_id": iid, "size_mm": 2000,
+                                           "poly": "x"}).status_code == 400
+    assert client.get("/estimate", params={"image_id": iid, "size_mm": 2000,
+                                           "poly": "0.1,0.1;0.9,0.9"}).status_code == 400
+    # a sliver polygon leaves no cell centres inside -> 400, not a crash
+    r = client.get("/estimate", params={"image_id": iid, "size_mm": 2000,
+                                        "poly": "0.001,0.001;0.002,0.001;0.002,0.002"})
+    assert r.status_code == 400
+
+
+def test_shape_flows_to_simulate_capmap_and_pick():
+    iid = _upload()
+    p = {"image_id": iid, "size_mm": 2000}
+    rect_map = client.get("/capmap", params=p)
+    circ_map = client.get("/capmap", params={**p, "shape": "circle"})
+    assert rect_map.status_code == circ_map.status_code == 200
+    assert rect_map.content != circ_map.content
+    sim = client.get("/simulate", params={**p, "shape": "heart"})
+    assert sim.status_code == 200
+    # pick at the centre hits a cell; a frame corner (outside the circle) misses
+    hit = client.get("/pick", params={**p, "shape": "circle",
+                                      "fx": 0.5, "fy": 0.5}).json()
+    miss = client.get("/pick", params={**p, "shape": "circle",
+                                       "fx": 0.02, "fy": 0.02}).json()
+    assert hit["hit"] is True and miss == {"hit": False}
+
+
+def test_shape_with_own_caps_fits_within_stock(tmp_path, monkeypatch):
+    from cap_mosaic.app.webapp import server
+    from cap_mosaic.data.store import CapDataset
+
+    dbp = tmp_path / "caps.db"
+    with CapDataset(dbp) as db:
+        for _ in range(30):
+            db.add_cap((200, 30, 30), captured_at="t")
+        for _ in range(30):
+            db.add_cap((40, 70, 190), captured_at="t")
+    monkeypatch.setattr(server, "_DB", dbp)
+
+    buf = io.BytesIO()
+    im = Image.new("RGB", (200, 200), (150, 40, 60))
+    im.save(buf, format="PNG")
+    buf.seek(0)
+    iid = client.post("/upload", files={"file": ("o.png", buf, "image/png")}).json()["id"]
+    b = client.get("/estimate", params={"image_id": iid, "size_mm": 2000,
+                                        "from_my_caps": True,
+                                        "shape": "circle"}).json()
+    assert 0 < b["total_caps"] <= 60
+    assert b["panel_caps"] == b["total_caps"] + b["holes"]
