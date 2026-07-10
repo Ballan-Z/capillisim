@@ -290,7 +290,8 @@ input[type=checkbox], input[type=radio] { accent-color:var(--acc); width:15px; h
   border:1px solid var(--border-1); border-radius:var(--r-hero); padding:var(--s3);
   box-shadow:0 24px 60px #00000073; overflow:hidden; }
 #sim { max-width:100%; max-height:100%; width:auto; height:auto; border-radius:var(--r-card);
-  display:block; background:#0d0f14; image-rendering:auto; }
+  display:block; background:#0d0f14; image-rendering:auto;
+  transform-origin:50% 50%; transition:transform .06s ease-out; }
 .simwrap.loading #sim { opacity:.45; transition:opacity .15s; }
 .simwrap.loading::after { content:""; position:absolute; top:calc(50% - 14px); left:calc(50% - 14px);
   width:28px; height:28px; border:3px solid var(--border-1); border-top-color:var(--acc);
