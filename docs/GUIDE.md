@@ -83,6 +83,15 @@ Caps are fixed-size, so **physical width decides resolution**: a 2 m piece at
 buttons explore that:
 
 - **Size (width)** / **Viewing distance** sliders: live update of everything.
+- **Scroll to walk**: mouse-wheel over the preview zooms by *changing the
+  viewing distance* — scroll up walks closer (caps appear), scroll down walks
+  away (the picture reads). The image scales instantly and the sharp
+  physically-correct render follows a beat later; the readout under the
+  preview and the distance slider track every tick (Ctrl+wheel = trackpad
+  pinch). In *caps-I-own* fitted mode the wheel is inactive — that piece is
+  always shown sharp at its real size.
+
+  ![the same 2.5 m piece seen from 12 m vs 3 m](images/zoom-distance.png)
 - **↳ size for this distance**: how big must it be to fill your view from here?
 - **↳ distance for this size**: where should you stand for this width?
 - **↳ minimal size**: the smallest width that can represent this image at all
