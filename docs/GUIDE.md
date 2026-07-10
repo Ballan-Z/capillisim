@@ -190,19 +190,25 @@ inventory to inspect or delete scans):
 
   ![one click sends the teal background to bare board](images/bg-click.png)
 - **Patterns from my caps** — the Image menu's "start from a pattern" gallery:
-  nine kinds (gradient, spiral, sunburst, waves, diagonal, stripes, diamonds,
-  mandala, checker) that lay out the inventory ITSELF: every owned cap exactly
-  once, zero colour error, always buildable. The gallery thumbnails are
-  illustrative (a fixed palette showing each pattern's geometry) — the
-  generated pattern is built from YOUR caps. The result lands in the version
-  strip like any image. A real 416-cap inventory rendered as the original
-  three:
+  fourteen kinds (gradient, spiral, sunburst, waves, diagonal, stripes,
+  diamonds, mandala, checker, swirl, chevron, arcs, patchwork, harlequin) that
+  lay out the inventory ITSELF: every owned cap exactly once, zero colour
+  error, always buildable. The gallery thumbnails are illustrative (a fixed
+  palette showing each pattern's geometry) — the generated pattern is built
+  from YOUR caps. The result lands in the version strip like any image. A real
+  416-cap inventory rendered as the original three:
 
   ![the same 416 owned caps as gradient, spiral and sunburst](images/patterns-inventory.jpg)
 
   The six newer kinds (here with a five-colour palette so the geometry shows):
 
   ![waves, diagonal, stripes, diamonds, mandala and checker](images/patterns-new.png)
+
+  Plus five researched from what cap artists actually build (rainbow murals,
+  mosaic table tops, quilt blocks): a pinwheel swirl, chevron zigzags, a
+  rainbow arch, patchwork, and harlequin argyle:
+
+  ![swirl, chevron, arcs, patchwork and harlequin](images/patterns-capart.png)
 
 - **Sizing a pattern**: while a pattern version is on stage, a rectangle
   appears over it — drag its corner to set the real size (the stage spans

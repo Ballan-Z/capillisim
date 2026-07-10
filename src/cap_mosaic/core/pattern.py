@@ -59,6 +59,12 @@ KINDS: dict[str, PatternSpec] = {
     "diamonds": PatternSpec("light", "manhattan", "a bright diamond core"),
     "mandala": PatternSpec("hue", "mandala", "six-fold kaleidoscope"),
     "checker": PatternSpec("interleave", "serpentine", "light/dark shimmer"),
+    # researched from real cap-art favourites (murals, table tops, quilts)
+    "swirl": PatternSpec("hue", "swirl", "a pinwheel of spiral colour arms"),
+    "chevron": PatternSpec("light", "chevron", "zigzag herringbone bands"),
+    "arcs": PatternSpec("hue", "arcs", "a rainbow arching over the piece"),
+    "patchwork": PatternSpec("hue", "patch", "a quilt of colour blocks"),
+    "harlequin": PatternSpec("interleave", "harlequin", "argyle diamond lattice"),
 }
 
 
@@ -116,6 +122,42 @@ def _ordered_cells(walk: str, cells, cap: Cap) -> list:
             band = round((c.y_mm + amp * math.sin(2 * math.pi * c.x_mm / wavelength)) / rp)
             return (band, c.x_mm if band % 2 == 0 else -c.x_mm)
         return sorted(cells, key=key)
+    if walk == "chevron":  # zigzag bands (herringbone): triangle wave, not sine
+        width = max(c.x_mm for c in cells) + d / 2.0
+        wavelength = max(width / 3.0, d)
+        amp = 2.0 * rp
+
+        def key(c):
+            t = c.x_mm / wavelength
+            tri = 2.0 * abs(2.0 * (t - math.floor(t + 0.5))) - 1.0
+            band = round((c.y_mm + amp * tri) / rp)
+            return (band, c.x_mm if band % 2 == 0 else -c.x_mm)
+        return sorted(cells, key=key)
+    if walk == "patch":  # quilt: ~3-cap blocks, filled in a SCATTERED order so
+        # neighbouring blocks land in different colour runs (a real patchwork)
+        block = 3.0 * d
+
+        def key(c):
+            by, bx = int(c.y_mm // block), int(c.x_mm // block)
+            return ((bx * 7 + by * 13) % 11, by, bx, c.row, c.col)
+        return sorted(cells, key=key)
+    if walk == "harlequin":  # argyle: diamond lattice blocks, scattered fill
+        lat = 2.0 * d
+
+        def key(c):
+            u = round((c.x_mm + c.y_mm) / lat)
+            v = round((c.x_mm - c.y_mm) / lat)
+            return ((u * 5 + v * 9) % 7, u, v, c.row, c.col)
+        return sorted(cells, key=key)
+    if walk == "arcs":  # concentric arcs from the bottom centre: a rainbow arch
+        width = max(c.x_mm for c in cells) + d / 2.0
+        base_y = max(c.y_mm for c in cells) + d / 2.0
+        cx0 = width / 2.0
+
+        def key(c):
+            ring = round(math.hypot(c.x_mm - cx0, c.y_mm - base_y) / d)
+            return (ring, c.x_mm)
+        return sorted(cells, key=key)
 
     # centre-based walks: rings / manhattan / mandala
     cx = float(np.mean([c.x_mm for c in cells]))
@@ -141,6 +183,14 @@ def _ordered_cells(walk: str, cells, cap: Cap) -> list:
             r, theta = polar(c)
             return (round(r / max(pitch, 1e-6)), theta % sector_angle,
                     int(theta // sector_angle))
+        return sorted(cells, key=key)
+    if walk == "swirl":  # pinwheel: six spiral arms twisting out of the centre
+        arms = 6
+
+        def key(c):
+            r, theta = polar(c)
+            arm = int(theta / (2 * math.pi) * arms + r / max(pitch, 1e-6)) % arms
+            return (arm, r, theta)
         return sorted(cells, key=key)
 
     def key(c):  # "rings"
