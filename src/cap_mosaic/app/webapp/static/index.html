@@ -26,6 +26,13 @@
             <input id="fileInput" type="file" accept="image/*" hidden />
             <p>Drag &amp; drop an image here<br /><small>or click to choose · or paste (Ctrl/Cmd+V)</small></p>
           </div>
+          <div class="patterns">
+            <div class="gheadrow">… or start from a pattern
+              <label class="chk" data-tip="Repeat your distinct colours freely instead of using each physical cap once — the sizing rectangle never turns red, and the pattern shows what a topped-up stock could build."><input type="checkbox" id="patUnlimited" /> unlimited stock</label>
+            </div>
+            <div id="patGallery" class="patgallery" data-tip="Lay your cap inventory out as a decorative pattern instead of an image (previews are illustrative — the real one is built from YOUR caps, every cap used once). While the pattern is shown, drag the rectangle on the stage to size it."></div>
+            <button id="aiPattern" data-tip="Ask the AI to paint an abstract pattern using ONLY your caps' colours (costs one image-generation call). It lands as a new version — switch to 'Only caps I own' to quantize it to your real stock.">🪄 AI pattern from my palette</button>
+          </div>
           <small class="ghint" id="imageWhere" hidden>Your image &amp; crop tools appear on the left, under Palette &amp; rendering.</small>
         </div>
       </details>
@@ -34,17 +41,10 @@
       <div id="controls" hidden>
 
         <details class="menu drop" id="menu-size">
-          <summary aria-label="Size and viewing distance"><span class="mi">📐</span> Size &amp; distance</summary>
+          <summary aria-label="Size, shape and viewing distance"><span class="mi">📐</span> Size &amp; shape</summary>
           <div class="menu-panel">
-            <div class="mode">
-              <label><input type="radio" name="mode" value="picture" checked /> Picture</label>
-              <label><input type="radio" name="mode" value="pattern" /> Pattern</label>
-            </div>
             <label class="slider">Size (width): <b id="sizeVal">2.5 m</b>
               <input id="size" type="range" min="200" max="12000" step="50" value="2500" />
-            </label>
-            <label class="slider">Viewing distance: <b id="distVal">6.0 m</b>
-              <input id="dist" type="range" min="0.5" max="40" step="0.1" value="6" />
             </label>
             <label class="shaperow">Shape:
               <select id="shape">
@@ -57,6 +57,9 @@
                 <option value="poly">Freeform (draw)</option>
               </select>
               <button id="drawPoly" hidden data-tip="Click points on YOUR IMAGE (left panel) to draw the outline; double-click or Enter closes it, Esc cancels, Backspace removes the last point.">✏ draw outline</button>
+            </label>
+            <label class="slider">Viewing distance: <b id="distVal">6.0 m</b>
+              <input id="dist" type="range" min="0.5" max="40" step="0.1" value="6" />
             </label>
             <div class="solvers">
               <button id="fitSize" data-tip="Keep the current viewing distance and set the size so the piece comfortably fills your view from there.">↳ size for this distance</button>
@@ -90,15 +93,10 @@
               <label class="chk" data-tip="Cosmetic only: draws the simulation tiles with photos of YOUR scanned caps instead of generated look-alikes. Changes nothing about the plan or the counts."><input type="checkbox" id="realOnly" /> Show photos of my caps in the preview <span id="realOnlyNote" class="mutnote" hidden>(always on in caps-I-own mode)</span></label>
               <label class="chk" data-tip="Adds have / short columns to the caps-by-colour list below: how many of each colour you already own vs still need."><input type="checkbox" id="useInv" /> Shopping list (have / short per colour)</label>
             </div>
-            <div class="patterns" style="margin-top:8px">
-              <div class="gheadrow">Patterns from my caps
-                <label class="chk" data-tip="Repeat your distinct colours freely instead of using each physical cap once — the rectangle never turns red, and the pattern shows what a topped-up stock could build."><input type="checkbox" id="patUnlimited" /> unlimited stock</label>
-              </div>
-              <div id="patGallery" class="patgallery" data-tip="Lay your inventory out as a pattern instead of an image. Every owned cap used exactly once (zero colour error) unless 'unlimited stock' is on. In Pattern mode, drag the rectangle on the stage to size it."></div>
-              <button id="aiPattern" data-tip="Ask the AI to paint an abstract pattern using ONLY your caps' colours (costs one image-generation call). It lands as a new version — switch to 'Only caps I own' to quantize it to your real stock.">🪄 AI pattern from my palette</button>
+            <div class="palette" style="margin-top:8px">
               <button id="copyPrompt" data-tip="Copy an AI-image prompt constrained to your caps' colours and count — paste it into any image generator, then drop the result back here.">📋 AI prompt for my palette</button>
             </div>
-            <small class="ghint">Scanned caps feed everything here: the shopping list, the photo preview, stock-limited plans and the patterns.</small>
+            <small class="ghint">Scanned caps feed everything here: the shopping list, the photo preview, stock-limited plans and the patterns in the Image menu.</small>
           </div>
         </details>
 

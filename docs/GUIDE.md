@@ -189,11 +189,14 @@ inventory to inspect or delete scans):
   flat areas with dither off (dither speckles a region across two colours).
 
   ![one click sends the teal background to bare board](images/bg-click.png)
-- **Patterns from my caps** — a gallery of nine kinds (gradient, spiral,
-  sunburst, waves, diagonal, stripes, diamonds, mandala, checker) that lay out
-  the inventory ITSELF: every owned cap exactly once, zero colour error,
-  always buildable. The result lands in the version strip like any image.
-  A real 416-cap inventory rendered as the original three:
+- **Patterns from my caps** — the Image menu's "start from a pattern" gallery:
+  nine kinds (gradient, spiral, sunburst, waves, diagonal, stripes, diamonds,
+  mandala, checker) that lay out the inventory ITSELF: every owned cap exactly
+  once, zero colour error, always buildable. The gallery thumbnails are
+  illustrative (a fixed palette showing each pattern's geometry) — the
+  generated pattern is built from YOUR caps. The result lands in the version
+  strip like any image. A real 416-cap inventory rendered as the original
+  three:
 
   ![the same 416 owned caps as gradient, spiral and sunburst](images/patterns-inventory.jpg)
 
@@ -201,8 +204,8 @@ inventory to inspect or delete scans):
 
   ![waves, diagonal, stripes, diamonds, mandala and checker](images/patterns-new.png)
 
-- **Sizing a pattern**: switch the mode toggle to **Pattern** and a rectangle
-  appears on the stage — drag its corner to set the real size (the stage spans
+- **Sizing a pattern**: while a pattern version is on stage, a rectangle
+  appears over it — drag its corner to set the real size (the stage spans
   4 m), drag its body to move it aside. The label counts the caps live and
   turns **red with "N caps missing"** when your scanned stock can't fill it;
   generating anyway leaves the shortfall as bare cells at the end of the walk.

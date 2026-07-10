@@ -459,37 +459,32 @@ def pattern_kinds() -> dict:
             "blurbs": {k: KINDS[k].blurb for k in KINDS}}
 
 
-_THUMBS: dict[tuple, bytes] = {}
+_THUMBS: dict[str, bytes] = {}
+# a fixed, pleasant five-colour palette: the gallery thumbs illustrate each
+# pattern's GEOMETRY, they are deliberately NOT built from the user's caps
+# (the generated pattern itself is).
+_THUMB_STOCK = [((242, 234, 218), 1), ((224, 172, 60), 1), ((196, 90, 44), 1),
+                ((80, 128, 150), 1), ((38, 42, 56), 1)]
 
 
 @app.get("/pattern_thumb")
 def pattern_thumb(kind: str = "gradient") -> Response:
-    """A small procedural preview of a pattern kind for the gallery strip
-    (unlimited colours, flat discs — fast, no cap-photo lookups)."""
+    """A small illustrative preview of a pattern kind for the gallery strip
+    (fixed palette, flat discs — a general look, not the user's inventory)."""
     from ...core.pattern import KINDS, pattern_plan
     from ..planner_designer import render_mosaic
 
     if kind not in KINDS:
         raise HTTPException(400, f"kind must be one of {sorted(KINDS)}")
-    mtime = _DB.stat().st_mtime if _DB.exists() else 0
-    key = (kind, mtime)
-    if key not in _THUMBS:
-        if len(_THUMBS) > 64:  # a re-scanned DB mints new keys; don't grow forever
-            _THUMBS.clear()
-        if _DB.exists():
-            from ..cap_stock import load_stock
-
-            stock = [(g.rgb, g.count) for g in load_stock(str(_DB))]
-        else:
-            stock = []
-        plan = pattern_plan(kind, stock, width_mm=12 * 32.0, height_mm=12 * 32.0,
-                            unlimited=True)
+    if kind not in _THUMBS:
+        plan = pattern_plan(kind, _THUMB_STOCK, width_mm=14 * 32.0,
+                            height_mm=14 * 32.0, unlimited=True)
         img = render_mosaic(plan, px_per_mm=0.35, background=(24, 28, 44))
         buf = io.BytesIO()
         img.save(buf, format="PNG")
-        _THUMBS[key] = buf.getvalue()
-    return Response(content=_THUMBS[key], media_type="image/png",
-                    headers={"Cache-Control": "max-age=300"})
+        _THUMBS[kind] = buf.getvalue()
+    return Response(content=_THUMBS[kind], media_type="image/png",
+                    headers={"Cache-Control": "max-age=3600"})
 
 
 def _palette_prompt_text(groups) -> tuple[str, int, int]:

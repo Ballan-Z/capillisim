@@ -13,7 +13,9 @@ let bgSeeds = [];      // region exclusions: {fx, fy, hex} cell-centre seeds
 let curSimSrc = null, curTargetSrc = null;  // for hold-to-compare
 
 function mode() {
-  return document.querySelector('input[name=mode]:checked').value;
+  // the estimator's picture/pattern legibility switch — the UI always designs
+  // "pictures" (generated patterns land as images too), so it stays fixed
+  return "picture";
 }
 function sizeMm() { return Number($("size").value); }
 function distM() { return Number($("dist").value); }
@@ -195,6 +197,7 @@ function activateVersion(id) {
   clearPoly();                   // outline fractions refer to the old frame
   setPreview(v.id); clearSelection();
   renderVersions();
+  drawPatRect();                 // sizing rectangle only over pattern versions
   refresh(); loadCritique();     // loadCritique also clears the stale AI verdict
 }
 
@@ -319,7 +322,6 @@ $("aiSimplify").addEventListener("click", async () => {
 // --- controls ---
 $("size").addEventListener("input", () => { $("sizeVal").textContent = (sizeMm() / 1000).toFixed(2) + " m"; debounced(); });
 $("dist").addEventListener("input", applyDistanceUI);
-document.querySelectorAll('input[name=mode]').forEach((r) => r.addEventListener("change", refresh));
 $("preset").addEventListener("change", refresh);
 $("thicken").addEventListener("change", refresh);
 $("realOnly").addEventListener("change", refresh);
@@ -488,7 +490,9 @@ function patEstimate() {
 
 function drawPatRect() {
   patLayer.clear();
-  if (mode() !== "pattern") return;
+  // the sizing rectangle only matters while a PATTERN version is on stage
+  const v = versions.find((x) => x.id === imageId);
+  if (!v || !v.label.startsWith("Pattern")) return;
   patLayer.sync();
   const host = stagePx();
   const scale = 1 / mmPerPx();
@@ -540,8 +544,6 @@ window.addEventListener("pointerup", () => {
     patTimer = setTimeout(() => generatePattern(activePattern.kind), 350);
   }
 });
-document.querySelectorAll('input[name=mode]').forEach((r) =>
-  r.addEventListener("change", drawPatRect));
 new ResizeObserver(drawPatRect).observe(document.querySelector(".simwrap"));
 
 $("scanBtn").addEventListener("click", async () => {
