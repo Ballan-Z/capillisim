@@ -77,6 +77,21 @@ def grid_for_frame(width_mm: float, height_mm: float, cap: Cap) -> Grid:
     return Grid(cap=cap, width_mm=width_mm, height_mm=height_mm, cells=tuple(cells))
 
 
+def hex_neighbors(row: int, col: int) -> tuple[tuple[int, int], ...]:
+    """The 6 hex-packing neighbours of a cell (existence not checked).
+
+    Odd rows are shifted +d/2 (see grid_for_frame), so a cell's adjacent-row
+    neighbours sit at columns (col-1, col) for even rows and (col, col+1) for
+    odd rows; same-row neighbours are col +/- 1.
+    """
+    a, b = (col - 1, col) if row % 2 == 0 else (col, col + 1)
+    return (
+        (row, col - 1), (row, col + 1),
+        (row - 1, a), (row - 1, b),
+        (row + 1, a), (row + 1, b),
+    )
+
+
 def estimate_count(width_mm: float, height_mm: float, cap: Cap) -> int:
     """Rough cap count for an area under hex packing (before exact layout)."""
     cell_area = cap.diameter_mm**2 * HEX_CELL_AREA_FACTOR

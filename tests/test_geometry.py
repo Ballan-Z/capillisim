@@ -49,3 +49,28 @@ def test_estimate_count_matches_layout_roughly():
     est = estimate_count(400.0, 300.0, cap)
     actual = grid_for_frame(400.0, 300.0, cap).count
     assert abs(est - actual) <= 0.2 * actual + 5
+
+
+def test_hex_neighbors_parity_and_symmetry():
+    from cap_mosaic.core.geometry import hex_neighbors
+
+    # even row: adjacent-row columns are (col-1, col)
+    assert set(hex_neighbors(2, 3)) == {(2, 2), (2, 4), (1, 2), (1, 3), (3, 2), (3, 3)}
+    # odd row: adjacent-row columns are (col, col+1)
+    assert set(hex_neighbors(1, 3)) == {(1, 2), (1, 4), (0, 3), (0, 4), (2, 3), (2, 4)}
+    # neighbourhood is symmetric over a sampled grid
+    for r in range(4):
+        for c in range(4):
+            for nb in hex_neighbors(r, c):
+                assert (r, c) in hex_neighbors(*nb)
+    # geometric truth: each neighbour pair really is one diameter apart
+    cap = Cap(diameter_mm=32.0)
+    grid = grid_for_frame(400.0, 400.0, cap)
+    by_rc = {(c.row, c.col): c for c in grid.cells}
+    probe = by_rc[(1, 3)]
+    for nb in hex_neighbors(1, 3):
+        other = by_rc.get(nb)
+        if other is None:
+            continue
+        dist = math.hypot(other.x_mm - probe.x_mm, other.y_mm - probe.y_mm)
+        assert math.isclose(dist, cap.diameter_mm, rel_tol=1e-6)
