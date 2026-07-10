@@ -108,6 +108,16 @@ linear-light area-resampling (the physics of colour mixing at a distance),
 rather than an applied blur. Hold **👁 hold to compare** to flash the original
 image with identical framing.
 
+**Non-rectangular pieces.** The **Shape** picker clips the mosaic to a circle,
+ellipse, heart, hexagon or diamond inscribed in the frame — or choose
+*Freeform (draw)* and click an outline directly on your image (double-click or
+Enter closes it, Esc cancels, Backspace undoes a point). Cells outside the
+shape simply don't exist: they never cost caps, never appear in the BOM or the
+cap map, and in caps-I-own mode the piece grows until the *shape* (not the
+rectangle) uses your caps.
+
+![the same lion clipped to a circle, a heart and a hexagon](images/shapes.png)
+
 ---
 
 ## 4 · Palette, dither, and the look

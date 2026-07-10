@@ -102,6 +102,13 @@ the target and only reads once you stand far enough that caps blend.
   BOM + shopping list. Applied as a copy-on-write overlay AFTER the cached
   plan, so the plan cache is untouched; a seed whose cell no longer carries its
   recorded colour (palette/grid changed) silently sits out that render.
+- `&shape=circle|ellipse|heart|hex|diamond` or `&poly=fx,fy;fx,fy;...` (>=3
+  fractional vertices) on /estimate, /simulate, /capmap and /pick -> a
+  non-rectangular mosaic: grid cells outside the outline are DROPPED before
+  planning (they never cost caps or reach the BOM/cap map — different from
+  bg_* holes, which are "wanted a cap, removed it"). `panel_caps` reports the
+  masked cell count; the fitted caps-I-own grid sizes itself through the mask
+  (`fit_caps_across_masked`); a shape that leaves no cells -> 400.
 - `GET /crop?image_id=&x0=&y0=&x1=&y1=` / `GET /image?image_id=` -> region crop + preview
 - `GET /critique?image_id=&llm=` -> heuristic score/tips/recommendations; with
   `llm=true` also the Qwen verdict incl. whitelisted `actions`
