@@ -70,6 +70,51 @@ function readQuality(d) {
   return "smooth";
 }
 
+// --- wheel zoom: scrolling over the preview IS walking closer/farther ---
+const FOV_DEG = 50;                    // matches view_at_distance's frame
+function apparentFrac(widthM, d) {     // client mirror of core/sizing.apparent_fraction
+  if (d <= 0) return 1;
+  return Math.min(1, (2 * Math.atan(widthM / 2 / d) * 180 / Math.PI) / FOV_DEG);
+}
+// distance behind the CURRENTLY shown pixels vs the render on its way; the gap
+// between them is bridged by an instant CSS scale until the real render lands
+let simBaseDist = null, inflightDist = null;
+
+function previewZoom() {
+  const el = $("sim");
+  if (simBaseDist == null) { el.style.transform = ""; return; }
+  const w = sizeMm() / 1000;
+  const base = apparentFrac(w, simBaseDist);
+  let s = base > 0 ? apparentFrac(w, distM()) / base : 1;
+  s = Math.max(0.2, Math.min(5, s));   // cosmetic clamp on upscale blur
+  el.style.transform = Math.abs(s - 1) < 1e-3 ? "" : `scale(${s})`;
+}
+
+function updateSimHintClient() {
+  if (fromMyCaps() && !unlimitedStock()) return;  // fitted piece: server hint stands
+  const w = sizeMm() / 1000, d = distM();
+  const pct = Math.round(100 * apparentFrac(w, d));
+  $("simhint").textContent =
+    `${w.toFixed(2)} m wide, seen from ${d.toFixed(1)} m — fills ~${pct}% of your view · ${readQuality(d)}`;
+}
+
+// shared by the slider and the wheel: readouts update instantly, render debounced
+function applyDistanceUI() {
+  $("distVal").textContent = distM().toFixed(1) + " m";
+  $("quality").textContent = readQuality(distM());
+  updateSimHintClient();
+  previewZoom();
+  debounced();
+}
+
+function setDistance(d) {
+  const el = $("dist");
+  d = Math.round(Math.max(+el.min, Math.min(+el.max, d)) * 10) / 10;
+  if (d === distM()) return;
+  el.value = d;
+  applyDistanceUI();
+}
+
 // --- upload ---
 const dz = $("dropzone");
 dz.addEventListener("click", () => $("fileInput").click());
@@ -254,7 +299,7 @@ $("aiSimplify").addEventListener("click", async () => {
 
 // --- controls ---
 $("size").addEventListener("input", () => { $("sizeVal").textContent = (sizeMm() / 1000).toFixed(2) + " m"; debounced(); });
-$("dist").addEventListener("input", () => { $("distVal").textContent = distM().toFixed(1) + " m"; debounced(); });
+$("dist").addEventListener("input", applyDistanceUI);
 document.querySelectorAll('input[name=mode]').forEach((r) => r.addEventListener("change", refresh));
 $("preset").addEventListener("change", refresh);
 $("thicken").addEventListener("change", refresh);
@@ -328,6 +373,20 @@ $("copyPrompt").addEventListener("click", async () => {
 // dim the sim while a new render is on its way; the load event clears it
 ["load", "error"].forEach((ev) =>
   $("sim").addEventListener(ev, () => document.querySelector(".simwrap").classList.remove("loading")));
+// the landed render is authoritative for its distance: drop the interim scale
+$("sim").addEventListener("load", () => { simBaseDist = inflightDist; $("sim").style.transform = ""; });
+$("sim").addEventListener("error", () => { $("sim").style.transform = ""; });
+
+// scroll over the preview = change viewing distance (ctrl+wheel = trackpad pinch)
+document.querySelector(".simwrap").addEventListener("wheel", (e) => {
+  if (!imageId) return;
+  // the fitted caps-I-own piece is shown sharp at its real size — the server
+  // ignores distance there, so let the page scroll normally
+  if (fromMyCaps() && !unlimitedStock()) return;
+  e.preventDefault();
+  const dy = e.deltaMode === 1 ? e.deltaY * 33 : e.deltaY;   // line-scroll mice -> px
+  setDistance(distM() * Math.exp((e.ctrlKey ? 0.003 : 0.0015) * dy));
+}, { passive: false });
 
 // hold the compare button to swap the cap sim for the original (same framing)
 const _cmp = $("compareBtn");
@@ -480,6 +539,7 @@ async function refresh() {
   const q = new URLSearchParams({ image_id: imageId, mode: mode(), pitch_mm: PITCH, size_mm: sizeMm(), distance_m: distM(), ...extraParams() });
   if (highlight) q.set("highlight", highlight);
   curSimSrc = "/simulate?" + q.toString() + "&_=" + Date.now();
+  inflightDist = distM();   // the distance this render is being made for
   document.querySelector(".simwrap").classList.add("loading");  // cleared on img load
   $("sim").src = curSimSrc;
   const tq = new URLSearchParams({ image_id: imageId, mode: mode(), pitch_mm: PITCH, size_mm: sizeMm(), distance_m: distM() });
