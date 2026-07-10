@@ -290,7 +290,7 @@ input[type=checkbox], input[type=radio] { accent-color:var(--acc); width:15px; h
   border:1px solid var(--border-1); border-radius:var(--r-hero); padding:var(--s3);
   box-shadow:0 24px 60px #00000073; overflow:hidden; }
 #sim { max-width:100%; max-height:100%; width:auto; height:auto; border-radius:var(--r-card);
-  display:block; background:#0d0f14; image-rendering:auto;
+  display:block; background:#0d0f14; image-rendering:auto; cursor:crosshair;
   transform-origin:50% 50%; transition:transform .06s ease-out; }
 .simwrap.loading #sim { opacity:.45; transition:opacity .15s; }
 .simwrap.loading::after { content:""; position:absolute; top:calc(50% - 14px); left:calc(50% - 14px);
@@ -352,6 +352,23 @@ input[type=checkbox], input[type=radio] { accent-color:var(--acc); width:15px; h
 .capmaplink:hover { text-decoration:underline; }
 .invtotals { color:var(--mut); font-size:12px; margin:0 0 var(--s2); }
 .bom .inv { color:var(--mut); font-size:11px; margin-left:4px; }
+/* click-to-background: the removed-colour chip bar + per-row knockout button */
+.bgbar { display:flex; flex-wrap:wrap; align-items:center; gap:var(--s1) var(--s2);
+  margin:0 0 var(--s2); font-size:12px; }
+.bglabel { color:var(--mut); }
+.bgchip { display:inline-flex; align-items:center; gap:6px; cursor:pointer;
+  font-family:var(--font-mono); font-size:12px; padding:3px 8px; border-radius:6px;
+  border:1px dashed var(--border-2); background:var(--surface-2); color:var(--mut); }
+.bgchip:hover { border-color:#d05a5a; color:var(--ink); }
+.bgchip .sw { width:14px; height:14px; border-radius:4px; border:1px solid #0006; opacity:.55; }
+.bgchip b { font-weight:700; }
+.bgbar button { font-size:11px; padding:2px 8px; }
+.bgholes { color:var(--mut); margin-left:auto; }
+.bom .knock { margin-left:2px; padding:0 5px; font-size:11px; line-height:1.5;
+  border:1px solid transparent; border-radius:4px; background:none; color:var(--mut);
+  cursor:pointer; visibility:hidden; }
+.bom .bomrow:hover .knock { visibility:visible; }
+.bom .knock:hover { border-color:#d05a5a; color:#e08484; }
 
 /* ── graceful fallback: shorter screens & narrow widths may scroll ─────── */
 @media (max-height:620px), (max-width:1100px) {

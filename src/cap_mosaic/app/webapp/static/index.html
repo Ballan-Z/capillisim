@@ -186,11 +186,17 @@
       <details class="bom" id="bomwrap" hidden open>
         <summary>
           <h3>Caps needed by colour <span id="bomcount" class="bomcount"></span>
-            <small style="font-weight:400;opacity:.7">— click a colour to isolate it</small>
+            <small style="font-weight:400;opacity:.7">— click a colour to isolate it · ⌫ makes it background · click the preview (Shift = just that region)</small>
           </h3>
           <a id="capmap" class="capmaplink tip-left" target="_blank" rel="noopener" data-tip="Download a printable paint-by-numbers sheet: a letter per colour on every cell, row/column rulers, and a legend with counts.">⬇ Cap map (PDF)</a>
           <span class="foldchev" aria-hidden="true">▾</span>
         </summary>
+        <div id="bgbar" class="bgbar" hidden>
+          <span class="bglabel">Background (bare board, no caps):</span>
+          <span id="bgchips"></span>
+          <button id="bgClear" data-tip="Put every removed colour and region back.">restore all</button>
+          <small id="bgholes" class="bgholes"></small>
+        </div>
         <div id="invtotals" class="invtotals" hidden></div>
         <ul id="bom"></ul>
       </details>

@@ -8,6 +8,8 @@ let versions = [];  // [{id, label, aspect}] — Original, crops, AI edits; imag
 let aspect = 1;
 let selFrac = null;  // {x0,y0,x1,y1} in image fractions
 let highlight = null;  // BOM colour being isolated (hex), or null
+let bgColors = [];     // colours the user sent to the background (hex strings)
+let bgSeeds = [];      // region exclusions: {fx, fy, hex} cell-centre seeds
 let curSimSrc = null, curTargetSrc = null;  // for hold-to-compare
 
 function mode() {
@@ -37,6 +39,10 @@ function extraParams() {
     p.from_my_caps = true;
     p.own_threshold = ownThreshold();
     if (unlimitedStock()) p.unlimited_stock = true;
+  }
+  if (bgColors.length) p.bg_colors = bgColors.map((h) => h.slice(1)).join(",");
+  if (bgSeeds.length) {
+    p.bg_seeds = bgSeeds.map((s) => `${s.fx}:${s.fy}:${s.hex.slice(1)}`).join(",");
   }
   return p;
 }
@@ -174,6 +180,8 @@ function activateVersion(id) {
   if (!v) return;
   imageId = v.id; aspect = v.aspect;
   highlight = null;              // isolate/selection state belongs to the old plan
+  bgColors = []; bgSeeds = [];   // ...as do the background exclusions
+  renderBgChips();
   setPreview(v.id); clearSelection();
   renderVersions();
   refresh(); loadCritique();     // loadCritique also clears the stale AI verdict
@@ -388,6 +396,65 @@ document.querySelector(".simwrap").addEventListener("wheel", (e) => {
   setDistance(distM() * Math.exp((e.ctrlKey ? 0.003 : 0.0015) * dy));
 }, { passive: false });
 
+// --- click a colour on the preview to send it to the background (bare board);
+//     Shift+click removes only the connected region. Click again to restore. ---
+function renderBgChips() {
+  const bar = $("bgbar"), box = $("bgchips");
+  box.innerHTML = "";
+  const chip = (label, hex, onRemove) => {
+    const s = document.createElement("span");
+    s.className = "bgchip";
+    s.innerHTML = `<span class="sw" style="background:${hex}"></span>${label} <b>×</b>`;
+    s.addEventListener("click", () => { onRemove(); renderBgChips(); refresh(); });
+    box.appendChild(s);
+  };
+  for (const hex of bgColors) {
+    chip(hex, hex, () => { bgColors = bgColors.filter((h) => h !== hex); });
+  }
+  bgSeeds.forEach((seed, i) => {
+    chip(`region ${seed.hex}`, seed.hex, () => { bgSeeds.splice(i, 1); });
+  });
+  bar.hidden = bgColors.length === 0 && bgSeeds.length === 0;
+}
+
+$("bgClear").addEventListener("click", () => {
+  bgColors = []; bgSeeds = [];
+  renderBgChips(); refresh();
+});
+
+$("sim").addEventListener("click", async (e) => {
+  if (!imageId) return;
+  // while a zoom scale or a fresh render is pending, the pixels on screen
+  // don't match the current params — a pick there would land on the wrong cell
+  if ($("sim").style.transform) return;
+  if (document.querySelector(".simwrap").classList.contains("loading")) return;
+  const r = $("sim").getBoundingClientRect();
+  const q = new URLSearchParams({
+    image_id: imageId, mode: mode(), pitch_mm: PITCH,
+    size_mm: sizeMm(), distance_m: distM(),
+    fx: ((e.clientX - r.left) / r.width).toFixed(4),
+    fy: ((e.clientY - r.top) / r.height).toFixed(4),
+    ...extraParams(),
+  });
+  const res = await fetch("/pick?" + q.toString());
+  if (!res.ok) return;
+  const b = await res.json();
+  if (!b.hit) return;
+  if (b.excluded_by === "color") {
+    bgColors = bgColors.filter((h) => h !== b.hex);          // click again = restore
+  } else if (b.excluded_by === "seed") {
+    bgSeeds.splice(b.seed_index, 1);                          // restore that region
+  } else if (b.bare) {
+    toast("That cell is already bare board."); return;
+  } else if (e.shiftKey) {
+    if (bgSeeds.length >= 64) { toast("Too many regions — clear some first."); return; }
+    bgSeeds.push({ fx: b.fx, fy: b.fy, hex: b.hex });
+  } else {
+    bgColors.push(b.hex);
+  }
+  renderBgChips(); refresh();
+});
+
 // hold the compare button to swap the cap sim for the original (same framing)
 const _cmp = $("compareBtn");
 const _showTarget = () => { if (curTargetSrc) $("sim").src = curTargetSrc; };
@@ -529,11 +596,19 @@ async function refresh() {
     li.className = "bomrow" + (hex === highlight ? " active" : "");
     let extra = "";
     if (inv && inv[hex]) extra = ` <span class="inv">have ${inv[hex].have} · short ${inv[hex].short}</span>`;
-    li.innerHTML = `<span class="sw" style="background:${hex}"></span>${hex} <b>${n}</b>${extra}`;
+    li.innerHTML = `<span class="sw" style="background:${hex}"></span>${hex} <b>${n}</b>${extra}` +
+      `<button class="knock" data-tip="use bare board instead of caps for this colour">⌫</button>`;
     li.addEventListener("click", () => { highlight = (highlight === hex) ? null : hex; refresh(); });
+    li.querySelector(".knock").addEventListener("click", (e) => {
+      e.stopPropagation();               // the row click toggles isolate, not this
+      bgColors.push(hex);
+      renderBgChips(); refresh();
+    });
     ul.appendChild(li);
   }
   $("bomwrap").classList.toggle("isolating", !!highlight);
+  $("bgholes").textContent =
+    b.holes ? `${b.holes.toLocaleString()} cells left bare` : "";
 
   // simulation
   const q = new URLSearchParams({ image_id: imageId, mode: mode(), pitch_mm: PITCH, size_mm: sizeMm(), distance_m: distM(), ...extraParams() });
