@@ -79,7 +79,11 @@ def ai_simplify(
         "parameters": {"negative_prompt": NEGATIVE_PROMPT, "watermark": False},
     }
     resp = post(EDIT_URL, {"Authorization": f"Bearer {key}"}, body)
+    return _image_from_response(resp, get_bytes)
 
+
+def _image_from_response(resp: dict, get_bytes: Callable[[str], bytes]) -> Image.Image:
+    """Pull the generated/edited image out of a DashScope generation response."""
     for ch in resp.get("output", {}).get("choices") or []:
         for item in ch.get("message", {}).get("content", []):
             url = item.get("image")
@@ -88,4 +92,38 @@ def ai_simplify(
             b64 = item.get("image_base64") or item.get("data")
             if b64:
                 return Image.open(io.BytesIO(base64.b64decode(b64))).convert("RGB")
-    raise RuntimeError(f"no image in edit response: {str(resp)[:200]}")
+    raise RuntimeError(f"no image in response: {str(resp)[:200]}")
+
+
+# text-to-image: same DashScope endpoint, text-only message (verified live)
+T2I_MODEL = "qwen-image-plus"
+# sizes the model supports, widest to tallest — picked by nearest aspect
+T2I_SIZES = ("1664*928", "1472*1140", "1328*1328", "1140*1472", "928*1664")
+
+
+def t2i_size_for(aspect: float) -> str:
+    """The supported generation size whose aspect is closest to `aspect`."""
+    def ratio(s: str) -> float:
+        w, h = s.split("*")
+        return int(w) / int(h)
+    return min(T2I_SIZES, key=lambda s: abs(ratio(s) - aspect))
+
+
+def ai_pattern(
+    prompt: str,
+    size: str = "1328*1328",
+    key: str | None = None,
+    model: str = T2I_MODEL,
+    post: Callable[[str, dict, dict], dict] = _default_post,
+    get_bytes: Callable[[str], bytes] = _default_get_bytes,
+) -> Image.Image:
+    """Generate a decorative pattern image from a text prompt (the owned-cap
+    palette prompt). Returns a new image; callers store it like an upload."""
+    key = key or _load_key()
+    body = {
+        "model": model,
+        "input": {"messages": [{"role": "user", "content": [{"text": prompt}]}]},
+        "parameters": {"size": size, "watermark": False, "prompt_extend": True},
+    }
+    resp = post(EDIT_URL, {"Authorization": f"Bearer {key}"}, body)
+    return _image_from_response(resp, get_bytes)

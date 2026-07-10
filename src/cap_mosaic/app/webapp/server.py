@@ -492,14 +492,10 @@ def pattern_thumb(kind: str = "gradient") -> Response:
                     headers={"Cache-Control": "max-age=300"})
 
 
-@app.get("/palette_prompt")
-def palette_prompt() -> dict:
-    """A ready-to-paste AI-image prompt constrained to the owned palette."""
-    if not _DB.exists():
-        raise HTTPException(404, "no cap inventory (scan caps first)")
-    from ..cap_stock import load_stock
-
-    groups = sorted(load_stock(str(_DB)), key=lambda g: -g.count)
+def _palette_prompt_text(groups) -> tuple[str, int, int]:
+    """(prompt, colours, caps): the owned-palette constraint text shared by
+    /palette_prompt (copy-paste) and /ai_pattern (direct generation)."""
+    groups = sorted(groups, key=lambda g: -g.count)
     total = sum(g.count for g in groups)
     top = groups[:8]
     hexes = ", ".join(f"#{g.rgb[0]:02x}{g.rgb[1]:02x}{g.rgb[2]:02x} (~{g.count} caps)"
@@ -511,7 +507,47 @@ def palette_prompt() -> dict:
         f"no fine detail, no text, plain background in the most plentiful colour. "
         f"The subject must stay recognizable at very low resolution."
     )
-    return {"prompt": prompt, "colors": len(top), "caps": total}
+    return prompt, len(top), total
+
+
+@app.get("/palette_prompt")
+def palette_prompt() -> dict:
+    """A ready-to-paste AI-image prompt constrained to the owned palette."""
+    if not _DB.exists():
+        raise HTTPException(404, "no cap inventory (scan caps first)")
+    from ..cap_stock import load_stock
+
+    prompt, colors, total = _palette_prompt_text(load_stock(str(_DB)))
+    return {"prompt": prompt, "colors": colors, "caps": total}
+
+
+@app.get("/ai_pattern")
+def ai_pattern_endpoint(
+    width_mm: float = Query(1000.0, gt=0),
+    height_mm: float = Query(750.0, gt=0),
+) -> dict:
+    """Generate a decorative pattern image from the OWNED palette (Qwen
+    text-to-image) and store it as a new image id — it then flows through the
+    normal pipeline (best quantized with 'Only caps I own')."""
+    if not _DB.exists():
+        raise HTTPException(404, "no cap inventory (scan caps first)")
+    from .. import ai_edit
+    from ..cap_stock import load_stock
+
+    palette_text, _, _ = _palette_prompt_text(load_stock(str(_DB)))
+    prompt = (palette_text +
+              " Abstract decorative geometric pattern, flat colour regions "
+              "with crisp edges, no gradients, no text, no recognizable "
+              "subject — pure pattern.")
+    try:
+        out = ai_edit.ai_pattern(prompt, size=ai_edit.t2i_size_for(width_mm / height_mm))
+    except Exception as exc:  # noqa: BLE001 - key/network/quota surface to UI
+        raise HTTPException(502, f"AI pattern failed: {exc}") from exc
+    _COUNTER["n"] += 1
+    iid = str(_COUNTER["n"])
+    _IMAGES[iid] = out
+    return {"id": iid, "width": out.width, "height": out.height,
+            "aspect": out.width / out.height}
 
 
 @app.get("/caps_count")

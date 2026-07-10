@@ -425,6 +425,23 @@ $("patUnlimited").addEventListener("change", () => {
   if (activePattern) generatePattern(activePattern.kind);
 });
 
+$("aiPattern").addEventListener("click", async () => {
+  const b0 = $("aiPattern"); b0.disabled = true;
+  const old = b0.textContent; b0.textContent = "🪄 generating… (~20s)";
+  try {
+    const r = await fetch("/ai_pattern?" + new URLSearchParams(
+      { width_mm: Math.round(patRect.w), height_mm: Math.round(patRect.h) }));
+    if (!r.ok) {
+      let msg = "AI pattern failed";
+      try { msg = (await r.json()).detail || msg; } catch (_) { /* keep default */ }
+      toast(msg);
+      return;
+    }
+    addVersion(await r.json(), "AI pattern");
+    toast("AI pattern landed — switch 'Plan from: Only caps I own' to quantize it to your caps.");
+  } finally { b0.disabled = false; b0.textContent = old; }
+});
+
 // --- the pattern sizing rectangle: a physical-mm input widget on the stage.
 //     Visible in Pattern mode; SE handle resizes, body drag just repositions
 //     the widget. Red border + label = your stock can't fill it. ---

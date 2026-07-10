@@ -707,3 +707,62 @@ def test_pattern_kinds_and_thumbs(monkeypatch, tmp_path):
     r2 = client.get("/pattern_thumb", params={"kind": "mandala"})
     assert r2.content == r1.content             # served from the module cache
     assert client.get("/pattern_thumb", params={"kind": "plaid"}).status_code == 400
+
+
+# --- AI pattern (text-to-image, mocked) ---
+
+def test_ai_pattern_generates_and_stores(tmp_path, monkeypatch):
+    from cap_mosaic.app import ai_edit
+    from cap_mosaic.app.webapp import server
+    from cap_mosaic.data.store import CapDataset
+
+    dbp = tmp_path / "caps.db"
+    with CapDataset(dbp) as db:
+        for _ in range(5):
+            db.add_cap((200, 30, 30), captured_at="t")
+    monkeypatch.setattr(server, "_DB", dbp)
+
+    seen = {}
+
+    def fake_pattern(prompt, size="1328*1328", **kw):
+        seen["prompt"], seen["size"] = prompt, size
+        return Image.new("RGB", (640, 480), (180, 60, 40))
+
+    monkeypatch.setattr(ai_edit, "ai_pattern", fake_pattern)
+    r = client.get("/ai_pattern", params={"width_mm": 1600, "height_mm": 900})
+    assert r.status_code == 200
+    b = r.json()
+    assert b["width"] == 640 and b["height"] == 480
+    assert "#" in seen["prompt"] and "pattern" in seen["prompt"].lower()
+    assert seen["size"] == "1664*928"          # widest supported aspect chosen
+    # the stored id serves like any upload
+    assert client.get("/image", params={"image_id": b["id"]}).status_code == 200
+
+
+def test_ai_pattern_no_db_and_failure_paths(tmp_path, monkeypatch):
+    from cap_mosaic.app import ai_edit
+    from cap_mosaic.app.webapp import server
+    from cap_mosaic.data.store import CapDataset
+
+    monkeypatch.setattr(server, "_DB", tmp_path / "absent.db")
+    assert client.get("/ai_pattern").status_code == 404
+
+    dbp = tmp_path / "caps.db"
+    with CapDataset(dbp) as db:
+        db.add_cap((10, 10, 10), captured_at="t")
+    monkeypatch.setattr(server, "_DB", dbp)
+
+    def boom(prompt, **kw):
+        raise RuntimeError("QWEEN_KEY not set")
+
+    monkeypatch.setattr(ai_edit, "ai_pattern", boom)
+    r = client.get("/ai_pattern")
+    assert r.status_code == 502 and "QWEEN_KEY" in r.json()["detail"]
+
+
+def test_t2i_size_for_picks_nearest_aspect():
+    from cap_mosaic.app.ai_edit import t2i_size_for
+
+    assert t2i_size_for(16 / 9) == "1664*928"
+    assert t2i_size_for(1.0) == "1328*1328"
+    assert t2i_size_for(9 / 16) == "928*1664"
