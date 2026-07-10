@@ -380,3 +380,194 @@ def test_index_and_static_served():
     assert 'id="dropzone"' in r.text and 'id="size"' in r.text
     assert client.get("/static/app.js").status_code == 200
     assert client.get("/static/style.css").status_code == 200
+
+
+# --- click-a-colour-to-background: /pick + bg_colors/bg_seeds ---
+
+def _upload_two_tone() -> str:
+    """Left half red, right half blue - crisp colour regions for pick/flood."""
+    im = Image.new("RGB", (200, 200), (200, 30, 30))
+    for x in range(100, 200):
+        for y in range(200):
+            im.putpixel((x, y), (30, 30, 200))
+    buf = io.BytesIO()
+    im.save(buf, format="PNG")
+    buf.seek(0)
+    return client.post("/upload", files={"file": ("t.png", buf, "image/png")}).json()["id"]
+
+
+def _bom_sides(iid):
+    """(red pick, blue pick) as quantized by the plan, via /pick on each side."""
+    l = client.get("/pick", params={"image_id": iid, "size_mm": 2000,
+                                    "fx": 0.25, "fy": 0.5}).json()
+    r = client.get("/pick", params={"image_id": iid, "size_mm": 2000,
+                                    "fx": 0.75, "fy": 0.5}).json()
+    assert l["hit"] and r["hit"]
+    return l, r
+
+
+def test_pick_returns_cell_colour_sharp():
+    iid = _upload_two_tone()
+    l, r = _bom_sides(iid)
+    lr, lg, lb = (int(l["hex"][i:i + 2], 16) for i in (1, 3, 5))
+    rr, rg, rb = (int(r["hex"][i:i + 2], 16) for i in (1, 3, 5))
+    assert lr > lb and rb > rr  # left reads red, right reads blue
+    # returned fx/fy are the cell CENTRE: picking there again hits the same cell
+    again = client.get("/pick", params={"image_id": iid, "size_mm": 2000,
+                                        "fx": l["fx"], "fy": l["fy"]}).json()
+    assert (again["row"], again["col"]) == (l["row"], l["col"])
+
+
+def test_pick_letterbox_inverse_roundtrip():
+    from cap_mosaic.app.planner_designer import framed_box
+    from cap_mosaic.app.webapp import server as srv
+
+    iid = _upload_two_tone()
+    # letterbox margin at a far distance misses
+    m = client.get("/pick", params={"image_id": iid, "size_mm": 2000,
+                                    "distance_m": 12.0, "fx": 0.02, "fy": 0.5}).json()
+    assert m == {"hit": False}
+    # forward-map a known cell centre through the render math -> /pick inverts it
+    cell = client.get("/pick", params={"image_id": iid, "size_mm": 2000,
+                                       "fx": 0.3, "fy": 0.4}).json()
+    img = srv._IMAGES[iid]
+    res = srv._solve(img, iid, "picture", 32.0, 2000.0, None)
+    plan = srv._plan(iid, img, res["caps_across"], 12)
+    capped = max(1, min(res["caps_across"], srv._MAX_CAPS_ACROSS))
+    px_per_cap = max(6, min(22, srv._SIM_WIDTH_PX // capped))
+    ppm = px_per_cap / plan.cap_diameter_mm
+    mosaic_px = (max(1, round(plan.width_mm * ppm)),
+                 max(1, round(plan.height_mm * ppm)))
+    x0, y0, w, h = framed_box(mosaic_px, res["width_mm"], 6.0, srv._FRAME_PX)
+    fxf = (cell["fx"] * w + x0) / srv._FRAME_PX[0]
+    fyf = (cell["fy"] * h + y0) / srv._FRAME_PX[1]
+    back = client.get("/pick", params={"image_id": iid, "size_mm": 2000,
+                                       "distance_m": 6.0, "fx": fxf, "fy": fyf}).json()
+    assert back["hit"] and (back["row"], back["col"]) == (cell["row"], cell["col"])
+
+
+def test_bg_colors_hole_the_colour_and_cache_stays_pure():
+    iid = _upload_two_tone()
+    l, _ = _bom_sides(iid)
+    red = l["hex"]
+    # FIRST request applies the exclusion (overlays the freshly cached plan)...
+    ex = client.get("/estimate", params={"image_id": iid, "size_mm": 2000,
+                                         "bg_colors": red.lstrip("#")}).json()
+    # ...then the plain request must see the untouched cached plan
+    base = client.get("/estimate", params={"image_id": iid, "size_mm": 2000}).json()
+    n = base["bom"][red]
+    assert red not in ex["bom"]
+    assert ex["holes"] == base["holes"] + n
+    assert ex["total_caps"] == base["total_caps"] - n
+    assert base["holes"] == 0  # saturated two-tone: nothing bare-white, no mutation
+
+
+def test_bg_colors_shrink_the_shopping_list(tmp_path, monkeypatch):
+    from cap_mosaic.app.webapp import server
+    from cap_mosaic.data.store import CapDataset
+
+    dbp = tmp_path / "caps.db"
+    with CapDataset(dbp) as db:
+        for _ in range(10):
+            db.add_cap((200, 30, 30), captured_at="t")
+    monkeypatch.setattr(server, "_DB", dbp)
+
+    iid = _upload_two_tone()
+    l, _ = _bom_sides(iid)
+    red = l["hex"]
+    base = client.get("/estimate", params={"image_id": iid, "size_mm": 2000,
+                                           "inventory": True}).json()
+    assert base["inventory"][red]["have"] > 0
+    ex = client.get("/estimate", params={"image_id": iid, "size_mm": 2000,
+                                         "inventory": True,
+                                         "bg_colors": red.lstrip("#")}).json()
+    assert red not in ex["inventory"]
+    assert ex["inventory_totals"]["need"] < base["inventory_totals"]["need"]
+
+
+def test_bg_seed_flood_stops_at_colour_boundary():
+    iid = _upload_two_tone()
+    l, r = _bom_sides(iid)
+    base = client.get("/estimate", params={"image_id": iid, "size_mm": 2000}).json()
+    seed = "{}:{}:{}".format(l["fx"], l["fy"], l["hex"].lstrip("#"))
+    ex = client.get("/estimate", params={"image_id": iid, "size_mm": 2000,
+                                         "bg_seeds": seed}).json()
+    assert ex["bom"].get(r["hex"]) == base["bom"][r["hex"]]  # blue untouched
+    assert ex["bom"].get(l["hex"], 0) <= base["bom"][l["hex"]] * 0.05  # red gone
+    assert ex["holes"] > base["holes"]
+
+
+def test_bg_seed_confined_to_connected_region():
+    # two separated red squares on blue: seeding one leaves the other standing
+    im = Image.new("RGB", (200, 200), (30, 30, 200))
+    for x0 in (10, 130):
+        for x in range(x0, x0 + 60):
+            for y in range(70, 130):
+                im.putpixel((x, y), (200, 30, 30))
+    buf = io.BytesIO()
+    im.save(buf, format="PNG")
+    buf.seek(0)
+    iid = client.post("/upload", files={"file": ("s.png", buf, "image/png")}).json()["id"]
+    left = client.get("/pick", params={"image_id": iid, "size_mm": 2000,
+                                       "fx": 0.2, "fy": 0.5}).json()
+    base = client.get("/estimate", params={"image_id": iid, "size_mm": 2000}).json()
+    n_red = base["bom"][left["hex"]]
+    seed = "{}:{}:{}".format(left["fx"], left["fy"], left["hex"].lstrip("#"))
+    ex = client.get("/estimate", params={"image_id": iid, "size_mm": 2000,
+                                         "bg_seeds": seed}).json()
+    remaining = ex["bom"].get(left["hex"], 0)
+    assert 0 < remaining < n_red  # one island removed, the other survives
+
+
+def test_bg_seed_with_stale_hex_is_ignored():
+    iid = _upload_two_tone()
+    l, _ = _bom_sides(iid)
+    base = client.get("/estimate", params={"image_id": iid, "size_mm": 2000}).json()
+    stale = "{}:{}:00ff00".format(l["fx"], l["fy"])
+    ex = client.get("/estimate", params={"image_id": iid, "size_mm": 2000,
+                                         "bg_seeds": stale}).json()
+    assert ex["bom"] == base["bom"] and ex["holes"] == base["holes"]
+
+
+def test_simulate_and_capmap_accept_bg_params():
+    iid = _upload_two_tone()
+    l, _ = _bom_sides(iid)
+    p = {"image_id": iid, "size_mm": 2000, "distance_m": 6.0}
+    plain = client.get("/simulate", params=p)
+    holed = client.get("/simulate", params={**p, "bg_colors": l["hex"].lstrip("#")})
+    assert plain.status_code == holed.status_code == 200
+    assert plain.content != holed.content
+    im = Image.open(io.BytesIO(holed.content))
+    assert im.size == (900, 650)  # frame size intact
+    r = client.get("/capmap", params={"image_id": iid, "size_mm": 2000,
+                                      "bg_colors": l["hex"].lstrip("#")})
+    assert r.status_code == 200
+    bad = client.get("/estimate", params={"image_id": iid, "size_mm": 2000,
+                                          "bg_colors": "zz"})
+    assert bad.status_code == 400
+
+
+def test_pick_reports_exclusion_cause():
+    iid = _upload_two_tone()
+    l, _ = _bom_sides(iid)
+    by_color = client.get("/pick", params={
+        "image_id": iid, "size_mm": 2000, "fx": l["fx"], "fy": l["fy"],
+        "bg_colors": l["hex"].lstrip("#")}).json()
+    assert by_color["excluded_by"] == "color" and by_color["seed_index"] is None
+    seed = "{}:{}:{}".format(l["fx"], l["fy"], l["hex"].lstrip("#"))
+    by_seed = client.get("/pick", params={
+        "image_id": iid, "size_mm": 2000, "fx": l["fx"], "fy": l["fy"],
+        "bg_seeds": seed}).json()
+    assert by_seed["excluded_by"] == "seed" and by_seed["seed_index"] == 0
+    # a bare-white hole reports bare (white border image, bare_white default on)
+    im = Image.new("RGB", (200, 200), (255, 255, 255))
+    for x in range(70, 130):
+        for y in range(70, 130):
+            im.putpixel((x, y), (30, 120, 60))
+    buf = io.BytesIO()
+    im.save(buf, format="PNG")
+    buf.seek(0)
+    wid = client.post("/upload", files={"file": ("w.png", buf, "image/png")}).json()["id"]
+    border = client.get("/pick", params={"image_id": wid, "size_mm": 2000,
+                                         "fx": 0.05, "fy": 0.05}).json()
+    assert border["hit"] and border["bare"] is True
