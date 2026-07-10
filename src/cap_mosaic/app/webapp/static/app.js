@@ -562,10 +562,66 @@ $("copyPrompt").addEventListener("click", async () => {
 ["load", "error"].forEach((ev) =>
   $("sim").addEventListener(ev, () => document.querySelector(".simwrap").classList.remove("loading")));
 // the landed render is authoritative for its distance: drop the interim scale
-$("sim").addEventListener("load", () => { simBaseDist = inflightDist; $("sim").style.transform = ""; });
-$("sim").addEventListener("error", () => { $("sim").style.transform = ""; });
+// (in inspect mode the transform IS the view — reapply it instead)
+$("sim").addEventListener("load", () => {
+  if (inspect) { inspectTransform(); return; }
+  simBaseDist = inflightDist; $("sim").style.transform = "";
+});
+$("sim").addEventListener("error", () => { if (!inspect) $("sim").style.transform = ""; });
 
-// scroll over the preview = change viewing distance (ctrl+wheel = trackpad pinch)
+// --- close-up inspect zoom: past the nearest distance the wheel keeps going,
+//     into a high-detail sharp render magnified until single caps fill the
+//     screen. Drag pans; scrolling back out steps back to the distance view. ---
+let inspect = null;        // {scale, ox, oy} while inspecting, else null
+let inspectPan = null;
+let justPanned = false;    // suppress the click that ends a pan-drag
+
+function inspectTransform() {
+  $("sim").style.transform =
+    `translate(${inspect.ox}px, ${inspect.oy}px) scale(${inspect.scale})`;
+}
+
+function enterInspect() {
+  clearTimeout(timer);   // a pending debounced re-render would clobber the close-up
+  inspect = { scale: 1.3, ox: 0, oy: 0 };
+  document.querySelector(".simwrap").classList.add("inspect");
+  // the raw sharp mosaic at close-up detail (bigger tiles, no distance frame)
+  const q = new URLSearchParams({ image_id: imageId, mode: mode(), pitch_mm: PITCH,
+                                  size_mm: sizeMm(), detail: true, ...extraParams() });
+  if (highlight) q.set("highlight", highlight);
+  document.querySelector(".simwrap").classList.add("loading");
+  $("sim").src = "/simulate?" + q.toString() + "&_=" + Date.now();
+  $("simhint").textContent =
+    "close-up — scroll to zoom into the caps · drag to pan · scroll out to step back";
+  inspectTransform();
+}
+
+function exitInspect() {
+  inspect = null;
+  document.querySelector(".simwrap").classList.remove("inspect");
+  $("sim").style.transform = "";
+  refresh();   // back to the framed at-distance view
+}
+
+$("sim").addEventListener("pointerdown", (e) => {
+  if (!inspect) return;
+  e.preventDefault();
+  inspectPan = { x: e.clientX, y: e.clientY, ox: inspect.ox, oy: inspect.oy };
+  $("sim").setPointerCapture(e.pointerId);
+});
+$("sim").addEventListener("pointermove", (e) => {
+  if (!inspect || !inspectPan) return;
+  const dx = e.clientX - inspectPan.x, dy = e.clientY - inspectPan.y;
+  if (Math.hypot(dx, dy) > 3) justPanned = true;
+  inspect.ox = inspectPan.ox + dx;
+  inspect.oy = inspectPan.oy + dy;
+  inspectTransform();
+});
+["pointerup", "pointercancel"].forEach((ev) =>
+  $("sim").addEventListener(ev, () => { inspectPan = null; }));
+
+// scroll over the preview = walk closer/farther; past the closest distance it
+// becomes the inspect zoom (ctrl+wheel = trackpad pinch)
 document.querySelector(".simwrap").addEventListener("wheel", (e) => {
   if (!imageId) return;
   // the fitted caps-I-own piece is shown sharp at its real size — the server
@@ -573,7 +629,23 @@ document.querySelector(".simwrap").addEventListener("wheel", (e) => {
   if (fromMyCaps() && !unlimitedStock()) return;
   e.preventDefault();
   const dy = e.deltaMode === 1 ? e.deltaY * 33 : e.deltaY;   // line-scroll mice -> px
-  setDistance(distM() * Math.exp((e.ctrlKey ? 0.003 : 0.0015) * dy));
+  const k = e.ctrlKey ? 0.003 : 0.0015;
+  if (inspect) {
+    const s2 = Math.min(14, inspect.scale * Math.exp(-k * dy));
+    if (s2 <= 1.02) { exitInspect(); return; }
+    // keep the point under the cursor fixed while scaling
+    const r = $("sim").getBoundingClientRect();
+    const g = s2 / inspect.scale;
+    const cx0 = e.clientX - (r.left + r.width / 2) + inspect.ox;
+    const cy0 = e.clientY - (r.top + r.height / 2) + inspect.oy;
+    inspect.ox = cx0 - g * (cx0 - inspect.ox);
+    inspect.oy = cy0 - g * (cy0 - inspect.oy);
+    inspect.scale = s2;
+    inspectTransform();
+    return;
+  }
+  if (dy < 0 && distM() <= Number($("dist").min) + 1e-9) { enterInspect(); return; }
+  setDistance(distM() * Math.exp(k * dy));
 }, { passive: false });
 
 // --- click a colour on the preview to send it to the background (bare board);
@@ -604,18 +676,22 @@ $("bgClear").addEventListener("click", () => {
 
 $("sim").addEventListener("click", async (e) => {
   if (!imageId) return;
+  if (justPanned) { justPanned = false; return; }   // that click ended a pan
   // while a zoom scale or a fresh render is pending, the pixels on screen
   // don't match the current params — a pick there would land on the wrong cell
-  if ($("sim").style.transform) return;
+  // (the inspect transform is exempt: rect math accounts for it exactly)
+  if (!inspect && $("sim").style.transform) return;
   if (document.querySelector(".simwrap").classList.contains("loading")) return;
   const r = $("sim").getBoundingClientRect();
-  const q = new URLSearchParams({
-    image_id: imageId, mode: mode(), pitch_mm: PITCH,
-    size_mm: sizeMm(), distance_m: distM(),
+  const qp = {
+    image_id: imageId, mode: mode(), pitch_mm: PITCH, size_mm: sizeMm(),
     fx: ((e.clientX - r.left) / r.width).toFixed(4),
     fy: ((e.clientY - r.top) / r.height).toFixed(4),
     ...extraParams(),
-  });
+  };
+  // the inspect view shows the RAW mosaic (no distance frame): pick matches it
+  if (!inspect) qp.distance_m = distM();
+  const q = new URLSearchParams(qp);
   const res = await fetch("/pick?" + q.toString());
   if (!res.ok) return;
   const b = await res.json();
@@ -800,8 +876,14 @@ async function estimate(params) {
 
 async function refresh() {
   if (!imageId) return;
+  if (inspect) {   // any re-render leaves the close-up: params changed under it
+    inspect = null;
+    document.querySelector(".simwrap").classList.remove("inspect");
+    $("sim").style.transform = "";
+  }
   const b = await estimate({ size_mm: sizeMm(), distance_m: distM() });
   if (!b) return;
+  if (inspect) return;   // a close-up started while we were fetching — keep it
 
   $("across").textContent = b.caps_across;
   $("total").textContent = b.total_caps.toLocaleString();

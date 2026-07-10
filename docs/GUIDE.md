@@ -90,6 +90,11 @@ buttons explore that:
   preview and the distance slider track every tick (Ctrl+wheel = trackpad
   pinch). In *caps-I-own* fitted mode the wheel is inactive — that piece is
   always shown sharp at its real size.
+- **Keep scrolling into a close-up.** Past the closest distance (0.5 m) the
+  wheel switches to an inspect zoom: a ~4× higher-detail render loads and you
+  can magnify until single caps fill the screen — the zoom follows your
+  cursor, dragging pans, clicking still picks colours, and scrolling back out
+  returns to the distance view.
 
   ![the same 2.5 m piece seen from 12 m vs 3 m](images/zoom-distance.png)
 - **↳ size for this distance**: how big must it be to fill your view from here?

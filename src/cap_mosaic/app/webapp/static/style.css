@@ -293,6 +293,8 @@ input[type=checkbox], input[type=radio] { accent-color:var(--acc); width:15px; h
   display:block; background:#0d0f14; image-rendering:auto; cursor:crosshair;
   transform-origin:50% 50%; transition:transform .06s ease-out; }
 .simwrap.loading #sim { opacity:.45; transition:opacity .15s; }
+.simwrap.inspect #sim { cursor:grab; transition:none; }
+.simwrap.inspect #sim:active { cursor:grabbing; }
 .simwrap.loading::after { content:""; position:absolute; top:calc(50% - 14px); left:calc(50% - 14px);
   width:28px; height:28px; border:3px solid var(--border-1); border-top-color:var(--acc);
   border-radius:50%; animation:spin .8s linear infinite; }

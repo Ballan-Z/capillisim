@@ -1025,6 +1025,7 @@ def simulate(
     poly: str | None = None,
     bg_colors: str | None = None,
     bg_seeds: str | None = None,
+    detail: bool = False,
 ) -> Response:
     img = _get(image_id)
     res = _solve(img, image_id, mode, pitch_mm, size_mm, distance_m)
@@ -1040,9 +1041,13 @@ def simulate(
         # the fitted piece drives tile sizing + physical width, not the slider
         _own_geometry(res, plan)
     # adapt tile pixels to how many caps there are, so a bigger piece shows more
-    # detail while the output stays a bounded size.
+    # detail while the output stays a bounded size. `detail` (the client's
+    # close-up inspect zoom) lifts the ceiling ~4x so single caps stay sharp
+    # when magnified — capped at the cap-photo library's native 64 px.
     capped_across = max(1, min(res["caps_across"], _MAX_CAPS_ACROSS))
-    px_per_cap = max(6, min(22, _SIM_WIDTH_PX // capped_across))
+    close_up = detail and distance_m is None
+    budget = _SIM_WIDTH_PX * (4 if close_up else 1)
+    px_per_cap = max(6, min(64 if close_up else 22, budget // capped_across))
     palette = list({tuple(c.rgb) for c in plan.cells if not c.is_hole})
     # Real caps are auto-cropped to their disc (see cap_crop) so every cap is the
     # same size; blend them in for photographic realism. Set real_caps=false for

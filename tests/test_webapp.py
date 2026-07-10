@@ -766,3 +766,17 @@ def test_t2i_size_for_picks_nearest_aspect():
     assert t2i_size_for(16 / 9) == "1664*928"
     assert t2i_size_for(1.0) == "1328*1328"
     assert t2i_size_for(9 / 16) == "928*1664"
+
+
+def test_detail_render_is_higher_resolution():
+    iid = _upload()
+    small = client.get("/simulate", params={"image_id": iid, "size_mm": 2000})
+    big = client.get("/simulate", params={"image_id": iid, "size_mm": 2000,
+                                          "detail": True})
+    ws = Image.open(io.BytesIO(small.content)).width
+    wb = Image.open(io.BytesIO(big.content)).width
+    assert wb > ws * 2                       # close-up budget ~4x the tile pixels
+    # detail is a close-up concept: with a distance frame it changes nothing
+    framed = client.get("/simulate", params={"image_id": iid, "size_mm": 2000,
+                                             "distance_m": 6.0, "detail": True})
+    assert Image.open(io.BytesIO(framed.content)).size == (900, 650)
