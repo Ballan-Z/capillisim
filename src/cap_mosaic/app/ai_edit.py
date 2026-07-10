@@ -98,7 +98,8 @@ def _image_from_response(resp: dict, get_bytes: Callable[[str], bytes]) -> Image
 # text-to-image: same DashScope endpoint, text-only message (verified live)
 T2I_MODEL = "qwen-image-plus"
 # sizes the model supports, widest to tallest — picked by nearest aspect
-T2I_SIZES = ("1664*928", "1472*1140", "1328*1328", "1140*1472", "928*1664")
+# (exact strings from DashScope's InvalidParameter error listing)
+T2I_SIZES = ("1664*928", "1472*1104", "1328*1328", "1104*1472", "928*1664")
 
 
 def t2i_size_for(aspect: float) -> str:
