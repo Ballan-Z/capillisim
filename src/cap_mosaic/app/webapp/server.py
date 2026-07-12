@@ -41,9 +41,12 @@ _COUNTER = {"n": 0}
 # Use the captured cap dataset for realistic caps + BOM when it exists. On a
 # fresh clone nobody has scanned caps yet, so fall back to the bundled example
 # set — the app is playable immediately, and a user's own dataset/ always wins.
-_DB = Path("dataset/caps.db")
-if not _DB.exists():
-    _DB = Path("examples/dataset/caps.db")
+def _resolve_db() -> Path:
+    scanned = Path("dataset/caps.db")
+    return scanned if scanned.exists() else Path("examples/dataset/caps.db")
+
+
+_DB = _resolve_db()
 _MAX_CAPS_ACROSS = 140  # render resolution ceiling; bigger size -> more detail
 _SIM_WIDTH_PX = 1200  # target simulation width; tile px adapts to keep it bounded
 _FRAME_PX = (900, 650)  # fixed field-of-view frame the mosaic shrinks inside

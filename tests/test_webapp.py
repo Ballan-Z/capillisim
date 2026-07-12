@@ -18,6 +18,22 @@ def _upload() -> str:
     return r.json()["id"]
 
 
+def test_db_falls_back_to_example_when_no_dataset(tmp_path, monkeypatch):
+    from pathlib import Path
+
+    from cap_mosaic.app.webapp import server
+
+    (tmp_path / "examples" / "dataset").mkdir(parents=True)
+    (tmp_path / "examples" / "dataset" / "caps.db").write_bytes(b"x")
+    monkeypatch.chdir(tmp_path)
+    # fresh clone: no dataset/ -> the bundled example is chosen
+    assert server._resolve_db() == Path("examples/dataset/caps.db")
+    # once the user scans their own caps, their dataset/ wins
+    (tmp_path / "dataset").mkdir()
+    (tmp_path / "dataset" / "caps.db").write_bytes(b"x")
+    assert server._resolve_db() == Path("dataset/caps.db")
+
+
 def test_health():
     r = client.get("/health")
     assert r.status_code == 200
