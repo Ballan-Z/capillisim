@@ -78,14 +78,52 @@ def _expand(stock: list[tuple[RGB, int]]) -> list[RGB]:
     return caps
 
 
+# A real inventory holds dozens of NEAR-colours; sorted as a smooth continuum
+# they smear the pattern's regions into each other. Clustering them into a few
+# bold families first keeps the generated pattern as crisp as its thumbnail.
+_MAX_FAMILIES = 6
+
+
+def _families(distinct: list[RGB]) -> dict[RGB, int]:
+    """Deterministic k-means (CIELAB, farthest-point init) into <= 6 families."""
+    if len(distinct) <= _MAX_FAMILIES:
+        return {c: i for i, c in enumerate(distinct)}
+    labs = np.array([rgb_to_lab(c) for c in distinct])
+    centers = [labs[0]]
+    for _ in range(_MAX_FAMILIES - 1):
+        d2 = np.min(((labs[:, None, :] - np.array(centers)[None]) ** 2).sum(2), axis=1)
+        centers.append(labs[int(np.argmax(d2))])
+    centers = np.array(centers)
+    assign = np.zeros(len(labs), dtype=int)
+    for _ in range(25):
+        assign = ((labs[:, None, :] - centers[None]) ** 2).sum(2).argmin(1)
+        new = np.array([labs[assign == j].mean(0) if (assign == j).any() else centers[j]
+                        for j in range(len(centers))])
+        if np.allclose(new, centers):
+            break
+        centers = new
+    return {c: int(a) for c, a in zip(distinct, assign)}
+
+
 def _sorted_caps(sort: str, caps: list[RGB]) -> list[RGB]:
     labs = {c: rgb_to_lab(c) for c in set(caps)}
     if sort == "hue":  # hue sweep (a*, b* angle), light first within a hue
-        def key(c: RGB):
+        def base(c: RGB):
             l, a, b = labs[c]
             return (math.atan2(b, a), -l)
-        return sorted(caps, key=key)
-    return sorted(caps, key=lambda c: (-labs[c][0], c))  # light -> dark
+    else:  # light -> dark
+        def base(c: RGB):
+            return (-labs[c][0], c)
+    fam = _families(sorted(set(caps)))
+    # families are ordered by their strongest member's key, members within a
+    # family stay in the kind's natural order — whole families fill as one
+    # bold region instead of a drifting smear
+    rank: dict[int, tuple] = {}
+    for c in set(caps):
+        k = base(c)
+        if fam[c] not in rank or k < rank[fam[c]]:
+            rank[fam[c]] = k
+    return sorted(caps, key=lambda c: (rank[fam[c]], base(c)))
 
 
 def _ordered_cells(walk: str, cells, cap: Cap) -> list:

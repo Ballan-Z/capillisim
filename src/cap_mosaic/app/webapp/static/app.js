@@ -420,6 +420,8 @@ async function generatePattern(kind) {
 (async function loadPatternGallery() {
   try {
     const b = await (await fetch("/pattern_kinds")).json();
+    const summary = document.querySelector(".patfold > summary");
+    if (summary) summary.textContent = `▤ … or start from a pattern (${b.kinds.length} kinds)`;
     const box = $("patGallery");
     for (const kind of b.kinds) {
       const tile = document.createElement("button");
