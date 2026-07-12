@@ -14,11 +14,25 @@ the eye blends them into a picture. Everything in this repo serves that trick.
 ```bash
 pip install -e .[web]
 
-# the designer web app
-PYTHONPATH=src python -m cap_mosaic.app.webapp        # http://127.0.0.1:8000
+capillisim                # the designer web app -> http://127.0.0.1:8000
+```
 
+The `capillisim` command works on every OS with no environment setup. The
+individual tools are also runnable as modules — on Linux/macOS (bash):
+
+```bash
+PYTHONPATH=src python -m cap_mosaic.app.webapp        # the web app
 # the cap scanner (print the reading card first: python -m cap_mosaic.app.make_card)
 PYTHONPATH=src python -m cap_mosaic.app.cap_capture --out dataset --auto
+```
+
+and on Windows (PowerShell) — note that a bare `python` may be the Microsoft
+Store stub; `py` always finds a real install:
+
+```powershell
+$env:PYTHONPATH = 'src'
+py -m cap_mosaic.app.webapp
+py -m cap_mosaic.app.cap_capture --out dataset --auto
 ```
 
 Full illustrated walkthrough: **[docs/GUIDE.md](docs/GUIDE.md)**.
