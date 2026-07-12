@@ -424,3 +424,7 @@ input[type=checkbox], input[type=radio] { accent-color:var(--acc); width:15px; h
   border:1px solid #5b4d22; border-radius:999px; padding:2px 10px; margin-left:10px;
   vertical-align:middle; }
 .helplink:hover { background:#2a2410; }
+
+/* secondary AI action (H2): present but not shouting */
+.btn-ai-2nd { opacity:.72; font-weight:400; }
+.btn-ai-2nd:hover { opacity:1; }

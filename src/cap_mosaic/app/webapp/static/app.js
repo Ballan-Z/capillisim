@@ -350,15 +350,30 @@ $("beforeClose").addEventListener("click", () => { $("beforewrap").hidden = true
 
 $("aiSimplify").addEventListener("click", async () => {
   if (!imageId) return;
+  const srcId = imageId;
   showAI("AI is simplifying the image… (can take ~20s)");
   aiBusy(true, "aiSimplify", "🎨 painting…");
   try {
-    const r = await fetch("/simplify?" + new URLSearchParams({ image_id: imageId }));
+    const r = await fetch("/simplify?" + new URLSearchParams({ image_id: srcId }));
     if (!r.ok) { showAI("AI simplify failed (" + r.status + ")"); toast("AI simplify failed"); return; }
     // becomes a new version; every earlier version stays one click away in the strip
-    addVersion(await r.json(), "AI simplified");
+    const b = await r.json();
+    addVersion(b, "AI simplified");
+    // honesty check: did the edit actually help cap-art readability?
+    try {
+      const [c0, c1] = await Promise.all([
+        fetch("/critique?" + new URLSearchParams({ image_id: srcId, mode: mode() })).then((x) => x.json()),
+        fetch("/critique?" + new URLSearchParams({ image_id: b.id, mode: mode() })).then((x) => x.json()),
+      ]);
+      toast(c1.score > c0.score
+        ? `AI simplify improved the cap-art score: ${c0.score} → ${c1.score}.`
+        : `AI simplify didn't improve the cap-art score (${c0.score} → ${c1.score}) — the original is one click away in the strip.`);
+    } catch (_) { /* scores unavailable — the version strip still tells the story */ }
   } finally { aiBusy(false, "aiSimplify"); }
 });
+
+// the critique-header prompt button shares the Caps-menu copy-prompt behaviour
+$("promptBtn").addEventListener("click", () => $("copyPrompt").click());
 
 // --- controls ---
 $("size").addEventListener("input", () => { $("sizeVal").textContent = (sizeMm() / 1000).toFixed(2) + " m"; debounced(); });
@@ -372,7 +387,7 @@ $("colorsN").addEventListener("change", refresh);
 $("ownThr").addEventListener("input", () => { $("ownThrVal").textContent = ownThreshold(); debounced(); });
 $("unlimitedStock").addEventListener("change", () => { syncCapsMode(); refresh(); });
 // buttons/links that live inside a collapsible <summary> must not toggle it
-["askLLM", "aiSimplify", "capmap"].forEach((id) => {
+["askLLM", "aiSimplify", "promptBtn", "capmap"].forEach((id) => {
   const el = $(id);
   if (el) el.addEventListener("click", (e) => e.stopPropagation());
 });
