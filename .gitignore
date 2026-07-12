@@ -26,5 +26,6 @@ plans/
 calibration/
 # generated distance-preview images
 previews/
-# captured cap dataset (crops + labels + contact sheet)
-dataset/
+# captured cap dataset (crops + labels + contact sheet) — root only, so the
+# bundled examples/dataset/ sample stays tracked
+/dataset/
