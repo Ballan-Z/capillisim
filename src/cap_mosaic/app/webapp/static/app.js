@@ -1050,11 +1050,27 @@ async function refresh() {
 // Show how many caps the scanned inventory holds (feeds the "My scanned caps"
 // group and the sizing rectangle's buildability check).
 let ownedTotal = 0;
+
+// with zero scanned caps every stock-based control is a dead end — gate them
+// behind one clear hint instead of letting a newcomer wander into them
+function gateCapsControls() {
+  const none = ownedTotal === 0;
+  document.querySelector('input[name=planFrom][value=mine]').disabled = none;
+  for (const id of ["realOnly", "useInv", "copyPrompt", "promptBtn"]) $(id).disabled = none;
+  let hint = $("noCapsHint");
+  if (none && !hint) {
+    hint = document.createElement("small");
+    hint.id = "noCapsHint"; hint.className = "ghint";
+    hint.textContent = "No caps scanned yet — 📷 Scan caps to unlock stock-based planning, the shopping list and patterns.";
+    document.querySelector(".planfrom").before(hint);
+  } else if (!none && hint) hint.remove();
+}
 (async function loadCapsCount() {
   try {
     const b = await (await fetch("/caps_count")).json();
     ownedTotal = b.count;
     $("capsCount").textContent = `(${b.count} scanned)`;
+    gateCapsControls();
     drawPatRect();
   } catch (_) { /* leave blank */ }
 })();
