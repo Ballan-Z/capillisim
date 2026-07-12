@@ -256,9 +256,20 @@ function applyHeuristic() {
   $("dither").checked = !!lastRec.dither;
   $("thicken").checked = !!lastRec.thicken;
   $("preset").value = lastRec.preset || "";
+  syncPresetLock();
   const w = Math.round((lastRec.min_size_m || 1) * 1000);
   $("size").value = w; $("sizeVal").textContent = (w / 1000).toFixed(2) + " m";
+  toast(`✨ applied: colours preset → ${lastRec.preset || "auto"} · dither → ${!!lastRec.dither} · ` +
+        `thicken → ${!!lastRec.thicken} · size → ${(w / 1000).toFixed(2)} m`);
   refresh();
+}
+
+// a preset fixes the palette, so the free-colour count is inert while one is on
+function syncPresetLock() {
+  $("colorsN").disabled = !!preset();
+  $("colorsN").title = preset()
+    ? "inactive while a preset palette is selected"
+    : "palette size — fewer colours read bolder";
 }
 
 async function loadCritique() {
@@ -321,9 +332,16 @@ function applyAction(a) {
   if (a.set === "colors") el("colorsN").value = a.value;
   else if (a.set === "thicken") el("thicken").checked = !!a.value;
   else if (a.set === "dither") el("dither").checked = !!a.value;
-  else if (a.set === "preset") el("preset").value = a.value;
+  else if (a.set === "preset") { el("preset").value = a.value; syncPresetLock(); }
   else if (a.set === "size_m") {
-    const w = Math.round(a.value * 1000);
+    // never let the judge shrink the piece below the heuristic legibility floor
+    let v = a.value;
+    if (lastRec && lastRec.min_size_m && v < lastRec.min_size_m) {
+      v = lastRec.min_size_m;
+      $("cllmText").textContent += `\n(size raised to ${v.toFixed(2)} m — the judge asked for ` +
+        `${a.value.toFixed(2)} m but this image needs ${v.toFixed(2)} m to read)`;
+    }
+    const w = Math.round(v * 1000);
     el("size").value = w; el("sizeVal").textContent = (w / 1000).toFixed(2) + " m";
   }
 }
@@ -345,7 +363,7 @@ $("aiSimplify").addEventListener("click", async () => {
 // --- controls ---
 $("size").addEventListener("input", () => { $("sizeVal").textContent = (sizeMm() / 1000).toFixed(2) + " m"; debounced(); });
 $("dist").addEventListener("input", applyDistanceUI);
-$("preset").addEventListener("change", refresh);
+$("preset").addEventListener("change", () => { syncPresetLock(); refresh(); });
 $("thicken").addEventListener("change", refresh);
 $("realOnly").addEventListener("change", refresh);
 $("dither").addEventListener("change", refresh);
@@ -989,9 +1007,11 @@ async function refresh() {
   $("capmap").href = "/capmap?" + mq.toString();
   $("palcmp").href = "/palettes?" + new URLSearchParams({ image_id: imageId, mode: mode(), pitch_mm: PITCH, size_mm: sizeMm(), dither: dither() }).toString();
   if (pat) {
+    // count what the sizing rectangle will build (same maths as its label), not
+    // the size-slider estimate — the slider does not apply to patterns
     $("simhint").textContent =
       `${(patRect.w / 1000).toFixed(2)} × ${(patRect.h / 1000).toFixed(2)} m pattern — ` +
-      `${b.total_caps.toLocaleString()} caps · drag the rectangle corner to resize · scroll to inspect the caps`;
+      `~${patEstimate().toLocaleString()} caps · drag the rectangle corner to resize · scroll to inspect the caps`;
   } else if (fromMyCaps() && !unlimitedStock()) {
     // the piece is sized by how many caps you own, not the slider — show the
     // real fitted mosaic (no distance shrink), so report the derived piece
@@ -1032,11 +1052,21 @@ let ownedTotal = 0;
 })();
 
 // Load a sample image on first open so creators see the app working immediately.
+// Opens AT its minimal readable size — first impressions should not be a red
+// "too few caps" banner about our own sample.
 (async function loadSample() {
   try {
     const r = await fetch("/static/default.jpg");
     if (!r.ok) return;
     const blob = await r.blob();
-    upload(new File([blob], "sample-lion.jpg", { type: "image/jpeg" }));
+    await upload(new File([blob], "sample-lion.jpg", { type: "image/jpeg" }));
+    const b = await estimate({ size_mm: sizeMm() });
+    if (b && b.min_size_m * 1000 > sizeMm()) {
+      $("size").value = Math.round(b.min_size_m * 1000);
+      $("sizeVal").textContent = b.min_size_m.toFixed(2) + " m";
+      $("dist").value = b.closest_distance_m;
+      $("distVal").textContent = b.closest_distance_m.toFixed(1) + " m";
+      refresh();
+    }
   } catch (_) { /* no sample -> start empty */ }
 })();
