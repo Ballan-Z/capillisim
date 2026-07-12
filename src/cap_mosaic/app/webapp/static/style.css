@@ -428,3 +428,17 @@ input[type=checkbox], input[type=radio] { accent-color:var(--acc); width:15px; h
 /* secondary AI action (H2): present but not shouting */
 .btn-ai-2nd { opacity:.72; font-weight:400; }
 .btn-ai-2nd:hover { opacity:1; }
+
+/* visible render progress (M2): spinner + label while a new render is in flight */
+.simwrap.loading::before {
+  content:""; position:absolute; z-index:5; left:50%; top:50%;
+  width:34px; height:34px; margin:-30px 0 0 -17px; border-radius:50%;
+  border:3px solid #ffffff22; border-top-color:#f0c850;
+  animation:simspin .8s linear infinite;
+}
+.simwrap.loading::after {
+  content:"rendering…"; position:absolute; z-index:5; left:50%; top:50%;
+  transform:translateX(-50%); margin-top:14px;
+  font-size:12px; color:#ffe9a8; letter-spacing:.4px;
+}
+@keyframes simspin { to { transform:rotate(360deg); } }
