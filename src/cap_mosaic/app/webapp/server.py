@@ -1203,3 +1203,15 @@ def target(
 
 # Mounted last so the API routes above take precedence.
 app.mount("/static", StaticFiles(directory=_STATIC), name="static")
+
+
+@app.middleware("http")
+async def _revalidate_static(request, call_next):
+    """Static files must revalidate (ETag/304) on every load: a heuristically
+    cached app.js from before a deploy, paired with fresh HTML, crashes at
+    startup on elements that no longer exist (seen live: the removed AI-pattern
+    button). no-cache still allows 304s, so repeat loads stay cheap."""
+    response = await call_next(request)
+    if request.url.path.startswith("/static") or request.url.path == "/":
+        response.headers["Cache-Control"] = "no-cache"
+    return response
