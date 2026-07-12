@@ -46,6 +46,12 @@ in linear light, no fake blur).
 
 ![the estimator: judge, versions, simulation, BOM](docs/images/app-ui.jpg)
 
+The simulation is a *walk*, not a blur: scroll over the preview and you change
+the viewing distance — up close you see caps, step back and they melt into the
+picture:
+
+![walking closer to a 3.2 m cap mosaic until single caps appear](docs/images/zoom-walk.gif)
+
 - **Judges.** A heuristic check scores every image for cap-art suitability
   (contrast, detail floor, background). A Qwen vision judge adds taste on
   demand: `🪄 AI fix` applies its recommended settings, `🎨 AI simplify`
@@ -58,6 +64,10 @@ in linear light, no fake blur).
   per-colour bill of materials with have/short counts from your scanned caps:
 
   ![paint-by-numbers cap map](docs/images/capmap-sample.png)
+- **Patterns.** No image? Lay your scanned caps out as decorative patterns —
+  fifteen kinds, every owned cap used exactly once, always buildable:
+
+  ![the fifteen pattern kinds](docs/images/patterns-gallery.png)
 
 ## 2. Scan your caps
 
