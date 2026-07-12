@@ -60,16 +60,17 @@ Applying the advice happens where the advice appears:
   whitelist, it can't touch anything else), a **🪄 Apply the AI's settings**
   button appears with the verdict. One click applies them and keeps a
   **before** snapshot next to the new simulation so you can compare.
-- **🎨 AI simplify**: the AI edits *the image itself* (qwen-image-edit):
-  flattens it to ≤6 poster colours, thickens hairlines, cleans the background:
-  same subject, cap-friendly. The result lands as a new entry in the version
-  strip. Switch back to the original (or save either) any time.
+- **🎨 AI simplify** (experimental): the AI edits *the image itself*
+  (qwen-image-edit), aiming for flatter colours, thicker lines and a cleaner
+  background. The result lands as a new entry in the version strip, and the
+  app tells you honestly whether the edit improved the cap-art score — results
+  vary. It shines on subjects with busy backgrounds; it can make an
+  already-simple image *worse* (the model likes adding texture). For flat
+  graphics, skip it. The reliable route to cap-friendly art is the
+  **📋 AI prompt** button: copy the palette-constrained prompt into any image
+  generator (ChatGPT, Gemini, Midjourney) and drop the result back in.
 
 ![before and after AI simplify](images/ai-simplify.jpg)
-
-Real numbers from the lion above: the raw render needed **~11,400 caps** to
-read; after AI simplify it reads at **~4,400**. The AI edit more than halved
-the build.
 
 > Needs `QWEEN_KEY` in the repo `.env` (DashScope). Without it, the heuristic
 > judge and everything else still works; only the 🧠/🪄/🎨 buttons are AI.
@@ -162,7 +163,7 @@ inventory to inspect or delete scans):
 - **Plan the mosaic from:** the one choice that matters.
   - *Best-fit colours (ideal palette)*: the plan picks whatever colours suit
     the image; your collection is just a report.
-  - *Only caps I own — each cap used once*: the plan is built FROM your stock.
+  - *Only caps I own — build from my real stock*: the plan is built FROM your stock.
     Duplicate designs (found by the scanner's ring signature) are pooled as
     interchangeable stock; a greedy global ΔE00 assignment spends duplicates
     where they fit best and sends scarce colours to their best-matching cells.
