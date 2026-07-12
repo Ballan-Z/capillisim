@@ -12,7 +12,10 @@
   <div class="app">
     <!-- ── brand ──────────────────────────────────────────────────────── -->
     <header class="brand-area">
-      <h1>Capillisim <span>· mosaic estimator</span></h1>
+      <h1>Capillisim <span>· mosaic estimator</span>
+        <a class="helplink" href="https://github.com/Ballan-Z/capillisim/blob/main/docs/GUIDE.md"
+           target="_blank" rel="noopener" data-tip="Open the full illustrated guide: design, judge, simulate, print, project, build.">?&nbsp;help</a>
+      </h1>
       <p class="sub">Drop an image, trade off <b>size</b> vs <b>viewing distance</b>, see how it reads as caps.</p>
     </header>
 
@@ -187,12 +190,12 @@
     <!-- ── bottom rail: stats + horizontal BOM colour strip ───────────── -->
     <div class="rail">
       <div class="stats" id="stats" hidden>
-        <div><span>caps across</span><b id="across">–</b></div>
-        <div><span>total caps</span><b id="total">–</b></div>
-        <div><span>min caps to read</span><b id="floor">–</b></div>
-        <div><span>reads from</span><b id="mindist">–</b></div>
-        <div><span>at this distance</span><b id="quality">–</b></div>
-        <div><span>colours (used / seen)</span><b id="colours">–</b></div>
+        <div data-tip="How many caps fit side by side across the piece at its current width (one cap ≈ 32 mm)."><span>caps across</span><b id="across">–</b></div>
+        <div data-tip="Caps you would actually place — background holes and cells outside the shape are excluded."><span>total caps</span><b id="total">–</b></div>
+        <div data-tip="The legibility floor: this image needs at least this many caps across to be recognisable at ANY distance."><span>min caps to read</span><b id="floor">–</b></div>
+        <div data-tip="Stand at least this far back for the caps to blend into a picture."><span>reads from</span><b id="mindist">–</b></div>
+        <div data-tip="What your eye gets at the current distance: individual caps, a readable picture, or a smooth image."><span>at this distance</span><b id="quality">–</b></div>
+        <div data-tip="used = colours in the plan up close · seen = distinct colours your eye still separates at this distance (similar shades merge as you step back)."><span>colours (used / seen)</span><b id="colours">–</b></div>
       </div>
 
       <details class="bom" id="bomwrap" hidden open>
