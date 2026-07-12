@@ -372,6 +372,18 @@ input[type=checkbox], input[type=radio] { accent-color:var(--acc); width:15px; h
 .bom .bomrow:hover .knock { visibility:visible; }
 .bom .knock:hover { border-color:#d05a5a; color:#e08484; }
 /* pattern gallery + sizing rectangle */
+.patfold > summary { cursor:pointer; list-style:none; font-size:13px; color:var(--mut);
+  padding:6px 2px; border-radius:6px; }
+.patfold > summary:hover { color:var(--ink); }
+.patfold > summary::-webkit-details-marker { display:none; }
+.patfold[open] > summary { color:var(--ink); }
+/* the just-created version tile pulses so the eye finds what appeared */
+.vtile.vnew { animation:vpulse 1.1s ease-out 2; }
+@keyframes vpulse {
+  0% { box-shadow:0 0 0 0 #f0c85000; }
+  35% { box-shadow:0 0 0 4px #f0c850cc; }
+  100% { box-shadow:0 0 0 0 #f0c85000; }
+}
 .patterns .gheadrow { display:flex; align-items:center; gap:var(--s2); font-size:13px; }
 .patgallery { display:flex; flex-wrap:wrap; gap:var(--s1); margin:var(--s2) 0; }
 .pat { display:flex; flex-direction:column; align-items:center; gap:2px; padding:4px;

@@ -7,14 +7,15 @@ there is no quantization loss at all — what you see is exactly buildable.
 
 Kinds (KINDS maps each name to its cap sort + cell walk):
 - ``gradient``: light->dark (CIELAB L*), serpentine rows.
-- ``spiral``:   hue sweep walked around concentric rings — a colour wheel.
+- ``bullseye``: hue sweep walked around concentric rings — a colour wheel.
 - ``sunburst``: light->dark in concentric rings — bright core, dark rim.
 - ``waves``:    light->dark in rippling sinusoidal bands.
-- ``diagonal``: light->dark corner-to-corner, 45 degrees.
 - ``stripes``:  hue-sorted vertical colour fields; widths follow owned counts.
 - ``diamonds``: light->dark in Manhattan rings — a bright diamond core.
 - ``mandala``:  hue in 6-fold rotational symmetry (a kaleidoscope).
-- ``checker``:  light/dark interleaved shimmer that still graduates overall.
+- ``swirl``/``chevron``/``arcs``/``patchwork``: researched cap-art favourites.
+- ``rays``/``medallions``/``rosettes``/``scales``: modelled on reference photos
+  of real cap tables (spokes, tiled diamond motifs, dot-flowers, clamshells).
 
 Sizing: with no dims, the smallest near-square grid holding all stock (every
 cap exactly once). With ``width_mm``/``height_mm``, the pattern fills that
@@ -51,20 +52,22 @@ class PatternSpec:
 
 KINDS: dict[str, PatternSpec] = {
     "gradient": PatternSpec("light", "serpentine", "light-to-dark in serpentine rows"),
-    "spiral": PatternSpec("hue", "rings", "a colour wheel sweeping outward"),
+    "bullseye": PatternSpec("hue", "rings", "a colour wheel of concentric rings"),
     "sunburst": PatternSpec("light", "rings", "bright core fading to a dark rim"),
     "waves": PatternSpec("light", "waves", "the gradient in rippling bands"),
-    "diagonal": PatternSpec("light", "diagonal", "corner-to-corner gradient"),
     "stripes": PatternSpec("hue", "columns", "vertical colour-field stripes"),
     "diamonds": PatternSpec("light", "manhattan", "a bright diamond core"),
     "mandala": PatternSpec("hue", "mandala", "six-fold kaleidoscope"),
-    "checker": PatternSpec("interleave", "serpentine", "light/dark shimmer"),
     # researched from real cap-art favourites (murals, table tops, quilts)
     "swirl": PatternSpec("hue", "swirl", "a pinwheel of spiral colour arms"),
     "chevron": PatternSpec("light", "chevron", "zigzag herringbone bands"),
     "arcs": PatternSpec("hue", "arcs", "a rainbow arching over the piece"),
     "patchwork": PatternSpec("hue", "patch", "a quilt of colour blocks"),
-    "harlequin": PatternSpec("interleave", "harlequin", "argyle diamond lattice"),
+    # modelled on the user's reference photos of real cap tables
+    "rays": PatternSpec("hue", "rays", "spokes radiating from the centre"),
+    "medallions": PatternSpec("light", "medallions", "nested diamond medallions"),
+    "rosettes": PatternSpec("hue", "rosettes", "little flowers of colour dots"),
+    "scales": PatternSpec("light", "scales", "overlapping clamshell arcs"),
 }
 
 
@@ -82,19 +85,7 @@ def _sorted_caps(sort: str, caps: list[RGB]) -> list[RGB]:
             l, a, b = labs[c]
             return (math.atan2(b, a), -l)
         return sorted(caps, key=key)
-    by_light = sorted(caps, key=lambda c: (-labs[c][0], c))  # light -> dark
-    if sort == "light":
-        return by_light
-    # interleave: split the light-sorted list at the median and zip the halves,
-    # so neighbours alternate light/dark while the overall row still graduates
-    half = (len(by_light) + 1) // 2
-    a, b = by_light[:half], by_light[half:]
-    out: list[RGB] = []
-    for i in range(half):
-        out.append(a[i])
-        if i < len(b):
-            out.append(b[i])
-    return out
+    return sorted(caps, key=lambda c: (-labs[c][0], c))  # light -> dark
 
 
 def _ordered_cells(walk: str, cells, cap: Cap) -> list:
@@ -102,12 +93,6 @@ def _ordered_cells(walk: str, cells, cap: Cap) -> list:
     rp = d * math.sqrt(3) / 2.0  # hex row pitch
     if walk == "serpentine":
         return sorted(cells, key=lambda c: (c.row, c.col if c.row % 2 == 0 else -c.col))
-    if walk == "diagonal":
-        def key(c):
-            band = round((c.x_mm + c.y_mm) / d)
-            along = c.x_mm - c.y_mm
-            return (band, along if band % 2 == 0 else -along)
-        return sorted(cells, key=key)
     if walk == "columns":
         def key(c):
             band = int(c.x_mm // d)
@@ -141,13 +126,44 @@ def _ordered_cells(walk: str, cells, cap: Cap) -> list:
             by, bx = int(c.y_mm // block), int(c.x_mm // block)
             return ((bx * 7 + by * 13) % 11, by, bx, c.row, c.col)
         return sorted(cells, key=key)
-    if walk == "harlequin":  # argyle: diamond lattice blocks, scattered fill
-        lat = 2.0 * d
+    if walk == "medallions":  # tiled motifs: nested diamond rings around a
+        # lattice of centres (the "trip around the world" quilt-table look)
+        motif = 8.0 * d
 
         def key(c):
-            u = round((c.x_mm + c.y_mm) / lat)
-            v = round((c.x_mm - c.y_mm) / lat)
-            return ((u * 5 + v * 9) % 7, u, v, c.row, c.col)
+            mx = int(c.x_mm // motif)
+            my = int(c.y_mm // motif)
+            cx0 = (mx + 0.5) * motif
+            cy0 = (my + 0.5) * motif
+            ring = round((abs(c.x_mm - cx0) + abs(c.y_mm - cy0)) / d)
+            return (ring, mx, my, c.row, c.col)
+        return sorted(cells, key=key)
+    if walk == "rosettes":  # little same-colour dot-flowers on a coarse
+        # triangular lattice, filled in a scattered order
+        step_x, step_y = 3.0 * d, 3.0 * rp
+
+        def key(c):
+            k = round(c.y_mm / step_y)
+            m = round((c.x_mm - (k % 2) * 1.5 * d) / step_x)
+            cx0 = m * step_x + (k % 2) * 1.5 * d
+            cy0 = k * step_y
+            dist = math.hypot(c.x_mm - cx0, c.y_mm - cy0)
+            return ((m * 7 + k * 13) % 9, k, m, dist)
+        return sorted(cells, key=key)
+    if walk == "scales":  # rows of overlapping clamshell arcs. Rings are
+        # filled ACROSS all scales (like medallions), so every shell carries
+        # the same nested colour sequence — the classic clamshell quilt look.
+        band_h = 4.0 * rp
+        scale_w = 5.0 * d
+
+        def key(c):
+            k = int(c.y_mm // band_h)
+            off = (k % 2) * 0.5 * scale_w
+            m = round((c.x_mm - off) / scale_w)
+            cx0 = m * scale_w + off
+            cy0 = (k + 1) * band_h
+            ring = round(math.hypot(c.x_mm - cx0, c.y_mm - cy0) / d)
+            return (ring, k, m, c.x_mm)
         return sorted(cells, key=key)
     if walk == "arcs":  # concentric arcs from the bottom centre: a rainbow arch
         width = max(c.x_mm for c in cells) + d / 2.0
@@ -191,6 +207,16 @@ def _ordered_cells(walk: str, cells, cap: Cap) -> list:
             r, theta = polar(c)
             arm = int(theta / (2 * math.pi) * arms + r / max(pitch, 1e-6)) % arms
             return (arm, r, theta)
+        return sorted(cells, key=key)
+    if walk == "rays":  # spokes radiating from the centre to the rim; spokes
+        # are filled in a strided order so neighbouring spokes take different
+        # colours instead of merging into wedges
+        spokes = 16
+
+        def key(c):
+            r, theta = polar(c)
+            s = int(theta / (2 * math.pi) * spokes) % spokes
+            return ((s * 5) % spokes, s, r)
         return sorted(cells, key=key)
 
     def key(c):  # "rings"

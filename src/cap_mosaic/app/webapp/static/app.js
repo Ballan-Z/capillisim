@@ -185,6 +185,18 @@ function addVersion(b, kind) {
   versions.push({ id: b.id, label, aspect: b.aspect });
   renderVersions();
   activateVersion(b.id);
+  pulseVersion(b.id);
+}
+
+// draw the eye to what was just created: the new tile pulses briefly
+function pulseVersion(id) {
+  const tile = [...document.querySelectorAll(".vtile")]
+    .find((t) => t.dataset.vid === String(id));
+  if (!tile) return;
+  tile.classList.remove("vnew");
+  void tile.offsetWidth;          // restart the CSS animation
+  tile.classList.add("vnew");
+  tile.scrollIntoView({ block: "nearest", inline: "nearest" });
 }
 
 function activateVersion(id) {
@@ -206,6 +218,7 @@ function renderVersions() {
   for (const v of versions) {
     const tile = document.createElement("div");
     tile.className = "vtile" + (v.id === imageId ? " active" : "");
+    tile.dataset.vid = v.id;
     tile.innerHTML =
       `<img src="/image?image_id=${v.id}" alt="${v.label}" loading="lazy" />` +
       `<span class="vlabel">${v.label}</span>` +
@@ -393,6 +406,7 @@ async function generatePattern(kind) {
     activePattern = { kind };
     renderVersions();
     activateVersion(b.id);
+    pulseVersion(b.id);
   } else {
     addVersion(b, `Pattern ${kind}`);
     activePattern = { kind };
@@ -427,22 +441,8 @@ $("patUnlimited").addEventListener("change", () => {
   if (activePattern) generatePattern(activePattern.kind);
 });
 
-$("aiPattern").addEventListener("click", async () => {
-  const b0 = $("aiPattern"); b0.disabled = true;
-  const old = b0.textContent; b0.textContent = "🪄 generating… (~20s)";
-  try {
-    const r = await fetch("/ai_pattern?" + new URLSearchParams(
-      { width_mm: Math.round(patRect.w), height_mm: Math.round(patRect.h) }));
-    if (!r.ok) {
-      let msg = "AI pattern failed";
-      try { msg = (await r.json()).detail || msg; } catch (_) { /* keep default */ }
-      toast(msg);
-      return;
-    }
-    addVersion(await r.json(), "AI pattern");
-    toast("AI pattern landed — switch 'Plan from: Only caps I own' to quantize it to your caps.");
-  } finally { b0.disabled = false; b0.textContent = old; }
-});
+// (the standalone AI-pattern button was cut in the UX pass; the /ai_pattern
+// endpoint remains for the 📋 copy-prompt workflow's future)
 
 // --- the pattern sizing rectangle: a physical-mm input widget on the stage.
 //     Visible in Pattern mode; SE handle resizes, body drag just repositions

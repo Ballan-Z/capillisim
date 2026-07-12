@@ -200,7 +200,7 @@ def test_pattern_and_palette_prompt_from_stock(tmp_path, monkeypatch):
     monkeypatch.setattr(server, "_DB", dbp)
 
     ids = set()
-    for kind in ("gradient", "spiral", "sunburst"):
+    for kind in ("gradient", "bullseye", "sunburst"):
         b = client.get("/pattern", params={"kind": kind}).json()
         assert b["caps"] == 16                       # every owned cap exactly once
         assert b["id"] not in ids                    # each pattern is a new image
@@ -695,9 +695,10 @@ def test_pattern_kinds_and_thumbs(monkeypatch, tmp_path):
     from cap_mosaic.app.webapp import server
 
     kinds = client.get("/pattern_kinds").json()
-    assert set(kinds["kinds"]) >= {"gradient", "spiral", "sunburst", "waves",
-                                   "diagonal", "stripes", "diamonds",
-                                   "mandala", "checker"}
+    assert set(kinds["kinds"]) >= {"gradient", "bullseye", "sunburst", "waves",
+                                   "stripes", "diamonds", "mandala", "swirl",
+                                   "arcs", "patchwork", "rays", "medallions",
+                                   "rosettes", "scales"}
     assert kinds["blurbs"]["mandala"]
     monkeypatch.setattr(server, "_DB", tmp_path / "absent.db")
     r1 = client.get("/pattern_thumb", params={"kind": "mandala"})

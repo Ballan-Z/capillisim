@@ -26,13 +26,13 @@
             <input id="fileInput" type="file" accept="image/*" hidden />
             <p>Drag &amp; drop an image here<br /><small>or click to choose · or paste (Ctrl/Cmd+V)</small></p>
           </div>
-          <div class="patterns">
-            <div class="gheadrow">… or start from a pattern
-              <label class="chk" data-tip="Repeat your distinct colours freely instead of using each physical cap once — the sizing rectangle never turns red, and the pattern shows what a topped-up stock could build."><input type="checkbox" id="patUnlimited" /> unlimited stock</label>
+          <details class="patfold">
+            <summary>▤ … or start from a pattern</summary>
+            <div class="patterns">
+              <div id="patGallery" class="patgallery" data-tip="Lay your cap inventory out as a decorative pattern instead of an image (previews are illustrative — the real one is built from YOUR caps, every cap used once). While the pattern is shown, drag the rectangle on the stage to size it."></div>
+              <label class="chk" data-tip="Repeat your distinct colours freely instead of using each physical cap once — the sizing rectangle never turns red, and the pattern shows what a topped-up stock could build."><input type="checkbox" id="patUnlimited" /> assume unlimited stock</label>
             </div>
-            <div id="patGallery" class="patgallery" data-tip="Lay your cap inventory out as a decorative pattern instead of an image (previews are illustrative — the real one is built from YOUR caps, every cap used once). While the pattern is shown, drag the rectangle on the stage to size it."></div>
-            <button id="aiPattern" data-tip="Ask the AI to paint an abstract pattern using ONLY your caps' colours (costs one image-generation call). It lands as a new version — switch to 'Only caps I own' to quantize it to your real stock.">🪄 AI pattern from my palette</button>
-          </div>
+          </details>
           <small class="ghint" id="imageWhere" hidden>Your image &amp; crop tools appear on the left, under Palette &amp; rendering.</small>
         </div>
       </details>

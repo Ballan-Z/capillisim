@@ -189,26 +189,18 @@ inventory to inspect or delete scans):
   flat areas with dither off (dither speckles a region across two colours).
 
   ![one click sends the teal background to bare board](images/bg-click.png)
-- **Patterns from my caps** — the Image menu's "start from a pattern" gallery:
-  fourteen kinds (gradient, spiral, sunburst, waves, diagonal, stripes,
-  diamonds, mandala, checker, swirl, chevron, arcs, patchwork, harlequin) that
-  lay out the inventory ITSELF: every owned cap exactly once, zero colour
-  error, always buildable. The gallery thumbnails are illustrative (a fixed
-  palette showing each pattern's geometry) — the generated pattern is built
-  from YOUR caps. The result lands in the version strip like any image. A real
-  416-cap inventory rendered as the original three:
+- **Patterns from my caps** — the Image menu's folded "… or start from a
+  pattern" picker: fifteen kinds that lay out the inventory ITSELF: every
+  owned cap exactly once, zero colour error, always buildable. The classics
+  (gradient, bullseye, sunburst, waves, stripes, diamonds, mandala), the
+  researched cap-art favourites (swirl, chevron, arcs, patchwork), and four
+  modelled on reference photos of real cap tables (rays, medallions,
+  rosettes, scales). Gallery thumbnails are illustrative (a fixed palette
+  showing each pattern's geometry) — the generated pattern is built from YOUR
+  caps, and the freshly created version tile pulses so you can't miss where
+  it landed. All fifteen:
 
-  ![the same 416 owned caps as gradient, spiral and sunburst](images/patterns-inventory.jpg)
-
-  The six newer kinds (here with a five-colour palette so the geometry shows):
-
-  ![waves, diagonal, stripes, diamonds, mandala and checker](images/patterns-new.png)
-
-  Plus five researched from what cap artists actually build (rainbow murals,
-  mosaic table tops, quilt blocks): a pinwheel swirl, chevron zigzags, a
-  rainbow arch, patchwork, and harlequin argyle:
-
-  ![swirl, chevron, arcs, patchwork and harlequin](images/patterns-capart.png)
+  ![the fifteen pattern kinds](images/patterns-gallery.png)
 
 - **Sizing a pattern**: while a pattern version is on stage, a rectangle
   appears over it — drag its corner to set the real size (the stage spans
@@ -217,14 +209,12 @@ inventory to inspect or delete scans):
   generating anyway leaves the shortfall as bare cells at the end of the walk.
   Tick **unlimited stock** to repeat your distinct colours freely (never red),
   and combine with the Shape picker for round/heart/freeform patterns.
-- **🪄 AI pattern from my palette**: one click asks the AI (Qwen
-  text-to-image) to paint an abstract pattern using ONLY your caps' colours,
-  sized to the rectangle's aspect. It lands as a new version — switch to
-  *Only caps I own* to quantize it to your real stock. (Costs one
-  image-generation call; needs `QWEEN_KEY`.)
 - **📋 AI prompt for my palette**: copies a generation prompt constrained to
   your dominant cap colours and total count; paste it into any image
-  generator, then paste the result back into the app.
+  generator, then paste the result back into the app. (A direct
+  `GET /ai_pattern` endpoint also exists for Qwen text-to-image generation —
+  API-only after the UX pass; the button was cut to keep the Image menu
+  focused.)
 
 ---
 
