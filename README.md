@@ -7,7 +7,7 @@ a projector show you where every cap goes.
 A cap is one fat pixel of about 32 mm. Up close you see caps; from a few metres
 the eye blends them into a picture. Everything in this repo serves that trick.
 
-![generate, AI simplify, caps up close, reads from afar](docs/images/pipeline-lion.jpg)
+![the artwork, then the same piece as thousands of real bottle caps, up close, and reading as a picture from across the room](docs/images/pipeline-tyrion.jpg)
 
 ## Quickstart
 

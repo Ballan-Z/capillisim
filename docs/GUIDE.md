@@ -12,7 +12,7 @@ into one pipeline. Architecture and rig details live in the other docs
 
 ## The idea in one strip
 
-![generate → AI simplify → caps up close → reads from afar](images/pipeline-lion.jpg)
+![the artwork → the same piece in real bottle caps → caps up close → reads as a picture from across the room](images/pipeline-tyrion.jpg)
 
 A bottle cap is one fat pixel (~32 mm). Up close you see caps; from a few metres
 the eye blends them into a picture. The steps between those two facts: choose
