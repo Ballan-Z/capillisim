@@ -32,6 +32,10 @@ function colorsN() { return Math.max(4, Math.min(24, Number($("colorsN").value) 
 function ownThreshold() { return Math.max(2, Math.min(30, Number($("ownThr").value) || 12)); }
 function unlimitedStock() { return $("unlimitedStock").checked; }
 function shape() { return $("shape").value; }
+function isPatternActive() {
+  const v = versions.find((x) => x.id === imageId);
+  return !!v && v.label.startsWith("Pattern");
+}
 function extraParams() {
   const p = { bg_color: bgColor(), dither: dither(), colors: colorsN() };
   if (preset()) p.preset = preset();
@@ -99,6 +103,7 @@ let simBaseDist = null, inflightDist = null;
 
 function previewZoom() {
   const el = $("sim");
+  if (isPatternActive()) return;          // pattern renders ignore distance
   if (simBaseDist == null) { el.style.transform = ""; return; }
   const w = sizeMm() / 1000;
   const base = apparentFrac(w, simBaseDist);
@@ -108,6 +113,7 @@ function previewZoom() {
 }
 
 function updateSimHintClient() {
+  if (isPatternActive()) return;                  // pattern hint stands
   if (fromMyCaps() && !unlimitedStock()) return;  // fitted piece: server hint stands
   const w = sizeMm() / 1000, d = distM();
   const pct = Math.round(100 * apparentFrac(w, d));
@@ -257,6 +263,10 @@ function applyHeuristic() {
 
 async function loadCritique() {
   if (!imageId) return;
+  if (isPatternActive()) {   // a decorative pattern is not a photo to judge
+    $("critique").hidden = true;
+    return;
+  }
   const r = await fetch("/critique?" + new URLSearchParams({ image_id: imageId, mode: mode() }));
   if (!r.ok) return;
   const c = await r.json();
@@ -634,6 +644,12 @@ document.querySelector(".simwrap").addEventListener("wheel", (e) => {
   e.preventDefault();
   const dy = e.deltaMode === 1 ? e.deltaY * 33 : e.deltaY;   // line-scroll mice -> px
   const k = e.ctrlKey ? 0.003 : 0.0015;
+  // a pattern is already sharp at real size: scroll-in goes straight to the
+  // cap-level inspect zoom, there is no distance to walk
+  if (isPatternActive() && !inspect) {
+    if (dy < 0) enterInspect();
+    return;
+  }
   if (inspect) {
     const s2 = Math.min(14, inspect.scale * Math.exp(-k * dy));
     if (s2 <= 1.02) { exitInspect(); return; }
@@ -693,8 +709,9 @@ $("sim").addEventListener("click", async (e) => {
     fy: ((e.clientY - r.top) / r.height).toFixed(4),
     ...extraParams(),
   };
-  // the inspect view shows the RAW mosaic (no distance frame): pick matches it
-  if (!inspect) qp.distance_m = distM();
+  // inspect and pattern views show the RAW mosaic (no distance frame): the
+  // pick mapping must match what is actually on screen
+  if (!inspect && !isPatternActive()) qp.distance_m = distM();
   const q = new URLSearchParams(qp);
   const res = await fetch("/pick?" + q.toString());
   if (!res.ok) return;
@@ -896,13 +913,15 @@ async function refresh() {
   $("quality").textContent = readQuality(distM());
   $("colours").textContent = `${b.colors_used} / ${b.effective_colors}`;
 
-  // red = the piece won't read (act now); amber = a quality hint (nice to fix)
+  // red = the piece won't read (act now); amber = a quality hint (nice to fix).
+  // A decorative PATTERN is not a photo: legibility/outline warnings are noise
+  const pat = isPatternActive();
   const warn = $("warning");
   const msg = b.warning || (!b.legible ? "Too few caps to represent this image." : "");
-  warn.hidden = !msg;
+  warn.hidden = !msg || pat;
   if (msg) warn.textContent = msg;
   const note = $("notice");
-  note.hidden = !b.thin_hint;
+  note.hidden = !b.thin_hint || pat;
   if (b.thin_hint) note.textContent = "💡 " + b.thin_hint;
 
   // inventory gap (have/short) and/or stock spend, shown above the BOM
@@ -951,22 +970,29 @@ async function refresh() {
   }
   $("bomwrap").classList.toggle("isolating", !!highlight);
   $("bgholes").textContent =
-    b.holes ? `${b.holes.toLocaleString()} cells left bare` : "";
+    b.holes ? `${b.holes.toLocaleString()} cell${b.holes === 1 ? "" : "s"} left bare` : "";
 
-  // simulation
-  const q = new URLSearchParams({ image_id: imageId, mode: mode(), pitch_mm: PITCH, size_mm: sizeMm(), distance_m: distM(), ...extraParams() });
+  // simulation. Patterns render SHARP at real size (no distance frame): the
+  // sizing rectangle stays aligned and the piece is judged as it will be built
+  const q = new URLSearchParams({ image_id: imageId, mode: mode(), pitch_mm: PITCH, size_mm: sizeMm(), ...extraParams() });
+  if (!pat) q.set("distance_m", distM());
   if (highlight) q.set("highlight", highlight);
   curSimSrc = "/simulate?" + q.toString() + "&_=" + Date.now();
   inflightDist = distM();   // the distance this render is being made for
   document.querySelector(".simwrap").classList.add("loading");  // cleared on img load
   $("sim").src = curSimSrc;
-  const tq = new URLSearchParams({ image_id: imageId, mode: mode(), pitch_mm: PITCH, size_mm: sizeMm(), distance_m: distM() });
+  const tq = new URLSearchParams({ image_id: imageId, mode: mode(), pitch_mm: PITCH, size_mm: sizeMm() });
+  if (!pat) tq.set("distance_m", distM());
   curTargetSrc = "/target?" + tq.toString() + "&_=" + Date.now();
   // printable cap map uses the same plan-shaping params (no distance needed)
   const mq = new URLSearchParams({ image_id: imageId, mode: mode(), pitch_mm: PITCH, size_mm: sizeMm(), ...extraParams(), format: "pdf" });
   $("capmap").href = "/capmap?" + mq.toString();
   $("palcmp").href = "/palettes?" + new URLSearchParams({ image_id: imageId, mode: mode(), pitch_mm: PITCH, size_mm: sizeMm(), dither: dither() }).toString();
-  if (fromMyCaps() && !unlimitedStock()) {
+  if (pat) {
+    $("simhint").textContent =
+      `${(patRect.w / 1000).toFixed(2)} × ${(patRect.h / 1000).toFixed(2)} m pattern — ` +
+      `${b.total_caps.toLocaleString()} caps · drag the rectangle corner to resize · scroll to inspect the caps`;
+  } else if (fromMyCaps() && !unlimitedStock()) {
     // the piece is sized by how many caps you own, not the slider — show the
     // real fitted mosaic (no distance shrink), so report the derived piece
     const w = (b.width_mm / 1000).toFixed(2);

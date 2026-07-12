@@ -357,6 +357,7 @@ input[type=checkbox], input[type=radio] { accent-color:var(--acc); width:15px; h
 /* click-to-background: the removed-colour chip bar + per-row knockout button */
 .bgbar { display:flex; flex-wrap:wrap; align-items:center; gap:var(--s1) var(--s2);
   margin:0 0 var(--s2); font-size:12px; }
+.bgbar[hidden] { display:none; }  /* display:flex would defeat the hidden attr */
 .bglabel { color:var(--mut); }
 .bgchip { display:inline-flex; align-items:center; gap:6px; cursor:pointer;
   font-family:var(--font-mono); font-size:12px; padding:3px 8px; border-radius:6px;
