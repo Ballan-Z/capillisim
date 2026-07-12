@@ -5,6 +5,11 @@ of the whole program: what it does, how to use each part, and how the pieces fit
 into one pipeline. Architecture and rig details live in the other docs
 (`ARCHITECTURE.md`, `RIG_SETUP.md`); this guide is about *using* it.
 
+> **New here?** Two short, focused guides get you going fast:
+> **[CREATE_IMAGE.md](CREATE_IMAGE.md)** (turn a picture into a cap plan) and
+> **[BUILD_DATASET.md](BUILD_DATASET.md)** (scan your own caps). This page is the
+> complete reference behind them.
+
 ## The idea in one strip
 
 ![generate → AI simplify → caps up close → reads from afar](images/pipeline-lion.jpg)

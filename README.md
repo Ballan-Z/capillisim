@@ -17,6 +17,12 @@ pip install -e .[web]
 capillisim                # the designer web app -> http://127.0.0.1:8000
 ```
 
+**Just cloned?** A ~100-cap example set is bundled, so the app has real caps to
+plan with from the first run — the shopping list, patterns and "build from my
+stock" all work immediately. Scan your own with the reading card and they take
+over. New here? Two short guides: **[create the artwork](docs/CREATE_IMAGE.md)**
+and **[build your cap dataset](docs/BUILD_DATASET.md)**.
+
 The `capillisim` command works on every OS with no environment setup. The
 individual tools are also runnable as modules — on Linux/macOS (bash):
 
@@ -165,6 +171,8 @@ that guides the physical placement of each cap. Survey in `docs/PRIOR_ART.md`.
 ## Docs
 
 - `docs/GUIDE.md`: **start here as a user.** The illustrated guide: design, judge, simulate, print, project, build.
+- `docs/CREATE_IMAGE.md`: **beginner** — turn any picture into a buildable cap plan.
+- `docs/BUILD_DATASET.md`: **beginner** — scan your own caps into a colour inventory.
 - `docs/RIG_SETUP.md`: **start here for the physical build.** Boxes, calibration, live loop, with diagrams.
 - `docs/ESTIMATOR.md`: the web app's model and endpoint reference.
 - `docs/ARCHITECTURE.md`: components, data flow, the portable-core split.
@@ -178,3 +186,8 @@ that guides the physical placement of each cap. Survey in `docs/PRIOR_ART.md`.
 - `docs/PRIOR_ART.md`: what exists, what's novel.
 - `docs/RESEARCH.md`: cap datasets to import and techniques to adopt.
 - `docs/HANDOFF.md`: current state, built vs pending. Start here to resume work.
+
+## License
+
+[MIT](LICENSE). The bundled `examples/dataset/` cap sample is provided for demo
+use so the app is playable on first run.
