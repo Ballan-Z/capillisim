@@ -58,12 +58,17 @@ in linear light, no fake blur).
 
 ![the estimator: judge, versions, simulation, BOM](docs/images/app-ui.jpg)
 
-- **Judges.** A heuristic check scores every image for cap-art suitability
-  (contrast, detail floor, background). A Qwen vision judge adds taste on
-  demand: `🪄 AI fix` applies its recommended settings, `🎨 AI simplify`
-  redraws the image itself into flat, thick-lined, cap-friendly art:
+- **Judges & fixes.** A heuristic check scores every image for cap-art
+  suitability (contrast, detail floor, background); its **✨ apply** sets the
+  piece to the smallest size that actually reads. A Qwen vision judge adds taste
+  on demand (**🪄 apply** its settings). **🎨 AI simplify** restyles the image —
+  it can help a busy photo, but often just changes the look without lowering the
+  caps-to-read, so it's experimental.
+- **Optimize toward your caps.** The **📋 AI prompt** button builds an image
+  prompt locked to *your* scanned-cap colours — paste it into any generator and
+  the result renders faithfully from the caps you actually own:
 
-  ![before and after AI simplify](docs/images/ai-simplify.jpg)
+  ![art generated in your cap palette, then the same art built from your real scanned caps](docs/images/ai-stock-optim.jpg)
 - **Versions.** Original, crops, and AI edits live in a version strip: click to
   switch, save any of them.
 - **Build artifacts.** A printable paint-by-numbers cap map (PDF), and a

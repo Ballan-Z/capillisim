@@ -65,17 +65,20 @@ Applying the advice happens where the advice appears:
   whitelist, it can't touch anything else), a **🪄 Apply the AI's settings**
   button appears with the verdict. One click applies them and keeps a
   **before** snapshot next to the new simulation so you can compare.
-- **🎨 AI simplify** (experimental): the AI edits *the image itself*
-  (qwen-image-edit), aiming for flatter colours, thicker lines and a cleaner
-  background. The result lands as a new entry in the version strip, and the
-  app tells you honestly whether the edit improved the cap-art score — results
-  vary. It shines on subjects with busy backgrounds; it can make an
-  already-simple image *worse* (the model likes adding texture). For flat
-  graphics, skip it. The reliable route to cap-friendly art is the
-  **📋 AI prompt** button: copy the palette-constrained prompt into any image
-  generator (ChatGPT, Gemini, Midjourney) and drop the result back in.
+- **🎨 AI simplify** (experimental): the AI redraws *the image itself*
+  (qwen-image-edit) toward flatter colours and thicker lines. In testing it
+  mostly changes the *look* without lowering the caps-to-read — even on busy
+  photos the cap-art score often doesn't move, and it can make already-simple
+  art worse. The app shows the before/after score so you can judge; treat it as
+  a maybe, not a fix.
 
-![before and after AI simplify](images/ai-simplify.jpg)
+**The reliable optimization is toward your own caps.** The **📋 AI prompt**
+button copies an image prompt locked to your scanned-cap colours and counts;
+paste it into any generator (ChatGPT, Gemini, Midjourney) and drop the result
+back. Because the art already speaks your palette, it renders faithfully from
+the caps you actually own:
+
+![art generated in your cap palette, then the same art built from your real scanned caps](images/ai-stock-optim.jpg)
 
 > Needs `QWEEN_KEY` in the repo `.env` (DashScope). Without it, the heuristic
 > judge and everything else still works; only the 🧠/🪄/🎨 buttons are AI.
