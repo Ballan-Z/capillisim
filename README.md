@@ -9,6 +9,12 @@ the eye blends them into a picture. Everything in this repo serves that trick.
 
 ![the artwork, then the same piece as thousands of real bottle caps, up close, and reading as a picture from across the room](docs/images/pipeline-tyrion.jpg)
 
+Scroll over the preview and you *walk* the viewing distance — up close you see
+individual caps, step back and they melt into the picture (no fake blur; colours
+mix in linear light, exactly like a real wall):
+
+![walking closer to a cap mosaic until single real bottle caps fill the frame, then back out to the picture](docs/images/zoom-walk.gif)
+
 ## Quickstart
 
 ```bash
@@ -51,12 +57,6 @@ honest simulation (the mosaic shrinks and stays sharp with distance, colours mix
 in linear light, no fake blur).
 
 ![the estimator: judge, versions, simulation, BOM](docs/images/app-ui.jpg)
-
-The simulation is a *walk*, not a blur: scroll over the preview and you change
-the viewing distance — up close you see caps, step back and they melt into the
-picture:
-
-![walking closer to a 3.2 m cap mosaic until single caps appear](docs/images/zoom-walk.gif)
 
 - **Judges.** A heuristic check scores every image for cap-art suitability
   (contrast, detail floor, background). A Qwen vision judge adds taste on
