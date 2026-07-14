@@ -278,3 +278,44 @@ Started: 2026-07-12 · Mode: autonomous (push gated at Step 6)
 - Steps: 6 completed (Steps 1/3 redone after subject→Tyrion + real_only corrections).
 - Commits (unpushed): edacfcf, 75f62c8, ac25abb, 63e0416, 365e2eb + work_log.
 - Key decisions: subject Tyrion-with-beer closer-likeness (IP flagged, user-approved); real_only caps (no procedural circles); non-lion.
+
+---
+
+# Task: Docs visuals (GIF regroup / AI demos / UI tour) — plans/docs-visuals-plan.md
+Started: 2026-07-14 · Mode: autonomous (push gated at Step 8)
+
+## Step 1: move zoom GIF up
+- Status: ✅ Complete — zoom-walk.gif now sits right after pipeline-tyrion.jpg (both near top); removed the duplicate under app-ui.jpg; single ref. Order: pipeline → zoom-walk → app-ui.
+- Files changed: README.md
+
+## Step 2: stock-optimized demo
+- Status: ✅ Complete — generated art from /palette_prompt (8 owned colours), renders from real caps: fitted 305/416 caps placed, 9 holes; unlimited full-size (10,838 caps, 92 colours) reads clearly as the beer-stein crest, all real cap photos. Using the full-size render for the figure.
+- Note: purple crest ring dithers to blue+red real caps (honest approximation, not exact colour) — caption will say "rendered from real caps", not "no drift".
+- Files changed: docs/images/stock-optim-source.png
+
+## Step 3: real-win test (AI simplify)
+- Status: ✅ Complete — tested 3 busy photographic images (fisherman/market/forest). AI simplify left score+floor UNCHANGED on all (40→40, floor 100→100); it only restyles (pixelates) without reducing the caps-to-read. CONCLUSION: no honest AI-simplify win exists — will NOT manufacture a figure; downplay it. The stock/palette optimization (Step 2) is the genuine, reliable win.
+- Files changed: none (scratch)
+
+## Step 4: AI figures + honest docs
+- Status: ✅ Complete — built ai-stock-optim.jpg (art in owned palette → real-cap render). README+GUIDE now lead with the stock/palette optimization as the real win; AI simplify described honestly (restyles, doesn't lower caps-to-read). Removed unreferenced ai-simplify.jpg. All refs resolve; no oversold claims.
+- Files changed: docs/images/ai-stock-optim.jpg (new), docs/images/ai-simplify.jpg (removed), README.md, docs/GUIDE.md
+
+## Step 5: full UI screenshot set
+- Status: ✅ Complete — 11 ui-*.png via _shots/ui_tour.js (element shots). Fixed drop-menu shots (were capturing only the summary → now .menu-panel) and shrank the inventory shot (full-body 2.7MB → 900px clip). Spot-checked caps-menu (cam/strictness/AI-prompt ✓), BOM-isolate ✓, inventory modal ✓. Total ~1.8 MB.
+- Files changed: docs/images/ui-*.png (11 new)
+
+## Step 6: weave UI tour into GUIDE
+- Status: ✅ Complete — 9 ui-*.png placed across GUIDE §1-5 (image menu, versions, critique, size, palette, caps menu, BOM-isolate, inventory, distance-test modal). Removed 2 redundant shots (ui-bom, ui-patterns). No orphans; all refs resolve.
+- Files changed: docs/GUIDE.md, removed docs/images/ui-bom.png + ui-patterns.png
+
+## Step 7: final review
+- Status: ✅ Complete — all image refs in README + docs resolve; README order pipeline→zoom-walk→app-ui→ai-stock-optim; no oversold AI claims; no ai-simplify refs. Orphans (tyrion-source, stock-optim-source, patterns-inventory) are source artworks / pre-existing, not broken refs — left as-is.
+
+## Step 8: push (gated)
+- Status: ⏸ awaiting user OK to push.
+
+## Final Summary (docs visuals)
+- Steps: 7 done + push pending.
+- Commits (unpushed): 5587033, 27fa006, f56cbd1, ca43002, 2ca9333, +GUIDE +work_log.
+- Key outcomes: zoom GIF regrouped with the pipeline strip; AI section now leads with the real stock/palette optimization (with a before/after figure) and describes AI simplify honestly (tested: it restyles but doesn't lower the caps-to-read); 9-shot UI tour woven into GUIDE.
