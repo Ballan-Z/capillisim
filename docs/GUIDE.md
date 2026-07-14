@@ -38,11 +38,15 @@ immediately clickable:
 paste from the clipboard. Drag a rectangle on the preview and hit **✂ Crop to
 selection** to build from only part of it.
 
+![the Image menu: drop zone, and 'start from a pattern'](images/ui-image-menu.png)
+
 **Versions.** Every derived image (crops, AI edits) appears as a thumbnail in
 the **version strip** under the preview (`Original · Crop · AI simplified`).
 Click a thumbnail to switch the whole app to that version; the active one is
 outlined; **⬇** on any tile saves that version as a file. Nothing is ever lost:
 the original is always one click away.
+
+![the version strip: Original, crops and AI edits, each savable](images/ui-versions.png)
 
 ---
 
@@ -55,6 +59,8 @@ judges tell you where you stand the moment an image loads:
 |---|---|---|
 | **Cap-art check** (instant) | deterministic heuristics: contrast, detail floor (min caps-across for the subject to read at all), background busyness | the *numbers*: "this needs ≥3.2 m", "61 thin outline caps will vanish" |
 | **🧠 AI judge** (one click) | Qwen vision model (`qwen3-vl-plus`) with a cap-art rubric | *taste*: knows a bold halftone poster is great even when the heuristic frets |
+
+![the cap-art check and AI bar: score, tips, and the AI judge / prompt / simplify buttons](images/ui-critique.png)
 
 Applying the advice happens where the advice appears:
 
@@ -90,6 +96,8 @@ the caps you actually own:
 Caps are fixed-size, so **physical width decides resolution**: a 2 m piece at
 32 mm pitch is 62 caps across, full stop. The two sliders + three solver
 buttons explore that:
+
+![the Size & shape menu: size and distance sliders, shape picker, and the three solver buttons](images/ui-size-menu.png)
 
 - **Size (width)** / **Viewing distance** sliders: live update of everything.
 - **Scroll to walk**: mouse-wheel over the preview zooms by *changing the
@@ -136,6 +144,8 @@ rectangle) uses your caps.
 
 ## 4 · Palette, dither, and the look
 
+![the Palette & rendering panel: palette, colours, dither, thicken, board colour](images/ui-palette-menu.png)
+
 - **Palette**: *Auto* derives colours from the image (CIELAB k-means); the
   curated presets (*Portrait* 6-tone skin ramp, *Sunset*, *Space*) usually read
   bolder. **⇆ Compare palettes** renders all four side by side:
@@ -165,8 +175,10 @@ crops, a field colour, a mosaic-at-distance colour, and a similarity signature
 in `dataset/caps.db`.
 
 In the estimator's **My scanned caps (N)** group (the **📷 Scan caps** button
-there opens the camera scanner on this computer; **🗂 Browse** opens the
-inventory to inspect or delete scans):
+there opens the camera scanner on this computer — pick the **cam** number for a
+second camera; **🗂 Browse** opens the inventory to inspect or delete scans):
+
+![the Caps menu: scan, camera index, plan-from, colour-match strictness, shopping list, AI prompt](images/ui-caps-menu.png)
 
 - **Plan the mosaic from:** the one choice that matters.
   - *Best-fit colours (ideal palette)*: the plan picks whatever colours suit
@@ -188,6 +200,8 @@ inventory to inspect or delete scans):
   Report only; the plan is never silently constrained.
 - Click any BOM colour to **isolate** it: every other cap ghosts out so you
   see exactly where that colour goes.
+
+  ![the bill of materials by colour, with one colour isolated](images/ui-bom-isolate.png)
 - **Click a colour on the preview → background.** A click on any cap in the
   simulation sends its whole colour to bare board: those cells become holes,
   drop out of the BOM and the shopping list, and the board shows through.
@@ -224,6 +238,19 @@ inventory to inspect or delete scans):
   `GET /ai_pattern` endpoint also exists for Qwen text-to-image generation —
   API-only after the UX pass; the button was cut to keep the Image menu
   focused.)
+
+**The inventory browser** (**🗂 Browse**, or `/inventory`) shows every scanned
+cap with its photo, its field | mosaic swatch, and its measured size — filter by
+size, and delete a mis-scan by clicking its **×** then **delete?**.
+
+![the inventory browser: scanned caps in a grid with size filters](images/ui-inventory.png)
+
+Click any cap for the **believe-your-eyes** test: your real cap tiled next to the
+solid mosaic colour the planner will use for it. Drag the distance back — the
+halves shrink and blend like a real wall; if the seam disappears, the planner's
+colour is what your eye truly gets.
+
+![the distance test: a real cap tiled next to the planner's mosaic colour](images/ui-inventory-modal.png)
 
 ---
 
