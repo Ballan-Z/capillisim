@@ -7,7 +7,7 @@ a projector show you where every cap goes.
 A cap is one fat pixel of about 32 mm. Up close you see caps; from a few metres
 the eye blends them into a picture. Everything in this repo serves that trick.
 
-![the artwork; up close it is real bottle caps; a step back and the picture forms; at the right distance the whole image and the writing read](docs/images/pipeline-tyrion.jpg)
+![the artwork; a metre away it is rough but clearly caps; right up close, real bottle caps; at the right distance the whole image and the writing read](docs/images/pipeline-tyrion.jpg)
 
 Scroll over the preview and you *walk* the viewing distance — up close you see
 individual caps, step back and they melt into the picture (no fake blur; colours
