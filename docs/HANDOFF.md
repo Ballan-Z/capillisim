@@ -1,12 +1,12 @@
-# Handoff: current state
+# Project status
 
-Resume anchor: what's built, what's pending. See `docs/ROADMAP.md` for the full
-milestone plan and `docs/RESEARCH.md` for the dataset/technique shortlist.
+Where the project stands: what's built and tested, and what still needs the
+physical rig. The full milestone plan is in `docs/ROADMAP.md`.
 
 ## Built and tested (headless)
 
 **Designer / core** (`core/`, `app/planner_designer.py`)
-- Image → `GridPlan` with CIELAB k-means palette, curated presets
+- Image → `GridPlan` with a CIELAB k-means palette, curated presets
   (portrait/sunset/space), reject-gate holes, bare-white background holes.
 - Thin-outline detect + thicken (`core/features.py`) so ~1-cap strokes survive.
 - **Dither** (`core/dither.py`): CIELAB Floyd–Steinberg error diffusion over the
@@ -19,46 +19,30 @@ milestone plan and `docs/RESEARCH.md` for the dataset/technique shortlist.
   glued on a controllable **board colour**; region crop; colour isolate.
 - **Hold-to-compare** original vs caps (`/target`); **printable cap map** PDF
   (`app/cap_map.py`, `/capmap`); **inventory gap** report from `caps.db`
-  (have/need/short, report-only).
-- **Judges**: heuristic cap-art check (`core/critique.py`) + Qwen LLM judge
-  (`app/llm_judge.py`, `qwen3-vl-plus`, QWEEN_KEY in gitignored `.env`).
-  `🪄 AI fix` auto-applies the judge's whitelisted actions (colors/thicken/
-  dither/size_m/preset) with a before/after; `🎨 AI simplify`
-  (`app/ai_edit.py`, qwen-image-edit-plus) rewrites the image itself into a
-  cap-friendly version, stored as a new image id.
+  (have/need/short).
+- **Judges**: heuristic cap-art check (`core/critique.py`) + a Qwen vision judge
+  (`app/llm_judge.py`); an owned-palette AI prompt (`/palette_prompt`) and an
+  experimental image simplify (`app/ai_edit.py`).
+- **Build from my caps**: duplicates pooled by ring signature
+  (`app/cap_stock.py`), greedy global ΔE00 assignment (`core/assign.py`), and
+  inventory patterns (`core/pattern.py`, `/pattern`).
 
 **Projector build** (`procam/render.py`, `app/project_plan.py`)
 - **Stencil** (`render_stencil`): every cell lit in its cap colour at 1:1, plus a
-  **per-colour pass** (light one colour at a time: glue it, then next).
+  **per-colour pass** (light one colour at a time: glue it, then the next).
 - `project_plan` entrypoint with S/C/N/P/Q keys; display + keys injected as
-  callables (headless-tested). `main` drives the real fullscreen projector.
-- Interactive per-cap loop (`build_loop.run_loop`) from M3 still in place.
+  callables (headless-tested); `main` drives the real fullscreen projector.
+- Interactive per-cap placement loop (`build_loop.run_loop`).
 
 **Cap scanning** (`app/cap_capture.py`, `app/make_card.py`): card-based capture
-into `caps.db` with median-colour + busy-ness.
+into `caps.db` with median colour + a busy-ness quality signal.
 
-## Pending (needs the rig + this machine)
+## Pending (needs the rig)
 
 - On-rig projector calibration (`from_correspondences`) and a live
-  stencil/per-colour verification; the projection code is done, untested on glass.
-- Live phone stream for the interactive loop (snapshot path works today).
+  stencil / per-colour verification — the projection code is done but untested on
+  a real board.
+- Live phone stream for the interactive loop (the snapshot path works today).
 - Threshold tuning on real caps (reject ΔE, dither kernel, inventory tolerance).
-
-## Next actions (from `docs/RESEARCH.md`)
-
-- Import a cap dataset (images.cv / Roboflow / Kaggle) through `app/cap_crop.py`
-  to grow `caps.db` so `real_only` and the inventory report have real coverage.
-  Kaggle needs `KAGGLE_USERNAME` in `.env` (key already present).
-- Consider an Atkinson dither kernel option for very small palettes.
-- DONE: hard inventory-constrained plans (`Design from my caps`): duplicates
-  pooled by ring signature (`app/cap_stock.py`), greedy global dE00 assignment
-  (`core/assign.py`), inventory patterns (`core/pattern.py`, /pattern) and a
-  palette-constrained AI prompt (/palette_prompt).
-- Data quality: cutout audit (2026-07-05) fixed 54 wrong crops via the
-  circular-edge search cropper (`cap_crop._edge_circle_search`); 8 residual
-  flags remain, none crop errors: #34 #47 #88 #98 #170 #223 have clean cuts
-  but their MEASURED colour disagrees with the photo (glare during scan —
-  rescan or prune via /inventory), #410 #415 are white caps the white-fringe
-  metric can't distinguish from card (likely fine). Cutout regen: ~0.8 s/cap
-  (robust nanpercentile floor dominates; optimize if it ever matters), cached
-  in dataset/cutouts so it runs once.
+- Growing `caps.db` with more scanned caps for broader real-cap colour coverage
+  (see the dataset notes in `docs/RESEARCH.md`).

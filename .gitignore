@@ -29,3 +29,8 @@ previews/
 # captured cap dataset (crops + labels + contact sheet) — root only, so the
 # bundled examples/dataset/ sample stays tracked
 /dataset/
+
+# Internal dev artifacts — not for the public repo
+work_log.md
+.stitch/
+.claude/

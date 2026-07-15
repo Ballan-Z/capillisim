@@ -190,7 +190,7 @@ that guides the physical placement of each cap. Survey in `docs/PRIOR_ART.md`.
 - `docs/ROADMAP.md`: milestones and POC success criteria.
 - `docs/PRIOR_ART.md`: what exists, what's novel.
 - `docs/RESEARCH.md`: cap datasets to import and techniques to adopt.
-- `docs/HANDOFF.md`: current state, built vs pending. Start here to resume work.
+- `docs/HANDOFF.md`: project status — what's built and tested vs what still needs the rig.
 
 ## License
 
