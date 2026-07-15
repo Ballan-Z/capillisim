@@ -12,7 +12,7 @@ into one pipeline. Architecture and rig details live in the other docs
 
 ## The idea in one strip
 
-![the artwork → the same piece in real bottle caps → caps up close → reads as a picture from across the room](images/pipeline-tyrion.jpg)
+![the artwork → real bottle caps up close → the picture forming → the whole image and the writing reading at the right distance](images/pipeline-tyrion.jpg)
 
 A bottle cap is one fat pixel (~32 mm). Up close you see caps; from a few metres
 the eye blends them into a picture. The steps between those two facts: choose
