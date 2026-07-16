@@ -80,6 +80,28 @@ in linear light, no fake blur).
 
   ![the fifteen pattern kinds](docs/images/patterns-gallery.png)
 
+### Make something from your own caps
+
+Everything above works from *your* scanned inventory. Rendered from the bundled
+416-cap example set:
+
+- **Patterns (Image menu → "… or start from a pattern").** Each one lays out
+  your whole inventory — **every cap used exactly once, always buildable**. This
+  is the most reliable way to make something beautiful from exactly what you own:
+
+  ![mandala, sunburst and swirl patterns built from 416 real bottle caps](docs/images/from-caps-patterns.jpg)
+
+- **Any image, in your cap colours (Caps menu → "Only caps I own", tick "Assume
+  unlimited stock").** The planner renders the picture from the colours you own —
+  here 65 distinct colours pulled from the 416-cap set:
+
+  ![a lion poster rendered in the colours of your own scanned caps](docs/images/from-caps-image.jpg)
+
+  > A *strict* "each physical cap once" picture from 416 caps is only ~20 caps
+  > across — too coarse for a photo. For a full image, tick **unlimited stock**
+  > (repeats your colours) or scan more caps; the **📋 AI prompt** button also
+  > generates art pre-matched to your palette.
+
 ## 2. Scan your caps
 
 First, print the **Cap Reading Card** — download
