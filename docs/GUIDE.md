@@ -225,6 +225,11 @@ second camera; **🗂 Browse** opens the inventory to inspect or delete scans):
 
   ![the fifteen pattern kinds](images/patterns-gallery.png)
 
+  Those thumbnails are illustrative; here is what three of them actually make
+  from a real 416-cap inventory — every cap placed once:
+
+  ![mandala, sunburst and swirl patterns built from 416 real bottle caps](images/from-caps-patterns.jpg)
+
 - **Sizing a pattern**: while a pattern version is on stage, a rectangle
   appears over it — drag its corner to set the real size (the stage spans
   4 m), drag its body to move it aside. The label counts the caps live and
